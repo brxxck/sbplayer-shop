@@ -39,10 +39,10 @@ export const searchMembers=(q,limit=25)=>bot(`/guilds/${config.guildId}/members/
 export const listMembers=(after='',limit=1000)=>bot(`/guilds/${config.guildId}/members?limit=${limit}${after?'&after='+encodeURIComponent(after):''}`);
 export const addRole=(userId,roleId,reason)=>bot(`/guilds/${config.guildId}/members/${userId}/roles/${roleId}`,{method:'PUT',headers:{'x-audit-log-reason':encodeURIComponent(reason).slice(0,250)}});
 export const removeRole=(userId,roleId,reason)=>bot(`/guilds/${config.guildId}/members/${userId}/roles/${roleId}`,{method:'DELETE',headers:{'x-audit-log-reason':encodeURIComponent(reason).slice(0,250)}});
-export async function notify({title,description='',fields=[],color=0x3b82f6}) {
+export async function notify({title,description='',fields=[],color=0x3b82f6,pingHere=false}) {
   if(!config.webhook)return false;
   try{
-    await request(config.webhook,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'SB Store Community',allowed_mentions:{parse:[]},embeds:[{title:String(title).slice(0,256),description:String(description).slice(0,2000),fields:fields.slice(0,10),color,timestamp:new Date().toISOString()}]})});
+    await request(config.webhook,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'SB Store Community',content:pingHere?'@here':'',allowed_mentions:{parse:pingHere?['everyone']:[]},embeds:[{title:String(title).slice(0,256),description:String(description).slice(0,2000),fields:fields.slice(0,10),color,timestamp:new Date().toISOString()}]})});
     return true;
   }catch(e){console.error('Discord webhook failed:',e.message);return false;}
 }
