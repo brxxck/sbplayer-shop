@@ -28,12 +28,14 @@ export function adminVote({appId,userId,choice,note,role,ip}){
   return transaction(()=>{
     const a=application(appId);if(!a || isFinal(a.status))throw new Error('Application unavailable or finalized');
     const old=all('SELECT admin_id,choice FROM admin_decisions WHERE application_id=?',appId);
+    if(old.filter(v=>v.choice==='accept').length>=2 || old.filter(v=>v.choice==='deny').length>=2)
+      throw new Error('Application is waiting for final owner approval');
     const result=consensus(old,{admin_id:userId,choice});
     run('INSERT INTO admin_decisions (application_id,admin_id,choice,note,created_at) VALUES(?,?,?,?,?)',appId,userId,choice,note,Date.now());
-    if(result.final){
-      run("UPDATE applications SET status=?,updated_at=?,finalized_at=?,finalized_by=?,role_sync_status=?,role_sync_error='' WHERE id=?",result.final,Date.now(),Date.now(),userId,result.final==='accepted'?'pending':'none',appId);
-      appendAudit(db,{actor:userId,role,action:'application.finalized',target:'application:'+appId,details:{outcome:result.final,accepts:result.accepts,denies:result.denies,position:a.position},ip});
-    }else run("UPDATE applications SET status=CASE WHEN status='pending' THEN 'reviewing' ELSE status END,updated_at=? WHERE id=?",Date.now(),appId);
+    // Admin consensus is a recommendation only. Only unk.sb may finalize via ownerReview().
+    run("UPDATE applications SET status=CASE WHEN status='pending' THEN 'reviewing' ELSE status END,updated_at=? WHERE id=?",Date.now(),appId);
+    if(result.final)appendAudit(db,{actor:userId,role,action:'application.consensus.reached',target:'application:'+appId,
+      details:{recommendation:result.final,accepts:result.accepts,denies:result.denies},ip});
     appendAudit(db,{actor:userId,role,action:'admin.decision',target:'application:'+appId,details:{choice,note,...result},ip});
     return {result,app:a};
   });
