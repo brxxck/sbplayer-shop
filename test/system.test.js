@@ -7,7 +7,7 @@ import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010'};
 const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
-Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
+Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
 const {config}=await import('../src/config.js');
@@ -65,13 +65,40 @@ test('members submit private applications; optional reviewers vote once then tic
   assert.ok(html.includes(`/staff/applications/${a.id}`));
   r=await post(`/staff/applications/${a.id}/review`,'reviewer',{choice:'accept',note:'Thoughtful answer and good attitude.'});assert.equal(r.status,303);
   html=await (await get('/staff','reviewer')).text();assert.ok(!html.includes(`/staff/applications/${a.id}`));
-  assert.equal((await get(`/staff/applications/${a.id}`,'reviewer')).status,403);
+  assert.equal((await get(`/staff/applications/${a.id}`,'reviewer')).status,200); // voting removes queue entry but does not block replies
   assert.equal((await get(`/staff/applications/${a.id}`,'member')).status,403);
   assert.equal((await get(`/dashboard/applications/${a.id}`,'member')).status,200);
   assert.equal((await get(`/dashboard/applications/${a.id}`,'member2')).status,404);
   assert.equal((await get(`/staff/applications/${a.id}`,'adminA')).status,200);
   assert.equal((await post(`/staff/applications/${a.id}/review`,'reviewer',{choice:'deny'})).status,303);
   assert.equal(one('SELECT COUNT(*) c FROM reviewer_votes WHERE application_id=?',a.id).c,1);
+});
+
+test('private ticket replies remain private; @here pings are throttled and test webhook is owner-only',async()=>{
+  const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);
+  const before=notifications.length;
+  // A member cannot forge staff/other-member ticket replies.
+  assert.equal((await post(`/staff/applications/${a.id}/reply`,'member',{body:'I am staff'})).status,403);
+  assert.equal((await post(`/dashboard/applications/${a.id}/reply`,'member2',{body:'Not mine'})).status,404);
+  assert.equal((await post(`/dashboard/applications/${a.id}/reply`,'member',{body:'<script>alert(1)</script> Please let me know the next step'})).status,303);
+  assert.equal(one('SELECT COUNT(*) c FROM ticket_messages WHERE application_id=?',a.id).c,1);
+  let html=await (await get(`/dashboard/applications/${a.id}`,'member')).text();
+  assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+  assert.equal(html.includes('<script>alert(1)</script>'),false);
+  assert.equal((await get(`/dashboard/applications/${a.id}`,'member2')).status,404);
+  assert.ok(notifications.length>before);
+  assert.equal(notifications.at(-1).pingHere,false,'recent new-ticket @here should suppress fast follow-up pings');
+  run('UPDATE applications SET last_staff_ping_at=0 WHERE id=?',a.id);
+  assert.equal((await post(`/dashboard/applications/${a.id}/reply`,'member',{body:'A second message after the cooldown'})).status,303);
+  assert.equal(notifications.at(-1).pingHere,true);
+  assert.equal((await post(`/staff/applications/${a.id}/reply`,'reviewer',{body:'Thanks, we are reviewing your application.'})).status,303);
+  run('UPDATE applications SET applicant_seen_at=0 WHERE id=?',a.id);
+  html=await (await get('/dashboard','member')).text();assert.ok(html.includes('unread'));
+  html=await (await get(`/dashboard/applications/${a.id}`,'member')).text();assert.ok(html.includes('Thanks, we are reviewing'));
+  assert.equal((await post('/admin/settings/webhook/test','adminA',{})).status,403);
+  assert.equal((await post('/admin/settings/webhook/test','owner',{})).status,303);
+  assert.equal(notifications.at(-1).title,'SB Store Webhook Test');
+  assert.equal(notifications.at(-1).pingHere,undefined,'test should not ping anyone');
 });
 
 test('one admin approval does not finalize; two distinct admins approve and Discord role assigned',async()=>{
@@ -81,7 +108,15 @@ test('one admin approval does not finalize; two distinct admins approve and Disc
   r=await post(`/staff/applications/${app.id}/decide`,'adminA',{choice:'accept',note:'Duplicate vote'});assert.equal(r.status,303);
   assert.equal(one('SELECT count(*) c FROM admin_decisions WHERE application_id=?',app.id).c,1);
   r=await post(`/staff/applications/${app.id}/decide`,'adminB',{choice:'accept',note:'I agree'});assert.equal(r.status,303);
+
+  assert.equal(one('SELECT status FROM applications WHERE id=?',app.id).status,'reviewing','two matching votes cannot finalize');
+  assert.equal(additions,0,'roles are not assigned before unk.sb approval');
+  const queue=await (await get('/owner/approvals','owner')).text();
+  assert.ok(queue.includes(`/staff/applications/${app.id}`));
+  assert.equal((await post(`/owner/applications/${app.id}/action`,'adminA',{action:'approve'})).status,403);
+  assert.equal((await post(`/owner/applications/${app.id}/action`,'owner',{action:'approve',note:'Approved by unk.sb'})).status,303);
   const updated=one('SELECT * FROM applications WHERE id=?',app.id);
+  assert.equal(updated.finalized_by,ids.owner);
   assert.equal(updated.status,'accepted');assert.equal(updated.role_sync_status,'assigned');assert.equal(updated.role_sync_role,roles.helper);assert.equal(additions,1);
   assert.ok(memberMap.get(ids.member).roles.includes(roles.helper));
   assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',app.id).c,2);
@@ -94,6 +129,8 @@ test('two matching admin denials finalize without assigning Discord roles',async
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminA',{choice:'deny'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'deny'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'denied');
   assert.equal(memberMap.get(ids.member2).roles.includes(roles.helper),false);
 });
@@ -164,6 +201,12 @@ test('split admin votes wait for a third matching admin, never reviewer quorum',
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'deny'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminC',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'return',note:'Run another voting round'})).status,303);
+  assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,0);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminA',{choice:'accept'})).status,303);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminC',{choice:'accept'})).status,303);
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'accepted');
   assert.equal(one('SELECT COUNT(*) c FROM reviewer_votes WHERE application_id=?',a.id).c,0);
 });
@@ -213,6 +256,8 @@ test('Discord role delivery failure is visible, logged and retryable by an admin
   failNextRole=true;
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminA',{choice:'accept'})).status,303);
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   let current=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(current.status,'accepted');assert.equal(current.role_sync_status,'failed');
   assert.match(current.role_sync_error,/temporary failure/);
