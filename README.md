@@ -1,47 +1,49 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
 # SB's & Cam's Store — Community Website
 
-Private source repository for the Discord-based community portal planned for **https://sbplayer.shop**.
+Private source repository for the Discord-based community portal intended for **https://sbplayer.shop**.
 
-## Repository upload status
+## Current status
 
-The repository has been initialized with protective Git ignore rules. The V1.2.1 application source is **not uploaded yet**. Do not deploy until the application files are present.
+The repository is initialized with a `.gitignore` to protect Discord credentials, SQLite databases, sessions, and uploaded member data. **The website V1.2.1 application source has not been uploaded yet.** Do not deploy this repository until its actual application files are present.
 
-## Upload the V1.2.1 source from Windows
+## Safely upload the website source from Windows
 
-1. Download and extract the `sbs-cams-community-v1.2.1-ui-fix.zip` project.
-2. **Do not copy your `.env`, `data`, or `public/uploads` into the repository.** They contain live secrets, member submissions, and private data.
-3. Open PowerShell in the extracted project folder (the one containing `package.json`).
-4. Run:
+1. Download and extract `sbs-cams-community-v1.2.1-ui-fix.zip`.
+2. Clone this private repository into a **new** folder:
 
 ```powershell
-git init
-git branch -M main
-git remote add origin https://github.com/brxxck/sbplayer-shop.git
-git fetch origin main
-git reset --soft origin/main
+git clone https://github.com/brxxck/sbplayer-shop.git
+```
+
+3. Copy the application source files from the extracted ZIP into the freshly cloned `sbplayer-shop` folder, including `package.json`, the `src` directory, `public` static assets, tests and configuration templates.
+4. **Do not copy** your real `.env`, `data`, `public/uploads`, `node_modules`, or any local database, backup, session, token or secret files. Leave the repository's protective `.gitignore` in place.
+5. Open PowerShell inside the cloned `sbplayer-shop` directory and run:
+
+```powershell
 git add .
 git status --short
 git diff --cached --name-only
 ```
 
-Before committing, check that the staged list includes source files and `package.json`, **but not** any `.env`, database, private session files, or uploaded member content. If anything sensitive is staged, stop and unstage it; do not push.
+Inspect the exact staged file list. Confirm it contains application source and `package.json` but **no** private values or user data. If you find anything sensitive, **do not commit or push**: unstage it with `git restore --staged -- <filename>` and remove the sensitive file from the cloned working folder.
 
-Then run:
+When everything is safe:
 
 ```powershell
 git commit -m "Add SB's & Cam's Store V1.2.1 source"
-git push -u origin main
+git push origin main
 ```
 
-If Git asks for sign-in, use GitHub's browser authorization. If the remote already exists, check `git remote -v` before changing it.
+GitHub may prompt for browser login.
 
-## Deployment requirements
+## Deployment notes
 
-- Node.js 24
-- Configured private environment variables on the host
-- Persistent volumes for SQLite and uploaded media
-- HTTPS and Discord OAuth callback `https://sbplayer.shop/auth/callback`
-- A verified Discord bot with the appropriate member intent and role hierarchy
+- Node.js 24 recommended
+- Configure private environment variables in hosting settings; don't upload `.env`
+- Persistent storage for SQLite data and media uploads
+- HTTPS, production `BASE_URL=https://sbplayer.shop`
+- Discord OAuth redirect `https://sbplayer.shop/auth/callback`
+- Discord bot installed in the target guild, with required permissions and role hierarchy
 
-Never commit or share Discord credentials. Rotate any previously disclosed Client Secret, Bot Token, or webhook. 
+Rotate any Discord Client Secret, Bot Token, or webhook previously disclosed in a chat before launch.
