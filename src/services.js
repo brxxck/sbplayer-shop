@@ -4,7 +4,9 @@ import {appendAudit} from './audit.js';
 import {manageableRoles,protectedRole,consensus,isFinal} from './logic.js';
 import {config} from './config.js';
 export const application=(id)=>one('SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?',id);
-export const ownApplications=id=>all('SELECT * FROM applications WHERE user_id=? ORDER BY created_at DESC LIMIT 100',id);
+export const ownApplications=id=>all(`SELECT a.*,
+  (SELECT COUNT(*) FROM ticket_messages m WHERE m.application_id=a.id AND m.author_id!=a.user_id AND m.created_at>a.applicant_seen_at) AS unread_replies
+  FROM applications a WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT 100`,id);
 export const activeApplication=id=>one("SELECT id FROM applications WHERE user_id=? AND status NOT IN ('accepted','denied') ORDER BY created_at DESC LIMIT 1",id);
 export const latestApplication=id=>one('SELECT created_at FROM applications WHERE user_id=? ORDER BY created_at DESC LIMIT 1',id);
 export const applicationCounts=()=>Object.fromEntries(all('SELECT status,count(*) count FROM applications GROUP BY status').map(x=>[x.status,x.count]));
