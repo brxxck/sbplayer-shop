@@ -57,3 +57,19 @@
 .sidebar-scroll::-webkit-scrollbar-thumb{background:#2a4b74;border-radius:10px}
 .side-bottom{flex:0 0 auto;margin-top:0;background:#09182c;min-height:67px}
 .side-profile .avatar.side{width:40px;height:40px;min-width:40px;max-width:40px;max-height:40px}
+
+/* Ticket reply conversation and locked owner finalization — V1.3.0 */
+.ticket-conversation,.owner-review-panel,.owner-settings-box{margin-top:20px}
+.ticket-heading{padding:0 0 15px;margin-bottom:14px}
+.ticket-heading h2{margin:0}
+.ticket-messages{display:grid;gap:12px;margin:0 0 22px}
+.ticket-message{display:flex;gap:12px;min-width:0;padding:14px;background:#0b1b31;border:1px solid var(--line);border-radius:12px}
+.ticket-message-main{min-width:0;flex:1}
+.ticket-message-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.ticket-message-meta b{font-size:13px}
+.ticket-message-meta small{color:var(--muted);font-size:11px}
+.ticket-message-main p{margin:9px 0 2px;overflow-wrap:anywhere;color:#ddeaf9;line-height:1.6}
+.ticket-conversation form label{margin-bottom:8px}
+.owner-review-panel .choice-row{flex-wrap:wrap}
+.owner-review-panel .choice-row .btn{flex:1 1 170px}
+.owner-settings-box{max-width:100%}
