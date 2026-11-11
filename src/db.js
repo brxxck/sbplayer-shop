@@ -35,6 +35,24 @@ CREATE TABLE IF NOT EXISTS admin_decisions (
  choice TEXT NOT NULL CHECK(choice IN ('accept','deny')), note TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
  PRIMARY KEY(application_id,admin_id)
 );
+CREATE TABLE IF NOT EXISTS ticket_messages (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+ author_id TEXT NOT NULL REFERENCES users(id),
+ author_role TEXT NOT NULL, body TEXT NOT NULL,
+ created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ticket_messages ON ticket_messages(application_id,id);
+CREATE TABLE IF NOT EXISTS owner_review_actions (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ application_id INTEGER NOT NULL REFERENCES applications(id),
+ owner_id TEXT NOT NULL REFERENCES users(id),
+ recommendation TEXT NOT NULL CHECK(recommendation IN ('accepted','denied')),
+ action TEXT NOT NULL CHECK(action IN ('approve','deny','return')),
+ outcome TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+ created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_owner_review_app ON owner_review_actions(application_id,id);
 CREATE TABLE IF NOT EXISTS profiles (
  user_id TEXT PRIMARY KEY REFERENCES users(id), nickname TEXT NOT NULL DEFAULT '',bio TEXT NOT NULL DEFAULT '',
  pronouns TEXT NOT NULL DEFAULT '',status_text TEXT NOT NULL DEFAULT '', accent TEXT NOT NULL DEFAULT 'blue',
@@ -92,7 +110,9 @@ for(const [name,def] of Object.entries({
   role_sync_status:"TEXT NOT NULL DEFAULT 'none'",
   role_sync_error:"TEXT NOT NULL DEFAULT ''",
   role_sync_role:"TEXT NOT NULL DEFAULT ''",
-  finalized_at:'INTEGER',finalized_by:'TEXT'
+  finalized_at:'INTEGER',finalized_by:'TEXT',
+  last_staff_ping_at:'INTEGER NOT NULL DEFAULT 0',
+  applicant_seen_at:'INTEGER NOT NULL DEFAULT 0'
 })) if(!appColumns.has(name)) db.exec(`ALTER TABLE applications ADD COLUMN ${name} ${def}`);
 const setting=db.prepare('INSERT OR IGNORE INTO settings (key,value,changed_at) VALUES (?,?,?)');
 setting.run('applications_open',String(config.applicationsOpen),Date.now());
