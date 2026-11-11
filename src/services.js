@@ -32,7 +32,8 @@ export function adminVote({appId,userId,choice,note,role,ip}){
     const old=all('SELECT admin_id,choice FROM admin_decisions WHERE application_id=?',appId);
     if(old.filter(v=>v.choice==='accept').length>=2 || old.filter(v=>v.choice==='deny').length>=2)
       throw new Error('Application is waiting for final owner approval');
-    const result=consensus(old,{admin_id:userId,choice});
+    if(config.finalApproverId && userId===config.finalApproverId)throw new Error('The final approver cannot submit an admin recommendation');
+    const result=consensus(old.filter(v=>v.admin_id!==config.finalApproverId),{admin_id:userId,choice});
     run('INSERT INTO admin_decisions (application_id,admin_id,choice,note,created_at) VALUES(?,?,?,?,?)',appId,userId,choice,note,Date.now());
     // Admin consensus is a recommendation only. Only unk.sb may finalize via ownerReview().
     run("UPDATE applications SET status=CASE WHEN status='pending' THEN 'reviewing' ELSE status END,updated_at=? WHERE id=?",Date.now(),appId);
