@@ -27,6 +27,7 @@ export const config = {
   reviewerIds: ids(process.env.REVIEWER_ROLE_IDS),
   adminIds: ids(process.env.ADMIN_ROLE_IDS),
   ownerIds: ids(process.env.OWNER_USER_IDS),
+  finalApproverId: (process.env.FINAL_APPROVER_USER_ID || '').trim(),
   ownerRoleIds: ids(process.env.OWNER_ROLE_IDS),
   protectedIds: ids(process.env.PROTECTED_ROLE_IDS),
   teamRoleIds: ids(process.env.TEAM_ROLE_IDS),
@@ -48,4 +49,5 @@ export function validateConfig() {
   if (u.protocol !== 'https:' && !(u.protocol==='http:' && ['localhost','127.0.0.1','[::1]'].includes(u.hostname))) throw new Error('BASE_URL must use HTTPS, except localhost');
   if (config.webhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/[a-zA-Z0-9_-]+$/.test(config.webhook)) throw new Error('Invalid DISCORD_WEBHOOK_URL');
   if (config.production && !config.adminIds.size) throw new Error('Production requires ADMIN_ROLE_IDS');
+  if (config.finalApproverId && !/^\d{15,22}$/.test(config.finalApproverId)) throw new Error('FINAL_APPROVER_USER_ID must be a numeric Discord user ID');
 }
