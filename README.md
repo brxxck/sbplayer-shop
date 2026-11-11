@@ -1,7 +1,27 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.2.1
+# SB's & Cam's Store — Community Portal V1.3.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This is a runnable starter project, **not a hosted website**.
+
+## V1.3.0: private ticket replies, @here webhook and final owner authorization
+
+- Applicants and staff can reply privately on any application ticket. Staff notes and votes stay hidden from applicants. Reviewers may reopen a ticket to reply after submitting their optional vote, while it remains removed from their pending-review queue. Applicants see unread staff replies in **My Applications**.
+- New applications send **@here** to the configured Discord staff-channel webhook. Applicant replies notify the staff channel, with @here limited to once per ticket per five minutes to avoid ping flooding. Staff replies and final decisions do not ping @here.
+- Admin consensus now creates a **recommendation**, not a final decision. Two different admins must agree before **unk.sb** authorizes final acceptance/denial. Only after the configured owner's approval does the bot try to assign the accepted staff role. The owner may override to Deny or return the ticket for a fresh voting round. Existing finalized tickets remain finalized.
+- **Owner → Final Approvals** lists tickets awaiting the final decision. **Admin Settings → Discord staff webhook → Test Webhook** is visible to owners and sends a no-ping test. All actions are audited.
+- Set Railway Variable **FINAL_APPROVER_USER_ID** to unk.sb's **numeric Discord user ID**, not username. This gate fails closed if the ID is missing. The account also needs owner permissions: either be the verified Discord server owner or appear in **OWNER_USER_IDS**. Other admins and co-owners cannot bypass the explicit final approver ID check.
+- The webhook must post in a **staff-only Discord channel**, and its integration must be permitted to mention @here. No applicant text is copied into webhook messages, and the Test Webhook button deliberately sends no @here.
+
+### Updating on Railway without deleting live data
+
+1. **Back up first.** In Railway, open the production `sbplayer-shop` service → **Backups** and make/verify a volume snapshot (and keep an independent backup if possible).
+2. Check the Railway **Volume** is still attached at `/app/data`, and **Variables** includes `DB_PATH=/app/data/app.sqlite`. Uploaded images must be in `/app/data/uploads`.
+3. Set `FINAL_APPROVER_USER_ID` and verify `OWNER_USER_IDS` only if unk.sb isn't already the actual Discord guild owner. Keep the secret webhook URL in `DISCORD_WEBHOOK_URL` and ensure `BASE_URL=https://sbstore.info`.
+4. Deploy the updated GitHub `main` branch through Railway's connected GitHub deployment (automatic if enabled, otherwise choose **Deploy Latest**). **Do not delete or recreate the Railway service, volume or database. Do not switch DB_PATH to an ephemeral path.**
+5. Open `/health` and confirm version `1.3.0`. Sign in as unk.sb, visit **Admin Settings → Test Webhook**, then check **Final Approvals**.
+6. Existing applications, users, votes, sessions, profiles, posts, suggestions, audit, and uploads survive because this release adds only new tables and new optional columns to the same SQLite database on the existing volume.
+
+**Warning:** If you deployed with an ephemeral database instead of the mounted volume, a rebuild will not preserve those old bytes. Confirm the path/mount and snapshot before upgrading. Before public promotion, clear any active browser security warning and rotate previously leaked bot/webhook credentials.
 
 ## V1.2.1 layout repair
 
@@ -58,7 +78,7 @@ The existing V1.1 settings remain supported:
 | `DISCORD_GUILD_ID` | Your Discord server ID |
 | `REVIEWER_ROLE_IDS` | Comma-separated reviewer Discord role IDs |
 | `ADMIN_ROLE_IDS` | Comma-separated website admin Discord role IDs |
-| `OWNER_USER_IDS` | Optional **co-owner user IDs** (NOT role IDs) who can access Owner Audit |
+| `OWNER_USER_IDS` | Optional **co-owner user IDs** (NOT role IDs) who can access Owner Audit |\n| `FINAL_APPROVER_USER_ID` | **Required for final staff approvals:** unk.sb's numeric Discord user ID; never a username |
 | `OWNER_ROLE_IDS` | Optional role IDs to mark **protected**, not to grant owner access |
 | `PROTECTED_ROLE_IDS` | Additional sensitive roles never managed through the role tool |
 | `TEAM_ROLE_IDS` | Optional additional roles to include in Team Members |
@@ -86,9 +106,9 @@ If `APPLICATION_ROLE_IDS` isn't specified, the application matches detected Disc
 | View/export the full owner audit | — | — | — | ✓ |
 | Grant/revoke website co-owner access | — | — | — | **Verified Discord server owner only** |
 
-**Critical application rule:** Reviewer votes are **optional** and never needed to finalize. **Two different admins must independently vote the same way** (both Accept or both Deny) before the application is finalized. A split vote remains open until two admins agree. Each admin can vote once per application. Reviewers lose the ticket from their pending queue as soon as they submit a vote. Members can access only their own application list.
+**Critical application rule (V1.3.0):** Reviewer votes are **optional**. **Two different admins must independently vote the same way** (both Accept or both Deny) before the application can be sent to **unk.sb for mandatory final authorization**. A split vote stays open until two admins agree. Only unk.sb's configured Discord user ID can finalize, deny, or return for review. Reviewers lose the ticket from the pending vote queue after voting, but can still access the private conversation. Applicants can read and reply only to their own tickets.
 
-On acceptance, the app immediately tries to assign the mapped Discord role. If Discord rejects the role assignment, the application remains `accepted`, the role delivery status says `failed`, and an admin can use **Retry role delivery** on that application. The failure and any retry are logged for owners.
+Only after unk.sb approves an acceptance recommendation, the app tries to assign the mapped Discord role. If Discord rejects the role assignment, the application remains `accepted`, the role delivery status says `failed`, and an admin can use **Retry role delivery** on that application. The failure and any retry are logged for owners.
 
 ### Role-management safeguards
 
