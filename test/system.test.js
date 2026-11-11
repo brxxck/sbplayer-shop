@@ -5,7 +5,7 @@ import {mkdtempSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
-const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010'};
+const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012'};
 const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
@@ -47,7 +47,7 @@ async function post(path,who,values={}){
 const answers={position:'Helper',age_bracket:'18+',timezone:'GMT',availability:'I am usually active through the evenings and weekends.',experience:'I have helped moderate several online communities in the past.',motivation:'I want to support members and improve the community experience.',scenario:'I would ask them to stop arguing and move the dispute into a private support ticket.'};
 
 test('login as each permission level, and enforce owner-only audit',async()=>{
-  for(const x of ['owner','adminA','adminB','adminC','reviewer','member','member2','member3'])await login(x);
+  for(const x of ['owner','adminA','adminB','adminC','reviewer','member','member2','member3','member4'])await login(x);
   assert.equal((await get('/owner/audit','member')).status,403);
   assert.equal((await get('/owner/audit','adminA')).status,403);
   assert.equal((await get('/admin/roles','reviewer')).status,403);
@@ -103,6 +103,7 @@ test('private ticket replies remain private; @here pings are throttled and test 
 
 test('one admin approval does not finalize; two distinct admins approve and Discord role assigned',async()=>{
   const app=one('SELECT * FROM applications WHERE user_id=?',ids.member);
+  assert.equal((await post(`/staff/applications/${app.id}/decide`,'owner',{choice:'accept'})).status,403,'unk.sb cannot be counted as an admin recommender');
   let r=await post(`/staff/applications/${app.id}/decide`,'adminA',{choice:'accept',note:'Ready for the team'});
   assert.equal(r.status,303);assert.equal(one('SELECT status FROM applications WHERE id=?',app.id).status,'reviewing');assert.equal(additions,0);
   r=await post(`/staff/applications/${app.id}/decide`,'adminA',{choice:'accept',note:'Duplicate vote'});assert.equal(r.status,303);
@@ -133,6 +134,19 @@ test('two matching admin denials finalize without assigning Discord roles',async
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'denied');
   assert.equal(memberMap.get(ids.member2).roles.includes(roles.helper),false);
+});
+
+test('unk.sb can override an acceptance recommendation to denial without granting a role',async()=>{
+  assert.equal((await post('/apply','member4',answers)).status,303);
+  const a=one('SELECT * FROM applications WHERE user_id=?',ids.member4);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminA',{choice:'accept'})).status,303);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'deny',note:'Not ready to join staff'})).status,303);
+  const current=one('SELECT * FROM applications WHERE id=?',a.id);
+  assert.equal(current.status,'denied');assert.equal(current.finalized_by,ids.owner);
+  assert.equal(memberMap.get(ids.member4).roles.includes(roles.helper),false);
+  assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=? ORDER BY id DESC LIMIT 1',a.id).action,'deny');
 });
 
 test('role manager forbids administrator/managed roles but permits safe role assignment',async()=>{
@@ -215,6 +229,8 @@ test('verified owner can grant and revoke co-owner audit access, admins cannot',
   assert.equal((await post('/owner/owners','adminA',{user_id:ids.member2})).status,403);
   assert.equal((await post('/owner/owners','owner',{user_id:ids.member2})).status,303);
   assert.equal((await get('/owner/audit','member2')).status,200);
+  const original=one('SELECT id FROM applications WHERE user_id=?',ids.member);
+  assert.equal((await post(`/owner/applications/${original.id}/action`,'member2',{action:'approve'})).status,403,'co-owners cannot impersonate unk.sb');
   assert.equal((await get('/owner/owners','member2')).status,403);
   assert.equal((await post('/owner/owners/remove','owner',{user_id:ids.member2})).status,303);
   assert.equal((await get('/owner/audit','member2')).status,403);
