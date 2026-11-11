@@ -2,6 +2,7 @@
 import {db,all,one,run,transaction} from './db.js';
 import {appendAudit} from './audit.js';
 import {isFinal} from './logic.js';
+import {config} from './config.js';
 
 // Keep conversations and owner decisions in additive tables. Existing application records are never rebuilt.
 export const ticketMessages=appId=>all(`SELECT * FROM (
@@ -29,7 +30,7 @@ export function reserveStaffPing(appId,cooldownMs=300000) {
 }
 
 export function ownerRecommendation(appId) {
-  const rows=all('SELECT choice FROM admin_decisions WHERE application_id=?',appId);
+  const rows=all('SELECT admin_id,choice FROM admin_decisions WHERE application_id=?',appId).filter(v=>v.admin_id!==config.finalApproverId);
   const accepts=rows.filter(x=>x.choice==='accept').length;
   const denies=rows.filter(x=>x.choice==='deny').length;
   return accepts>=2?'accepted':denies>=2?'denied':null;
