@@ -48,12 +48,12 @@ test('static CSS and JS are served no-store even with version query; logo is rec
   server=createServer({discord:{}});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
-  for(const path of ['/static/style.css?v=1.2.1-layout-fix','/static/app.js?v=1.2.1-layout-fix']){
+  for(const path of ['/static/style.css?v=1.3.0-tickets','/static/app.js?v=1.3.0-tickets']){
     const resp=await fetch(base+path);
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/no-store/);
   }
-  const logo=await fetch(base+'/static/sb-logo.png?v=1.2.1-layout-fix');
+  const logo=await fetch(base+'/static/sb-logo.png?v=1.3.0-tickets');
   assert.equal(logo.status,200);
   assert.equal(logo.headers.get('content-type'),'image/png');
 });
