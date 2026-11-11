@@ -1,0 +1,19 @@
+{
+  "name": "sbs-cams-community",
+  "version": "1.2.1",
+  "private": true,
+  "type": "module",
+  "description": "SB's & Cam's Store Discord staff applications and community portal",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "diagnose": "node scripts/diagnose.js",
+    "audit:verify": "node scripts/verify-audit.js"
+  },
+  "dependencies": {},
+  "_watermark": "// BUILT BY SB // RUNING ON WEED AND CAFFEINE"
+}

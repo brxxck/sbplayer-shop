@@ -1,0 +1,660 @@
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+import http from 'node:http';
+import {readFileSync,statSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {resolve,basename,extname} from 'node:path';
+import {timingSafeEqual} from 'node:crypto';
+import {config,root,validateConfig} from './config.js';
+import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
+import {appendAudit,verifyAudit} from './audit.js';
+import {classify,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
+import * as liveDiscord from './discord.js';
+import {randomToken,sha256} from './discord.js';
+import {parseRequestBody,saveImage,safeImageFile} from './uploads.js';
+import * as view from './views.js';
+import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
+
+class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
+class Redirect extends Error {constructor(path){super('Redirect');this.path=path;}}
+const invalid=(message='Invalid input')=>{throw new HttpError(400,message);};
+const forbidden=(message='You do not have access to this page.')=>{throw new HttpError(403,message);};
+const missing=()=>{throw new HttpError(404,'Not found.');};
+const now=()=>Date.now();
+function cookies(raw=''){const result={};for(const part of raw.split(';')){const pos=part.indexOf('=');if(pos<0)continue;try{result[decodeURIComponent(part.slice(0,pos).trim())]=decodeURIComponent(part.slice(pos+1).trim());}catch{}}return result;}
+function secureEqual(a,b){if(typeof a!=='string'||typeof b!=='string')return false;const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length && timingSafeEqual(x,y);}
+const responseHeaders={
+  'x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
+  'x-frame-options':'DENY','permissions-policy':'camera=(),microphone=(),geolocation=()',
+  'cross-origin-resource-policy':'same-origin',
+  'content-security-policy':"default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; upgrade-insecure-requests"
+};
+function respond(res,status,body,type='text/html; charset=utf-8',extra={}) {res.writeHead(status,{'content-type':type,'cache-control':'no-store',...extra});res.end(body);}
+function redirect(res,url){res.writeHead(303,{location:url,'cache-control':'no-store'});res.end();}
+const urlWithNotice=(to,message,kind='success')=>{const u=new URL(to,'http://localhost');u.searchParams.set('notice',String(message).slice(0,250));u.searchParams.set('type',kind);return u.pathname+u.search;};
+function setCookie(res,name,value,{maxAge=0}={}) {
+  const host=config.production?'; Secure':'';
+  const v=`${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax${host}${maxAge?`; Max-Age=${maxAge}`:'; Max-Age=0'}`;
+  res.setHeader('Set-Cookie',[...(res.getHeader('Set-Cookie')||[]),v]);
+}
+const idFrom=(s)=>{const v=Number(s);return Number.isSafeInteger(v)&&v>0?v:null;};
+const pageNumber=v=>Number.isInteger(Number(v))?Math.max(0,Math.min(100,Number(v))):0;
+const isStaffRole=r=>['reviewer','admin','owner'].includes(r);
+const isAdminRole=r=>['admin','owner'].includes(r);
+const ipOf=req=>{
+  const remote=String(req.socket.remoteAddress||'').slice(0,90);
+  return config.trustProxy?String(req.headers['x-forwarded-for']||remote).split(',')[0].trim().slice(0,90):remote;
+};
+function headerError(err){if(err instanceof HttpError)return err;if([400,413,415].includes(err?.status))return new HttpError(err.status,String(err.message).slice(0,300));return new HttpError(500,'An unexpected error occurred.');}
+function csrfForm(form,ctx){if(!ctx.session || !secureEqual(form.fields._csrf,ctx.session.csrf))forbidden('Session verification failed. Refresh the page and retry.');}
+const formValue=(fields,name,max,min=0)=>{const val=limitText(fields[name],max,min);if(val===null)invalid(`Invalid or missing field: ${name}`);return val;};
+const validVote=choice=>['accept','deny'].includes(choice);
+function logAction(ctx,action,target='',details={},outcome='ok') {
+  transaction(()=>appendAudit(db,{actor:ctx.user?.id||'anonymous',role:ctx.role,action,target,outcome,details,ip:ctx.ip}));
+}
+function loadPosts(viewerId,page=0,userId=null,limit=20){return listPosts(viewerId,{page,userId,limit});}
+const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.gif':'image/gif','.webp':'image/webp'};
+async function serveStatic(res,path) {
+  let file;
+  if(path.startsWith('/uploads/'))file=safeImageFile(path);
+  else if(['/static/style.css','/static/app.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else return false;
+  if(!file)throw new HttpError(404,'Image not found');
+  const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
+  // CSS/JS change between releases. Never let an old stylesheet break a newer HTML layout.
+  const cacheControl = ['.css','.js'].includes(extname(file)) ? 'no-store, max-age=0' : 'public, max-age=3600';
+  respond(res,200,readFileSync(file),safeStatic[extname(file)]||'application/octet-stream',{'cache-control':cacheControl,'x-content-type-options':'nosniff'});
+  return true;
+}
+const rateBuckets=new Map();
+function rate(ctx,name,max,windowMs=60000){
+  const key=(ctx.user?.id||ctx.ip)+'|'+name;
+  const data=rateBuckets.get(key);const stamp=now();
+  if(!data||stamp-data.at>windowMs){rateBuckets.set(key,{at:stamp,count:1});return;}
+  if(++data.count>max)throw new HttpError(429,'Too many requests. Try again later.');
+}
+setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)rateBuckets.delete(k);run('DELETE FROM sessions WHERE expires_at<?',t);},3600000).unref();
+
+export function createServer({discord=liveDiscord,testLogin=false}={}){
+  let teamCache=null;
+  async function handle(req,res) {
+    Object.entries(responseHeaders).forEach(([key,value])=>res.setHeader(key,value));
+    if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
+    const url=new URL(req.url||'/','http://localhost');
+    const pathname=url.pathname;
+    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
+    const c=cookies(req.headers.cookie);
+    if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
+    const html=(content,status=200)=>respond(res,status,content);
+    const success=(path,message)=>redirect(res,urlWithNotice(path,message));
+    const warn=(path,message)=>redirect(res,urlWithNotice(path,message,'error'));
+    async function member(){
+      if(ctx.member)return;
+      if(!ctx.user)throw new Redirect('/auth/login');
+      const [guild,actual]=await Promise.all([discord.getGuild(),discord.getGuildMember(ctx.user.id)]);
+      if(!guild||!actual||actual.pending)throw new HttpError(403,'This Discord account is not currently a verified member of SB’s & Cam’s Store. Complete membership screening or sign in with the correct account.');
+      ctx.guild=guild;ctx.member=actual;
+      const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
+      ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
+      if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
+      // Owner-only ledger: record every page read and every staff write attempt, even if a later check denies it.
+      if(isStaffRole(ctx.role))logAction(ctx,req.method==='GET'?'staff.page.read':'staff.request.attempt',pathname,{method:req.method},req.method==='GET'?'ok':'attempt');
+    }
+    async function authorize(level){
+      await member();
+      const okay=level==='staff'?isStaffRole(ctx.role):level==='admin'?isAdminRole(ctx.role):level==='owner'?ctx.role==='owner':true;
+      if(!okay){logAction(ctx,'security.access.denied',pathname,{required:level},'denied');forbidden();}
+    }
+    async function form(){
+      const parsed=await parseRequestBody(req);csrfForm(parsed,ctx);return parsed;
+    }
+    if(req.method==='GET' && pathname.startsWith('/uploads/')){
+      await member();
+      const privateOwner=one('SELECT user_id FROM profiles WHERE public=0 AND (avatar_path=? OR banner_path=? OR background_path=?)',pathname,pathname,pathname);
+      if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
+    }
+    if(req.method==='GET'&&await serveStatic(res,pathname))return;
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.2.1'}),'application/json; charset=utf-8');}
+    if(pathname==='/'&&req.method==='GET'){if(ctx.user)await member();return html(view.home(ctx));}
+    if(pathname==='/auth/login'&&req.method==='GET'){
+      rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
+      setCookie(res,'oauth',Buffer.from(JSON.stringify({state,verifier})).toString('base64url'),{maxAge:600});
+      res.writeHead(302,{location:discord.authUrl(state,sha256(verifier))});res.end();return;
+    }
+    if(pathname==='/auth/callback'&&req.method==='GET'){
+      rate(ctx,'auth.callback',25);let saved;
+      try{saved=JSON.parse(Buffer.from(c.oauth||'','base64url').toString('utf8'));}catch{}
+      setCookie(res,'oauth','');
+      if(!saved || !secureEqual(url.searchParams.get('state'),saved.state)||!url.searchParams.get('code'))invalid('Discord authorization was cancelled or expired. Try signing in again.');
+      const token=await discord.exchangeCode(url.searchParams.get('code'),saved.verifier);
+      const [profile,oauthMember,guild]=await Promise.all([discord.getDiscordUser(token.access_token),discord.getOAuthGuildMember(token.access_token),discord.getGuild()]);
+      if(!profile||!idOK(profile.id)||!oauthMember||oauthMember.pending)forbidden('Your Discord account must be a verified member of this server.');
+      const actual=await discord.getGuildMember(profile.id);if(!actual||actual.pending)forbidden('Discord bot could not verify membership.');
+      upsertUser(profile);ensureProfile(profile.id);
+      if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));
+      const sid=randomToken(),csrf=randomToken();run('INSERT INTO sessions(token_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)',sha256(sid),profile.id,csrf,now()+7*86400000);
+      setCookie(res,'sid',sid,{maxAge:7*86400});
+      const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
+      const role=classify(actual,guild.owner_id,profile.id,config,coowners);
+      if(isStaffRole(role))logAction({...ctx,user:profile,role},'staff.login',profile.id);
+      return redirect(res,'/dashboard');
+    }
+    if(testLogin && process.env.NODE_ENV==='test' && pathname.startsWith('/__test/login/') && req.method==='GET'){
+      const id=pathname.split('/').pop();if(!idOK(id))invalid();const m=await discord.getGuildMember(id);if(!m)forbidden();
+      upsertUser({...m,user:m.user||{id,username:'test'+id,global_name:'Test '+id}});ensureProfile(id);
+      const sid=randomToken();run('INSERT INTO sessions(token_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)',sha256(sid),id,randomToken(),now()+86400000);
+      setCookie(res,'sid',sid,{maxAge:86400});return redirect(res,'/dashboard');
+    }
+    if(pathname==='/auth/logout'&&req.method==='POST'){
+      if(!ctx.user) return redirect(res,'/');
+      try{await member();}catch{}
+      await form();
+      if(isStaffRole(ctx.role))logAction(ctx,'staff.logout',ctx.user.id);
+      if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));setCookie(res,'sid','');return redirect(res,'/');
+    }
+    // All routes below this point are server-member-only.
+    await member();
+    if(pathname==='/dashboard'&&req.method==='GET')return html(view.dashboard(ctx,ownApplications(ctx.user.id)));
+    let ownTicketMatch=/^\/dashboard\/applications\/(\d+)$/.exec(pathname);
+    if(ownTicketMatch&&req.method==='GET'){
+      const id=idFrom(ownTicketMatch[1]);
+      const ticket=one('SELECT * FROM applications WHERE id=? AND user_id=?',id,ctx.user.id);
+      if(!ticket)missing();
+      return html(view.ownTicket(ctx,ticket));
+    }
+    if(pathname==='/apply'&&req.method==='GET'){
+      const recent=latestApplication(ctx.user.id);
+      return html(view.apply(ctx,{active:activeApplication(ctx.user.id),cooldown:recent&&now()-recent.created_at<7*86400000,open:getSetting('applications_open','true')==='true'}));
+    }
+    if(pathname==='/apply'&&req.method==='POST'){
+      rate(ctx,'application.submit',3,3600000);
+      const {fields}=await form();
+      if(getSetting('applications_open','true')!=='true')return warn('/dashboard','Applications are currently closed.');
+      const position=formValue(fields,'position',80,1);
+      if(!config.applicationRoles.includes(position))invalid('Unknown staff position');
+      const age=formValue(fields,'age_bracket',40,1);
+      if(!['Under 16','16–17','18+','Prefer not to say'].includes(age))invalid('Invalid age selection');
+      const timezone=formValue(fields,'timezone',80,2);
+      const availability=formValue(fields,'availability',2500,30),experience=formValue(fields,'experience',2500,30),motivation=formValue(fields,'motivation',2500,30),scenario=formValue(fields,'scenario',2500,30);
+      if(activeApplication(ctx.user.id))return warn('/dashboard','You have an active application already.');
+      const recent=latestApplication(ctx.user.id);
+      if(recent&&now()-recent.created_at<7*86400000)return warn('/dashboard','Please wait 7 days between applications.');
+      const stamp=now();
+      const id=transaction(()=>{
+        const result=run('INSERT INTO applications(user_id,position,age_bracket,timezone,availability,experience,motivation,scenario,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)',ctx.user.id,position,age,timezone,availability,experience,motivation,scenario,stamp,stamp);
+        appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.submitted',target:'application:'+result.lastInsertRowid,details:{position},ip:ctx.ip});return Number(result.lastInsertRowid);
+      });
+      await discord.notify({title:'New Staff Application',description:`Application #${id} for **${position}**`,fields:[{name:'Discord User ID',value:ctx.user.id},{name:'Review',value:config.baseUrl+'/staff/applications/'+id}]});
+      return success('/dashboard','Your application was submitted successfully.');
+    }
+    if(pathname==='/staff'&&req.method==='GET'){
+      await authorize('staff');logAction(ctx,'review.queue.view','applications');
+      return html(view.staff(ctx,{apps:staffQueue(ctx.user.id,isAdminRole(ctx.role)),counts:applicationCounts()}));
+    }
+    let m=/^\/staff\/applications\/(\d+)$/.exec(pathname);
+    if(m&&req.method==='GET'){
+      await authorize('staff');const id=idFrom(m[1]),a=application(id);if(!a)missing();
+      const reviewed=one('SELECT * FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',id,ctx.user.id);
+      if(!isAdminRole(ctx.role)&&(reviewed||isFinal(a.status)))forbidden('You have already reviewed this ticket, or it is finalized.');
+      logAction(ctx,'application.view','application:'+id);
+      const voted=one('SELECT * FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id);
+      return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted}));
+    }
+    m=/^\/staff\/applications\/(\d+)\/(review|decide|note|interview|sync)$/.exec(pathname);
+    if(m&&req.method==='POST'){
+      const id=idFrom(m[1]),action=m[2],a=application(id);
+      await authorize(action==='review'?'staff':'admin');rate(ctx,'review.write',40,3600000);
+      const {fields}=await form();if(!a)missing();
+      if(action==='review'){
+        if(isFinal(a.status))return warn('/staff','Application is already finalized.');
+        const choice=fields.choice;if(!validVote(choice))invalid('Invalid vote');
+        const note=formValue(fields,'note',1500,0);
+        if(one('SELECT 1 FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',id,ctx.user.id))return warn('/staff','You already reviewed this ticket.');
+        reviewerVote({appId:id,userId:ctx.user.id,choice,note,role:ctx.role,ip:ctx.ip});
+        return success('/staff','Your optional vote was recorded and the ticket left your queue.');
+      }
+      if(action==='decide'){
+        const choice=fields.choice;if(!validVote(choice))invalid('Invalid decision');
+        const note=formValue(fields,'note',1500,0);
+        if(one('SELECT 1 FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id))return warn(pathname.replace(/\/decide$/,''),'You have already submitted an admin decision.');
+        if(isFinal(a.status))return warn('/staff','Application is finalized.');
+        const out=adminVote({appId:id,userId:ctx.user.id,choice,note,role:ctx.role,ip:ctx.ip});
+        if(out.result.final){
+          if(out.result.final==='accepted'){
+            const sync=await deliverAcceptedRole({appId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
+            await discord.notify({title:'Staff Application Accepted',description:`Application #${id} approved by two admins.`,fields:[{name:'Applicant',value:a.user_id},{name:'Role Delivery',value:sync.ok?'Assigned':'Pending / failed: '+String(sync.error).slice(0,200)}]});
+          }else await discord.notify({title:'Staff Application Denied',description:`Application #${id} denied by two admins.`,fields:[{name:'Applicant',value:a.user_id}]});
+          return success(`/staff/applications/${id}`,`Final result: ${out.result.final}.`);
+        }
+        await discord.notify({title:'Admin Application Vote',description:`An admin voted on application #${id}. Waiting for two matching decisions.`});
+        return success(`/staff/applications/${id}`,'Admin vote saved. A second matching admin vote is required.');
+      }
+      if(action==='note'){
+        const note=formValue(fields,'note',2000,0);
+        transaction(()=>{run('UPDATE applications SET staff_note=?,updated_at=? WHERE id=?',note,now(),id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.note.update',target:'application:'+id,details:{before:a.staff_note,after:note},ip:ctx.ip});});
+        return success(`/staff/applications/${id}`,'Private admin note saved.');
+      }
+      if(action==='interview'){
+        if(isFinal(a.status))return warn(`/staff/applications/${id}`,'Already finalized.');
+        transaction(()=>{run("UPDATE applications SET status='interview',updated_at=? WHERE id=?",now(),id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.interview',target:'application:'+id,details:{previous:a.status},ip:ctx.ip});});
+        return success(`/staff/applications/${id}`,'Marked for interview. Final decision still requires two admins.');
+      }
+      if(action==='sync'){
+        if(a.status!=='accepted')invalid('Not accepted');
+        const result=await deliverAcceptedRole({appId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
+        return result.ok?success(`/staff/applications/${id}`,'Discord role assignment confirmed.'):warn(`/staff/applications/${id}`,'Role sync failed: '+String(result.error).slice(0,120));
+      }
+    }
+    if(pathname==='/feed'&&req.method==='GET'){
+      const page=pageNumber(url.searchParams.get('page'));return html(view.feed(ctx,{posts:loadPosts(ctx.user.id,page),page}));
+    }
+    if(pathname==='/feed/create'&&req.method==='POST'){
+      rate(ctx,'feed.create',8,600000);const {fields,files}=await form();const body=formValue(fields,'body',1500,0);
+      if(!body&&!files.image)invalid('Add some text or a picture.');
+      const image=files.image?saveImage(files.image):'';
+      const result=run('INSERT INTO posts(user_id,body,image_path,created_at) VALUES(?,?,?,?)',ctx.user.id,body,image,now());
+      if(isStaffRole(ctx.role))logAction(ctx,'social.post.create','post:'+result.lastInsertRowid,{preview:body.slice(0,120)});
+      return success('/feed','Post published.');
+    }
+    m=/^\/post\/(\d+)$/.exec(pathname);
+    if(m&&req.method==='GET'){
+      const id=idFrom(m[1]),post=postDetails(id,ctx.user.id);if(!post)missing();
+      return html(view.postDetail(ctx,{post,comments:listComments('post',id)}));
+    }
+    m=/^\/post\/(\d+)\/(like|repost|comment)$/.exec(pathname);
+    if(m&&req.method==='POST'){
+      const id=idFrom(m[1]),action=m[2];rate(ctx,`post.${action}`,action==='comment'?15:90,600000);
+      const {fields}=await form(),post=postDetails(id,ctx.user.id);if(!post)missing();
+      if(action==='like'){
+        const exists=one('SELECT 1 FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        if(exists)run('DELETE FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        else run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'social.post.like',`post:${id}`,{before:!!exists,after:!exists});
+        return redirect(res,`/post/${id}`);
+      }
+      if(action==='repost'){
+        if(post.repost_of)invalid('Nested reposts are not supported');
+        const existing=one('SELECT id FROM posts WHERE user_id=? AND repost_of=? AND deleted_at IS NULL',ctx.user.id,id);
+        if(existing)run('UPDATE posts SET deleted_at=? WHERE id=?',now(),existing.id);
+        else run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'social.post.repost',`post:${id}`,{before:!!existing,after:!existing});
+        return redirect(res,`/post/${id}`);
+      }
+      if(action==='comment'){
+        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'social.comment.create','post:'+id,{body:body.slice(0,100)});
+        return redirect(res,`/post/${id}`);
+      }
+    }
+    if(pathname==='/suggestions'&&req.method==='GET'){
+      const page=pageNumber(url.searchParams.get('page'));return html(view.suggestions(ctx,{items:listSuggestions(page),page}));
+    }
+    if(pathname==='/suggestions/create'&&req.method==='POST'){
+      rate(ctx,'suggestion.create',3,3600000);const {fields}=await form();
+      const title=formValue(fields,'title',100,5),body=formValue(fields,'body',3000,15);
+      const result=run('INSERT INTO suggestions(user_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?)',ctx.user.id,title,body,now(),now());
+      if(isStaffRole(ctx.role))logAction(ctx,'suggestion.create','suggestion:'+result.lastInsertRowid,{title});
+      await discord.notify({title:'New Server Suggestion',description:`${title}\n${config.baseUrl}/suggestions/${result.lastInsertRowid}`});
+      return success(`/suggestions/${result.lastInsertRowid}`,'Suggestion published.');
+    }
+    m=/^\/suggestions\/(\d+)$/.exec(pathname);
+    if(m&&req.method==='GET'){
+      const id=idFrom(m[1]),s=suggestionDetails(id);if(!s)missing();
+      return html(view.suggestionDetail(ctx,{s,comments:listComments('suggestion',id),voters:isAdminRole(ctx.role)?suggestionVoters(id):[],myVote:one('SELECT choice FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id)?.choice||''}));
+    }
+    m=/^\/suggestions\/(\d+)\/(vote|comment|status)$/.exec(pathname);
+    if(m&&req.method==='POST'){
+      const id=idFrom(m[1]),action=m[2];if(action==='status')await authorize('admin');
+      rate(ctx,`suggestions.${action}`,action==='comment'?20:80,600000);
+      const {fields}=await form(),s=suggestionDetails(id);if(!s)missing();
+      if(action==='vote'){
+        if(!['yes','no'].includes(fields.choice))invalid('Invalid vote');
+        const existing=one('SELECT choice FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id);
+        if(existing?.choice===fields.choice)run('DELETE FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id);
+        else run('INSERT INTO suggestion_votes(suggestion_id,user_id,choice,created_at) VALUES(?,?,?,?) ON CONFLICT(suggestion_id,user_id) DO UPDATE SET choice=excluded.choice,created_at=excluded.created_at',id,ctx.user.id,fields.choice,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'suggestion.vote','suggestion:'+id,{choice:existing?.choice===fields.choice?'removed':fields.choice});
+        return redirect(res,`/suggestions/${id}`);
+      }
+      if(action==='comment'){
+        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','suggestion',String(id),ctx.user.id,body,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'suggestion.comment','suggestion:'+id,{body:body.slice(0,100)});
+        return redirect(res,`/suggestions/${id}`);
+      }
+      if(action==='status'){
+        if(!suggestionStates.has(fields.status))invalid('Invalid status');
+        transaction(()=>{run('UPDATE suggestions SET status=?,updated_at=? WHERE id=?',fields.status,now(),id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'suggestion.status',target:'suggestion:'+id,details:{before:s.status,after:fields.status},ip:ctx.ip});});
+        return success(`/suggestions/${id}`,'Suggestion status updated.');
+      }
+    }
+    if(pathname==='/members'&&req.method==='GET'){
+      const q=text(url.searchParams.get('q'),80),found=[];let fallback=false;
+      if(q){
+        if(idOK(q)){
+          try{const m=await discord.getGuildMember(q);if(m){upsertUser(m);ensureProfile(q);found.push(one('SELECT * FROM users WHERE id=?',q));}}catch{fallback=true;}
+        }else{
+          try{
+            const list=await discord.searchMembers(q,30);
+            for(const m of list||[]){if(!m.user||m.user.bot)continue;upsertUser(m);ensureProfile(m.user.id);found.push(one('SELECT u.*,p.nickname,p.avatar_path FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.id=?',m.user.id));}
+          }catch{fallback=true;}
+        }
+      }
+      if(!q||fallback){
+        const local=all('SELECT u.*,p.nickname,p.avatar_path FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.username LIKE ? OR u.display_name LIKE ? ORDER BY u.updated_at DESC LIMIT 30',`%${q}%`,`%${q}%`);
+        const seen=new Set(found.map(m=>m.id));for(const u of local)if(!seen.has(u.id)){found.push(u);seen.add(u.id);}
+      }
+      return html(view.members(ctx,{found,q,fallback}));
+    }
+    if(pathname==='/team'&&req.method==='GET'){
+      const roles=await discord.getRoles();let list=[],partial=false;
+      if(teamCache && now()-teamCache.at<90000){list=teamCache.list;partial=teamCache.partial;}
+      else{
+        let after='';try{
+          for(let i=0;i<5;i++){
+            const members=await discord.listMembers(after,1000);
+            if(!Array.isArray(members))break;
+            list.push(...members);if(members.length<1000)break;
+            after=members.at(-1)?.user?.id||'';
+            if(i===4)partial=true;
+          }
+        }catch{partial=true;
+          const known=all('SELECT id FROM users ORDER BY updated_at DESC LIMIT 50');
+          for(const u of known){try{const m=await discord.getGuildMember(u.id);if(m)list.push(m);}catch{break;}}
+        }
+        teamCache={at:now(),list,partial};
+      }
+      const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name));
+      const byId=new Map(roles.map(r=>[r.id,r]));
+      const categorized=new Map();const seen=new Set();
+      for(const m of list){
+        const id=m.user?.id;if(!id||m.user.bot||seen.has(id))continue;
+        seen.add(id);const match=(m.roles||[]).map(x=>byId.get(x)).filter(Boolean).filter(r=>staffRoles.some(s=>s.id===r.id));
+        if(!match.length&&id!==ctx.guild.owner_id)continue;
+        match.sort((a,b)=>b.position-a.position);
+        const rank=id===ctx.guild.owner_id?'Ownership':match.some(r=>config.ownerRoleIds.has(r.id)||/owner/i.test(r.name))?'Ownership':match.some(r=>config.adminIds.has(r.id)||/admin|management/i.test(r.name))?'Administration':match.some(r=>/moderat|head.?staff/i.test(r.name))?'Moderation':match.some(r=>/helper|support/i.test(r.name))?'Helpers':'Other Staff';
+        upsertUser(m);ensureProfile(id);
+        const profile=one('SELECT nickname,avatar_path,public FROM profiles WHERE user_id=?',id)||{};
+        const info={...m.user,display_name:m.nick||m.user.global_name||m.user.username,nickname:profile.public?profile.nickname:'',avatar_path:profile.public?profile.avatar_path:'',staffTitle:id===ctx.guild.owner_id?'Server Owner':match[0]?.name||'Owner'};
+        if(!categorized.has(rank))categorized.set(rank,[]);categorized.get(rank).push(info);
+      }
+      // Ensure the real guild owner appears even if outside a paginated member listing.
+      if(!seen.has(ctx.guild.owner_id)){
+        try{const owner=await discord.getGuildMember(ctx.guild.owner_id);if(owner?.user){upsertUser(owner);ensureProfile(owner.user.id);if(!categorized.has('Ownership'))categorized.set('Ownership',[]);categorized.get('Ownership').unshift({...owner.user,display_name:owner.nick||owner.user.global_name||owner.user.username,staffTitle:'Server Owner'});}}catch{partial=true;}
+      }
+      const groups=['Ownership','Administration','Moderation','Helpers','Other Staff'].map(title=>({title,members:(categorized.get(title)||[]).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))})).filter(x=>x.members.length);
+      return html(view.team(ctx,{groups,partial,rolesCount:roles.length}));
+    }
+    let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
+    if(userMatch && req.method==='GET'){
+      const id=userMatch[1];let person=one('SELECT * FROM users WHERE id=?',id);
+      if(!person){const actual=await discord.getGuildMember(id);if(!actual?.user)missing();upsertUser(actual);ensureProfile(id);person=one('SELECT * FROM users WHERE id=?',id);}
+      const profile=userProfile(id),self=id===ctx.user.id,privateProfile=!!profile&&!profile.public&&!self;
+      const counts=privateProfile?{}:{
+        posts:one('SELECT count(*) c FROM posts WHERE user_id=? AND deleted_at IS NULL',id).c,
+        followers:one('SELECT count(*) c FROM follows WHERE followed_id=?',id).c,
+        following:one('SELECT count(*) c FROM follows WHERE follower_id=?',id).c,
+        suggestions:one('SELECT count(*) c FROM suggestions WHERE user_id=? AND deleted_at IS NULL',id).c
+      };
+      const related=privateProfile?[]:loadPosts(ctx.user.id,0,id,15);
+      const pinnedPost=!privateProfile&&profile?.pinned_post_id?postDetails(profile.pinned_post_id,ctx.user.id):null;
+      const sections=privateProfile?[]:profileSections(id);
+      const comments=privateProfile||!profile?.allow_comments?[]:listComments('profile',id);
+      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile}));
+    }
+    userMatch=/^\/u\/(\d{15,22})\/(follow|comment)$/.exec(pathname);
+    if(userMatch&&req.method==='POST'){
+      const id=userMatch[1],action=userMatch[2];rate(ctx,'profile.'+action,20,600000);
+      const {fields}=await form();const person=one('SELECT * FROM users WHERE id=?',id);
+      if(!person)missing();if(id===ctx.user.id&&action==='follow')invalid('Cannot follow yourself');
+      const profile=userProfile(id);if(!profile?.public&&id!==ctx.user.id)forbidden('This profile is private');
+      if(action==='follow'){
+        const already=one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
+        if(already)run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
+        else run('INSERT INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)',ctx.user.id,id,now());
+        if(isStaffRole(ctx.role))logAction(ctx,'profile.follow','profile:'+id,{before:!!already,after:!already});
+        return redirect(res,`/u/${id}`);
+      }
+      if(!profile?.allow_comments)forbidden('Profile comments are disabled.');
+      const body=formValue(fields,'body',1000,1);
+      run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','profile',id,ctx.user.id,body,now());
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.comment','profile:'+id,{body:body.slice(0,100)});
+      return redirect(res,`/u/${id}`);
+    }
+    if(pathname==='/profile/edit'&&req.method==='GET'){
+      ensureProfile(ctx.user.id);
+      return html(view.profileEdit(ctx,{profile:userProfile(ctx.user.id),sections:profileSections(ctx.user.id),posts:loadPosts(ctx.user.id,0,ctx.user.id,100).filter(p=>!p.repost_of)}));
+    }
+    if(pathname==='/profile/edit'&&req.method==='POST'){
+      rate(ctx,'profile.edit',30,3600000);const {fields}=await form();
+      const existing=userProfile(ctx.user.id)||{};
+      const profile=normalizeProfile(fields,existing);
+      run(`UPDATE profiles SET nickname=?,bio=?,pronouns=?,status_text=?,accent=?,theme=?,font=?,layout=?,animations=?,public=?,allow_comments=?,show_follows=?,social_1=?,social_2=?,social_3=?,updated_at=? WHERE user_id=?`,
+        profile.nickname,profile.bio,profile.pronouns,profile.status_text,profile.accent,profile.theme,profile.font,profile.layout,profile.animations,profile.public,profile.allow_comments,profile.show_follows,profile.social_1,profile.social_2,profile.social_3,now(),ctx.user.id);
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.edit','profile:'+ctx.user.id,{sections:['identity','appearance','privacy']});
+      return success('/profile/edit','Profile saved.');
+    }
+    let pm=/^\/profile\/upload\/(avatar|banner|background)$/.exec(pathname);
+    if(pm&&req.method==='POST'){
+      rate(ctx,'profile.upload',8,3600000);const {files}=await form();if(!files.image)invalid('Choose an image.');
+      const path=saveImage(files.image),column={avatar:'avatar_path',banner:'banner_path',background:'background_path'}[pm[1]];
+      run(`UPDATE profiles SET ${column}=?,updated_at=? WHERE user_id=?`,path,now(),ctx.user.id);
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.image.upload','profile:'+ctx.user.id,{slot:pm[1]});
+      return success('/profile/edit','Profile image updated.');
+    }
+    if(pathname==='/profile/section'&&req.method==='POST'){
+      rate(ctx,'profile.section',20,3600000);const {fields}=await form(),title=formValue(fields,'title',65,1),body=formValue(fields,'content',1200,1);
+      if(one('SELECT COUNT(*) c FROM profile_sections WHERE user_id=?',ctx.user.id).c>=12)invalid('Maximum 12 profile sections.');
+      const order=one('SELECT COALESCE(MAX(sort_order),-1)+1 next FROM profile_sections WHERE user_id=?',ctx.user.id).next;
+      const result=run('INSERT INTO profile_sections(user_id,title,content,sort_order,visible) VALUES(?,?,?,?,1)',ctx.user.id,title,body,order);
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.section.create','profile:'+ctx.user.id,{sectionId:result.lastInsertRowid,title});
+      return success('/profile/edit','Custom section created.');
+    }
+    pm=/^\/profile\/section\/(\d+)\/(delete|move|edit)$/.exec(pathname);
+    if(pm&&req.method==='POST'){
+      rate(ctx,'profile.section',30,3600000);const {fields}=await form(),id=idFrom(pm[1]),action=pm[2];
+      const section=one('SELECT * FROM profile_sections WHERE id=? AND user_id=?',id,ctx.user.id);if(!section)missing();
+      if(action==='delete')run('DELETE FROM profile_sections WHERE id=?',id);
+      if(action==='edit'){
+        const title=formValue(fields,'title',65,1),content=formValue(fields,'content',1200,1);
+        run('UPDATE profile_sections SET title=?,content=?,visible=? WHERE id=?',title,content,fields.visible==='on'?1:0,id);
+      }
+      if(action==='move'){
+        const dir=fields.direction;if(!['up','down'].includes(dir))invalid();
+        const neighbor=one(`SELECT * FROM profile_sections WHERE user_id=? AND (sort_order ${dir==='up'?'<':'>'} ?) ORDER BY sort_order ${dir==='up'?'DESC':'ASC'} LIMIT 1`,ctx.user.id,section.sort_order);
+        if(neighbor)transaction(()=>{run('UPDATE profile_sections SET sort_order=? WHERE id=?',neighbor.sort_order,section.id);run('UPDATE profile_sections SET sort_order=? WHERE id=?',section.sort_order,neighbor.id);});
+      }
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.section.'+action,'profile:'+ctx.user.id,{sectionId:id});
+      return success('/profile/edit','Section updated.');
+    }
+    if(pathname==='/profile/pin'&&req.method==='POST'){
+      const {fields}=await form(),id=fields.post_id?idFrom(fields.post_id):null;
+      if(id&&!one('SELECT 1 FROM posts WHERE id=? AND user_id=? AND deleted_at IS NULL',id,ctx.user.id))invalid('Choose one of your own posts.');
+      run('UPDATE profiles SET pinned_post_id=?,updated_at=? WHERE user_id=?',id,now(),ctx.user.id);
+      if(isStaffRole(ctx.role))logAction(ctx,'profile.post.pin','profile:'+ctx.user.id,{postId:id});
+      return success('/profile/edit','Pinned post updated.');
+    }
+    let contentMatch=/^\/content\/(post|suggestion|comment)\/(\d+)\/delete$/.exec(pathname);
+    if(contentMatch&&req.method==='POST'){
+      rate(ctx,'content.delete',30,3600000);await form();
+      const kind=contentMatch[1],id=idFrom(contentMatch[2]);
+      const table={post:'posts',suggestion:'suggestions',comment:'comments'}[kind];
+      const item=one(`SELECT * FROM ${table} WHERE id=?`,id);if(!item)missing();
+      if(item.user_id!==ctx.user.id&&!isAdminRole(ctx.role))forbidden();
+      transaction(()=>{
+        run(`UPDATE ${table} SET deleted_at=? WHERE id=? AND deleted_at IS NULL`,now(),id);
+        if(isStaffRole(ctx.role))appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'content.delete',target:kind+':'+id,details:{userId:item.user_id,staffModeration:item.user_id!==ctx.user.id},ip:ctx.ip});
+      });
+      return success(kind==='suggestion'?'/suggestions':'/feed','Content removed.');
+    }
+    if(pathname==='/report'&&req.method==='GET'){
+      const kind=url.searchParams.get('kind'),id=url.searchParams.get('id');
+      if(!['post','suggestion','comment','profile'].includes(kind)||!/^\d{1,22}$/.test(id||''))invalid('Invalid report target');
+      return html(view.report(ctx,{kind,id}));
+    }
+    if(pathname==='/report'&&req.method==='POST'){
+      rate(ctx,'content.report',8,3600000);const {fields}=await form();
+      const kind=fields.kind,id=String(fields.id||''),reason=formValue(fields,'reason',500,10);
+      if(!['post','suggestion','comment','profile'].includes(kind)||!/^\d{1,22}$/.test(id))invalid('Invalid report');
+      const table={post:'posts',suggestion:'suggestions',comment:'comments',profile:'profiles'}[kind];
+      if(!one(`SELECT 1 FROM ${table} WHERE ${kind==='profile'?'user_id':'id'}=?`,id))missing();
+      run('INSERT INTO reports(reporter_id,kind,target_id,reason,created_at) VALUES(?,?,?,?,?)',ctx.user.id,kind,id,reason,now());
+      if(isStaffRole(ctx.role))logAction(ctx,'moderation.report',''+kind+':'+id,{reason});
+      return success('/feed','Your report was submitted to the admins.');
+    }
+    if(pathname==='/admin/roles'&&req.method==='GET'){
+      await authorize('admin');
+      const [roles,botUser]=await Promise.all([discord.getRoles(),discord.getBotIdentity()]);
+      const botMember=await discord.getGuildMember(botUser.id);
+      if(!botMember)throw new HttpError(503,'The bot is not a member of your Discord server.');
+      const manageable=manageableRoles(roles,botMember,config);
+      const find=text(url.searchParams.get('member'),80);let selected=null,lookupError='',candidates=[];
+      if(find){
+        try{
+          let found=null;
+          if(idOK(find))found=await discord.getGuildMember(find);
+          else{
+            const matches=await discord.searchMembers(find,30);
+            found=(matches||[]).find(m=>m.user?.username?.toLowerCase()===find.toLowerCase()||m.nick?.toLowerCase()===find.toLowerCase());
+            if(!found&&matches?.length===1)found=matches[0];
+            if(!found&&matches?.length>1){lookupError='Multiple members matched. Choose the correct Discord account below.';candidates=matches.filter(x=>x.user).slice(0,25).map(x=>({id:x.user.id,username:x.user.username,display_name:x.nick||x.user.global_name||x.user.username,avatar:x.user.avatar}));}
+          }
+          if(found?.user){upsertUser(found);selected={...found.user,display_name:found.nick||found.user.global_name||found.user.username,roles:found.roles||[]};}
+          else if(!lookupError)lookupError='No matching server member found.';
+        }catch(e){lookupError='Discord member search unavailable. Search by numeric Discord user ID or enable Guild Members Intent.';}
+      }
+      logAction(ctx,'roles.dashboard.view','roles',{selected:selected?.id||null});
+      return html(view.roles(ctx,{roles:roles.sort((a,b)=>b.position-a.position),manageable,selected,find,candidates,errorText:lookupError,botPosition:highestPosition(botMember,roles)}));
+    }
+    if(pathname==='/admin/roles/change'&&req.method==='POST'){
+      await authorize('admin');rate(ctx,'role.change',30,3600000);
+      const {fields}=await form(),id=String(fields.user_id||''),roleId=String(fields.role_id||''),action=fields.action;
+      if(!idOK(id)||!idOK(roleId)||!['add','remove'].includes(action))invalid('Invalid role change request');
+      logAction(ctx,'role.change.attempt',id,{roleId,action},'attempt');
+      const [roles,botIdentity,target]=await Promise.all([discord.getRoles(),discord.getBotIdentity(),discord.getGuildMember(id)]);
+      if(!target)missing();
+      const botMember=await discord.getGuildMember(botIdentity.id);
+      if(!botMember)throw new HttpError(503,'Bot membership is not available.');
+      const allowed=new Set(manageableRoles(roles,botMember,config).map(r=>r.id));
+      if(!allowed.has(roleId)){
+        logAction(ctx,'role.change.blocked',id,{roleId,action,why:'protected or bot hierarchy'},'denied');
+        forbidden('This role is protected, has management permissions, or is above the bot.');
+      }
+      const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
+      if(!targetEligible(target,roles,botMember,ctx.guild.owner_id,id,config,coowners)){
+        logAction(ctx,'role.change.blocked',id,{roleId,action,why:'protected target'},'denied');
+        forbidden('This user is protected or higher than the bot.');
+      }
+      const before=target.roles.includes(roleId);
+      try{
+        if(action==='add'&&!before)await discord.addRole(id,roleId,`SB Store website: ${ctx.user.id} assigns role`);
+        if(action==='remove'&&before)await discord.removeRole(id,roleId,`SB Store website: ${ctx.user.id} removes role`);
+      }catch(e){logAction(ctx,'role.change.failed',id,{roleId,action,error:String(e.message).slice(0,250)},'error');throw new HttpError(502,'Discord could not change this role: '+String(e.message).slice(0,160));}
+      logAction(ctx,'role.change.success',id,{roleId,action,before,after:action==='add'});
+      await discord.notify({title:'Staff Role Changed',description:`${ctx.user.id} ${action==='add'?'assigned':'removed'} Discord role ${roleId} ${action==='add'?'to':'from'} ${id}.`});
+      teamCache=null;
+      return success('/admin/roles?member='+encodeURIComponent(id),`Role ${action==='add'?'assignment':'removal'} confirmed.`);
+    }
+    if(pathname==='/admin/settings'&&req.method==='GET'){
+      await authorize('admin');const [roles,botIdentity]=await Promise.all([discord.getRoles(),discord.getBotIdentity()]);
+      const botMember=await discord.getGuildMember(botIdentity.id);
+      if(!botMember)throw new HttpError(503,'Bot not found in Discord server.');
+      const manageable=manageableRoles(roles,botMember,config);
+      const roleMap=Object.fromEntries(config.applicationRoles.map(x=>[x,getSetting('map:'+x,'')]));
+      logAction(ctx,'settings.view','application.settings');
+      return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap}));
+    }
+    if(pathname==='/admin/settings/open'&&req.method==='POST'){
+      await authorize('admin');rate(ctx,'settings',20,3600000);const {fields}=await form();
+      if(!['true','false'].includes(fields.open))invalid();
+      const before=getSetting('applications_open','true');
+      transaction(()=>{setSetting('applications_open',fields.open);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'settings.applications_open',target:'settings',details:{before,after:fields.open},ip:ctx.ip});});
+      return success('/admin/settings','Application submissions updated.');
+    }
+    if(pathname==='/admin/settings/mapping'&&req.method==='POST'){
+      await authorize('admin');rate(ctx,'settings',20,3600000);const {fields}=await form();
+      const [roles,botIdentity]=await Promise.all([discord.getRoles(),discord.getBotIdentity()]);
+      const botMember=await discord.getGuildMember(botIdentity.id);if(!botMember)throw new HttpError(503,'Bot not found');
+      const allowed=new Set(manageableRoles(roles,botMember,config).map(r=>r.id));
+      const updates={};for(const position of config.applicationRoles){
+        const id=String(fields['map_'+position]||'');if(id&&!allowed.has(id))forbidden('Mapped role is protected or unavailable.');updates[position]=id;
+      }
+      transaction(()=>{
+        const previous=Object.fromEntries(config.applicationRoles.map(p=>[p,getSetting('map:'+p,'')]));
+        for(const [position,id] of Object.entries(updates))setSetting('map:'+position,id);
+        appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'settings.role_mapping',target:'settings',details:{before:previous,after:updates},ip:ctx.ip});
+      });
+      return success('/admin/settings','Application role mappings saved.');
+    }
+    if(pathname==='/admin/moderation'&&req.method==='GET'){
+      await authorize('admin');logAction(ctx,'moderation.queue.view','reports');
+      const reports=all("SELECT r.*,u.display_name FROM reports r JOIN users u ON u.id=r.reporter_id WHERE r.status='open' ORDER BY r.created_at DESC LIMIT 200");
+      return html(view.moderation(ctx,{reports}));
+    }
+    let modMatch=/^\/admin\/moderation\/(\d+)\/resolve$/.exec(pathname);
+    if(modMatch&&req.method==='POST'){
+      await authorize('admin');rate(ctx,'moderation.action',40,3600000);
+      const {fields}=await form(),id=idFrom(modMatch[1]);
+      if(!['dismiss','remove'].includes(fields.action))invalid();
+      const report=one("SELECT * FROM reports WHERE id=? AND status='open'",id);if(!report)missing();
+      transaction(()=>{
+        if(fields.action==='remove'){
+          if(['post','suggestion','comment'].includes(report.kind)){
+            const tbl={post:'posts',suggestion:'suggestions',comment:'comments'}[report.kind];
+            run(`UPDATE ${tbl} SET deleted_at=? WHERE id=? AND deleted_at IS NULL`,now(),Number(report.target_id));
+          }else if(report.kind==='profile')run('UPDATE profiles SET public=0,updated_at=? WHERE user_id=?',now(),report.target_id);
+        }
+        run('UPDATE reports SET status=?,reviewed_by=?,reviewed_at=? WHERE id=?',fields.action==='remove'?'removed':'dismissed',ctx.user.id,now(),id);
+        appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'moderation.report.'+fields.action,target:report.kind+':'+report.target_id,details:{reportId:id,reason:report.reason},ip:ctx.ip});
+      });
+      return success('/admin/moderation','Report processed.');
+    }
+    if(pathname==='/owner/audit'&&req.method==='GET'){
+      await authorize('owner');logAction(ctx,'owner.audit.view','audit');
+      const filter=text(url.searchParams.get('q'),80),like='%'+filter+'%';
+      const events=filter?all('SELECT * FROM owner_audit_log WHERE actor_id LIKE ? OR action LIKE ? OR target LIKE ? OR outcome LIKE ? ORDER BY id DESC LIMIT 300',like,like,like,like):all('SELECT * FROM owner_audit_log ORDER BY id DESC LIMIT 300');
+      return html(view.audit(ctx,{events,verified:verifyAudit(db),filter}));
+    }
+    if(pathname==='/owner/audit/export'&&req.method==='GET'){
+      await authorize('owner');logAction(ctx,'owner.audit.export','audit');
+      const csvValue=value=>{let s=String(value??'');if(/^[=+@\-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
+      const keys=['id','at','actor_id','actor_role','action','target','outcome','details','ip','previous_hash','entry_hash'];
+      res.writeHead(200,{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="sbs-owner-audit.csv"','cache-control':'no-store'});
+      res.write(keys.join(',')+'\r\n');
+      for(const row of db.prepare('SELECT * FROM owner_audit_log ORDER BY id').iterate())res.write(keys.map(k=>csvValue(row[k])).join(',')+'\r\n');
+      res.end();return;
+    }
+    if(pathname==='/owner/owners'&&req.method==='GET'){
+      await authorize('owner');if(ctx.user.id!==ctx.guild.owner_id)forbidden('Only the verified Discord server owner may change co-owner access.');
+      logAction(ctx,'owner.access.view','coowners');return html(view.owners(ctx,{owners:all('SELECT * FROM owner_allowlist ORDER BY created_at DESC')}));
+    }
+    if(pathname==='/owner/owners'&&req.method==='POST'){
+      await authorize('owner');if(ctx.user.id!==ctx.guild.owner_id)forbidden('Only the verified Discord server owner can grant owner access.');
+      rate(ctx,'owner.access',20,3600000);const {fields}=await form(),id=String(fields.user_id||'');if(!idOK(id))invalid('Invalid Discord user ID');
+      const m=await discord.getGuildMember(id);if(!m||m.pending)invalid('This account is not a verified member of the server.');
+      transaction(()=>{run('INSERT OR IGNORE INTO owner_allowlist(user_id,added_by,created_at) VALUES(?,?,?)',id,ctx.user.id,now());appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'owner.access.granted',target:id,ip:ctx.ip});});
+      return success('/owner/owners','Co-owner access granted.');
+    }
+    if(pathname==='/owner/owners/remove'&&req.method==='POST'){
+      await authorize('owner');if(ctx.user.id!==ctx.guild.owner_id)forbidden('Only the verified Discord server owner can revoke access.');
+      const {fields}=await form(),id=String(fields.user_id||'');if(!idOK(id))invalid();
+      transaction(()=>{run('DELETE FROM owner_allowlist WHERE user_id=?',id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'owner.access.revoked',target:id,ip:ctx.ip});});
+      return success('/owner/owners','Co-owner access revoked.');
+    }
+    missing();
+  }
+  return http.createServer(async(req,res)=>{
+    try{await handle(req,res);}catch(e){
+      if(res.headersSent){if(!res.writableEnded)res.end();return;}
+      if(e instanceof Redirect)return redirect(res,e.path);
+      const err=headerError(e);
+      if(err.status>=500)console.error('[Website error]',e.message);
+      let ctx={pathname:'',user:null,role:'none',csrf:'',config,notice:''};
+      try{const c=cookies(req.headers.cookie);if(c.sid){const s=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(s){ctx.session=s;ctx.user=one('SELECT * FROM users WHERE id=?',s.user_id);ctx.csrf=s.csrf;}}}catch{}
+      const message=err.status===500?'An unexpected error occurred.':err.message;
+      const out=err.status===403 && message.includes('member')?view.notMember(ctx,message):view.error(ctx,err.status,message);
+      respond(res,err.status,out);
+    }
+  });
+}
+if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+  validateConfig();const server=createServer();
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.2.1 running at ${config.baseUrl}`));
+}
