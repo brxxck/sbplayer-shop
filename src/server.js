@@ -12,6 +12,7 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile} from './uploads.js';
 import * as view from './views.js';
+import {ticketMessages,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
 class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
@@ -113,7 +114,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.2.1'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.0'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){if(ctx.user)await member();return html(view.home(ctx));}
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
@@ -159,7 +160,31 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const id=idFrom(ownTicketMatch[1]);
       const ticket=one('SELECT * FROM applications WHERE id=? AND user_id=?',id,ctx.user.id);
       if(!ticket)missing();
-      return html(view.ownTicket(ctx,ticket));
+      const messages=ticketMessages(id);
+      run('UPDATE applications SET applicant_seen_at=? WHERE id=?',now(),id);
+      return html(view.ownTicket(ctx,ticket,messages));
+    }
+    // One private reply route for applicants and for staff; never accept a ticket ID as proof of access.
+    const ticketReplyMatch=/^\/(dashboard|staff)\/applications\/(\d+)\/reply$/.exec(pathname);
+    if(ticketReplyMatch&&req.method==='POST'){
+      const staffReply=ticketReplyMatch[1]==='staff';
+      if(staffReply)await authorize('staff');
+      const id=idFrom(ticketReplyMatch[2]);const a=application(id);
+      if(!a)missing();
+      if(!staffReply&&a.user_id!==ctx.user.id)missing();
+      rate(ctx,'application.reply',8,600000);
+      const {fields}=await form();
+      const body=formValue(fields,'body',2000,1);
+      const msg=writeTicketReply({appId:id,userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+      if(!staffReply){
+        const pingHere=reserveStaffPing(id,300000);
+        const delivered=await discord.notify({title:'Applicant Reply — Staff Application #'+id,
+          description:'A member has replied to their application. Please open the private ticket to read the response.',
+          fields:[{name:'Applicant',value:a.user_id},{name:'Open staff ticket',value:config.baseUrl+'/staff/applications/'+id}],
+          pingHere});
+        logAction(ctx,'application.reply.webhook','application:'+id,{messageId:msg.id,pingHere,delivered});
+      }
+      return success(staffReply?'/staff/applications/'+id:'/dashboard/applications/'+id,'Reply posted.');
     }
     if(pathname==='/apply'&&req.method==='GET'){
       const recent=latestApplication(ctx.user.id);
@@ -183,7 +208,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const result=run('INSERT INTO applications(user_id,position,age_bracket,timezone,availability,experience,motivation,scenario,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)',ctx.user.id,position,age,timezone,availability,experience,motivation,scenario,stamp,stamp);
         appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.submitted',target:'application:'+result.lastInsertRowid,details:{position},ip:ctx.ip});return Number(result.lastInsertRowid);
       });
-      await discord.notify({title:'New Staff Application',description:`Application #${id} for **${position}**`,fields:[{name:'Discord User ID',value:ctx.user.id},{name:'Review',value:config.baseUrl+'/staff/applications/'+id}]});
+      // Reserve the initial staff ping so rapid follow-up messages cannot flood the staff-only channel.
+      run('UPDATE applications SET last_staff_ping_at=? WHERE id=?',stamp,id);
+      const delivered=await discord.notify({title:'New Staff Application',description:`Application #${id} for **${position}**`,
+        fields:[{name:'Discord User ID',value:ctx.user.id},{name:'Review',value:config.baseUrl+'/staff/applications/'+id}],pingHere:true});
+      logAction(ctx,'application.submitted.webhook','application:'+id,{pingHere:true,delivered});
       return success('/dashboard','Your application was submitted successfully.');
     }
     if(pathname==='/staff'&&req.method==='GET'){
@@ -194,10 +223,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(m&&req.method==='GET'){
       await authorize('staff');const id=idFrom(m[1]),a=application(id);if(!a)missing();
       const reviewed=one('SELECT * FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',id,ctx.user.id);
-      if(!isAdminRole(ctx.role)&&(reviewed||isFinal(a.status)))forbidden('You have already reviewed this ticket, or it is finalized.');
+      // Reviewed tickets leave a reviewer's pending queue, but remain available for ticket conversation.
       logAction(ctx,'application.view','application:'+id);
       const voted=one('SELECT * FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id);
-      return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted}));
+      return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted,messages:ticketMessages(id),ownerRecommendation:ownerRecommendation(id)}));
     }
     m=/^\/staff\/applications\/(\d+)\/(review|decide|note|interview|sync)$/.exec(pathname);
     if(m&&req.method==='POST'){
@@ -217,13 +246,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const note=formValue(fields,'note',1500,0);
         if(one('SELECT 1 FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id))return warn(pathname.replace(/\/decide$/,''),'You have already submitted an admin decision.');
         if(isFinal(a.status))return warn('/staff','Application is finalized.');
+        if(ownerRecommendation(id))return warn(`/staff/applications/${id}`,'Already awaiting unk.sb final approval.');
         const out=adminVote({appId:id,userId:ctx.user.id,choice,note,role:ctx.role,ip:ctx.ip});
         if(out.result.final){
-          if(out.result.final==='accepted'){
-            const sync=await deliverAcceptedRole({appId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
-            await discord.notify({title:'Staff Application Accepted',description:`Application #${id} approved by two admins.`,fields:[{name:'Applicant',value:a.user_id},{name:'Role Delivery',value:sync.ok?'Assigned':'Pending / failed: '+String(sync.error).slice(0,200)}]});
-          }else await discord.notify({title:'Staff Application Denied',description:`Application #${id} denied by two admins.`,fields:[{name:'Applicant',value:a.user_id}]});
-          return success(`/staff/applications/${id}`,`Final result: ${out.result.final}.`);
+          await discord.notify({title:'Owner Approval Required — Application #'+id,
+            description:'Two admins recommend **'+out.result.final+'**. Only unk.sb can finalize the application.',
+            fields:[{name:'Applicant',value:a.user_id},{name:'Owner review',value:config.baseUrl+'/owner/approvals'}]});
+          return success(`/staff/applications/${id}`,'Two matching admin votes recorded. Awaiting unk.sb final approval; no role has been assigned.');
         }
         await discord.notify({title:'Admin Application Vote',description:`An admin voted on application #${id}. Waiting for two matching decisions.`});
         return success(`/staff/applications/${id}`,'Admin vote saved. A second matching admin vote is required.');
@@ -243,6 +272,38 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const result=await deliverAcceptedRole({appId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
         return result.ok?success(`/staff/applications/${id}`,'Discord role assignment confirmed.'):warn(`/staff/applications/${id}`,'Role sync failed: '+String(result.error).slice(0,120));
       }
+    }
+    // Only the specific configured Discord user ID can finalize tickets; a co-owner role is not sufficient.
+    if(pathname==='/owner/approvals'&&req.method==='GET'){
+      await authorize('owner');
+      return html(view.ownerApprovals(ctx,{apps:awaitingOwnerQueue(),enabled:!!config.finalApproverId&&ctx.user.id===config.finalApproverId}));
+    }
+    const ownerActionMatch=/^\/owner\/applications\/(\d+)\/action$/.exec(pathname);
+    if(ownerActionMatch&&req.method==='POST'){
+      await authorize('owner');
+      if(!config.finalApproverId||ctx.user.id!==config.finalApproverId)forbidden('Only the configured final approver (unk.sb) can approve staff applications.');
+      rate(ctx,'owner.final.review',15,3600000);
+      const id=idFrom(ownerActionMatch[1]),a=application(id);if(!a)missing();
+      const {fields}=await form();
+      const action=String(fields.action||'');
+      if(!['approve','deny','return'].includes(action))invalid('Invalid owner decision.');
+      const note=formValue(fields,'note',2000,0);
+      if(isFinal(a.status))return warn('/owner/approvals','This application has already been finalized.');
+      if(!ownerRecommendation(id))return warn('/owner/approvals','Two matching admin votes are required first.');
+      const result=ownerReview({appId:id,ownerId:ctx.user.id,action,note,ip:ctx.ip});
+      if(result.outcome==='accepted'){
+        const sync=await deliverAcceptedRole({appId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
+        await discord.notify({title:'Staff Application Accepted — Owner Approved',description:'unk.sb approved application #'+id,
+          fields:[{name:'Applicant',value:a.user_id},{name:'Role delivery',value:sync.ok?'Assigned':'Failed — retry needed'}]});
+      }else if(result.outcome==='denied'){
+        await discord.notify({title:'Staff Application Denied — Owner Decision',
+          description:'unk.sb finalized application #'+id+' as denied.',
+          fields:[{name:'Applicant',value:a.user_id}]});
+      }else{
+        await discord.notify({title:'Application Returned for Review',
+          description:'unk.sb returned application #'+id+' for a new admin review round.'});
+      }
+      return success('/staff/applications/'+id,'Owner decision saved: '+result.outcome+'.');
     }
     if(pathname==='/feed'&&req.method==='GET'){
       const page=pageNumber(url.searchParams.get('page'));return html(view.feed(ctx,{posts:loadPosts(ctx.user.id,page),page}));
@@ -560,6 +621,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const roleMap=Object.fromEntries(config.applicationRoles.map(x=>[x,getSetting('map:'+x,'')]));
       logAction(ctx,'settings.view','application.settings');
       return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap}));
+    }
+    if(pathname==='/admin/settings/webhook/test'&&req.method==='POST'){
+      await authorize('owner');rate(ctx,'webhook.test',3,600000);
+      await form();
+      const delivered=await discord.notify({title:'SB Store Webhook Test',
+        description:'Manual webhook test from the owner settings. No staff ping was sent.',
+        fields:[{name:'Triggered by Discord user ID',value:ctx.user.id},{name:'Website',value:config.baseUrl}]});
+      logAction(ctx,'settings.webhook.test','discord.webhook',{delivered});
+      return delivered?success('/admin/settings','Webhook test delivered to the staff channel.'):warn('/admin/settings','Webhook test failed. Check DISCORD_WEBHOOK_URL and Railway logs.');
     }
     if(pathname==='/admin/settings/open'&&req.method==='POST'){
       await authorize('admin');rate(ctx,'settings',20,3600000);const {fields}=await form();
