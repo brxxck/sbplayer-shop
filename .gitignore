@@ -1,0 +1,50 @@
+# // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+# Discord OAuth and bot secrets: never commit these.
+.env
+.env.*
+!.env.example
+
+# Node dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local SQLite databases, WAL, backups and sessions
+data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.bak
+*.backup
+
+# Community member uploads and other runtime artifacts
+public/uploads/
+uploads/
+tmp/
+temp/
+sessions/
+storage/
+
+# Editor/OS files and local key material
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
