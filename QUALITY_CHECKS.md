@@ -40,5 +40,5 @@
 - Full audit records only actions the **website** sees, not direct Discord commands or server changes.
 - Hash-chain detection does not replace protected storage/backups or physical admin controls.
 - The built-in in-memory rate limiter is for one server process; deploy with shared rate-limiting and object storage if traffic grows.
-- Uploaded pictures have a size cap and image signature validation, but large-scale production needs malware/media scanning and retention controls.
+- Uploaded pictures now live alongside SQLite in its configured database directory, so one Railway /app/data volume persists both; the integration test verifies this private storage path. Pictures have a size cap and image signature validation, but large-scale production needs malware/media scanning and retention controls.
 - The site is a runnable local Node app; it does not automatically deploy to a domain.

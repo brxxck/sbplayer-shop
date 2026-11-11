@@ -1,9 +1,11 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {randomBytes} from 'node:crypto';
 import {writeFileSync,statSync,existsSync,mkdirSync} from 'node:fs';
-import {resolve} from 'node:path';
-import {root} from './config.js';
-const uploads=resolve(root,'public/uploads');
+import {dirname,resolve} from 'node:path';
+import {config} from './config.js';
+// Keep uploads on the same persistent volume as the SQLite database.
+// The public URL stays /uploads/<filename>, but the actual files are private data.
+const uploads=resolve(dirname(config.dbPath),'uploads');
 const MAX_BODY=5*1024*1024;
 export async function parseRequestBody(req) {
   const parts=[];let size=0;

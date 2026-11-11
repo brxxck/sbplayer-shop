@@ -7,7 +7,7 @@
 
 V1.2.1 fixes oversized logo/avatar images and broken layouts caused by an old cached stylesheet. This release versions the CSS/JS/image asset URLs and serves styles/scripts with `Cache-Control: no-store`, so the browser cannot keep using V1.1 styles after upgrading. The sidebar SB logo is 44px; signed-in avatars are 32px in the header and 40px in the sidebar. The home hero image is at most 148px on desktop, smaller on tablets, hidden on narrow mobile screens. The mobile-only brand is hidden on desktop.
 
-**Upgrade:** Stop the old server, extract V1.2.1 into a new folder, copy your existing `.env`, `data` and, if applicable, `public/uploads`. Keep them private. Run `npm.cmd run dev`, then press `Ctrl + Shift + R` once in your browser. Do not copy `.env` into a chat.
+**Upgrade:** Stop the old server, extract V1.2.1 into a new folder, copy your existing `.env` and `data`. If your old deployment contains images in `public/uploads`, move those into `data/uploads` before switching versions. Keep them private. Run `npm.cmd run dev`, then press `Ctrl + Shift + R` once in your browser. Do not copy `.env` into a chat.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ This project uses **Node's built-in SQLite**. There are **zero third-party npm d
 
 1. Extract the ZIP into a folder such as `C:\Users\spakk\Downloads\sbs-cams-community-v1.2`.
 2. Open PowerShell in the extracted project directory.
-3. If upgrading, **copy your existing `.env` and `data` folder from V1.1** into this directory while both servers are stopped. Also copy the old `public/uploads` directory if you had uploads from a more recent build. **Never share the `.env` file**. Do not overwrite the packaged `.env.example`.
+3. If upgrading, **copy your existing `.env` and `data` folder from V1.1** into this directory while both servers are stopped. If you had images in the previous `public/uploads`, copy those files into `data/uploads` (not `public/uploads`) before launching this version. **Never share the `.env` file**. Do not overwrite the packaged `.env.example`.
 4. If setting up new: `Copy-Item .env.example .env` then `notepad .env`. Add Discord IDs and credentials locally.
 5. `npm.cmd install` — optional, but familiar; there are no external dependencies.
 6. `npm.cmd test` — automated test suite (uses its own fake Discord adapter and temporary database, **not** your real Discord account).
@@ -108,7 +108,7 @@ These security rules apply **on the server**, not only to the visible buttons. T
 - **Member directory:** live Discord username/nickname prefix search and Discord ID lookup. Limited fallback to users who have logged into the site if Discord's Guild Members Intent isn't available.
 - **Team Members:** derives groups from detected Discord roles. Complete guild listing depends on the privileged Guild Members Intent; fallback may be incomplete and is explicitly labeled in the UI.
 - **Profiles:** Discord identity, custom website name, status, pronouns, bio, avatar, banner, background image, accent palettes, themes, typography, layout, optional effects, external social links, follow counts, pinned post, editable/reorderable/show-hide custom sections, wall comments and privacy controls. Website customization does not modify Discord profiles. No arbitrary scripts, custom HTML or custom CSS are allowed.
-- **Uploads:** PNG / JPEG / GIF / WebP detected by file signatures, maximum 4 MB, stored under `public/uploads`; only Discord-authenticated, currently verified members can open uploads. Images associated with private profiles are restricted to that profile owner.
+- **Uploads:** PNG / JPEG / GIF / WebP detected by file signatures, maximum 4 MB, stored beside the SQLite database under `data/uploads` (under `/app/data/uploads` on Railway); only Discord-authenticated, currently verified members can open uploads. Images associated with private profiles are restricted to that profile owner.
 
 ## Owner-only audit
 
@@ -120,9 +120,18 @@ npm.cmd run audit:verify
 
 The chain detects modifications to **retained** rows; it cannot prevent someone with unrestricted filesystem access from replacing the entire DB and its backups. Set up protected off-machine backups and limit database filesystem access. Actions performed directly inside Discord are **not** collected by this site; for that you'd need a separate Discord event/audit-log ingestion feature.
 
+## Railway persistent uploads and backups
+
+1. Attach your Railway volume to the website service at **`/app/data`**, and set **`DB_PATH=/app/data/app.sqlite`** in Railway Variables. Member images are now stored under **`/app/data/uploads`** on the same volume as the SQLite database. Browser URLs remain `/uploads/<filename>` and are served by the existing authenticated route.
+2. Before deploying this fix over an older live website that has existing uploaded images, **copy existing files from `/app/public/uploads` to `/app/data/uploads` while the old deployment is still running**. If the old container has already been replaced, images stored only on ephemeral disk may be gone. Verify the copy before removing anything.
+3. Open the website service's **Backups** tab once the volume is attached. Enable **Daily**, and optionally **Weekly** and **Monthly**. Railway currently retains daily backups for 6 days, weekly for 27 days and monthly for 89 days. You may also create a manual snapshot.
+4. Backups are incremental volume snapshots, not an offsite archive immune to deleting or wiping the volume. Keep occasional independent exports and test the restore procedure.
+
+For migration, use Railway's authenticated CLI/SSH, and never expose the uploads folder through direct static-file serving. For SQLite, avoid copying only a live `.sqlite` file while WAL data might be pending; use a stopped-server or SQLite online backup.
+
 ## Backups and hosting
 
-- **Before upgrading**, stop the server, back up `.env` privately and copy **the entire** `data/` directory plus `public/uploads/`. With SQLite WAL, copy the DB when the website is stopped, or make an SQLite online backup; avoid copying only an active `.sqlite` while WAL data is pending.
+- **Before upgrading**, stop the server, back up `.env` privately and copy **the entire** `data/` directory (including its `uploads/` folder). For versions before this storage fix, also migrate any images from `public/uploads/` into `data/uploads/`. With SQLite WAL, copy the DB when the website is stopped, or make an SQLite online backup; avoid copying only an active `.sqlite` while WAL data is pending.
 - Avoid storing the server in an automatically resetting cloud filesystem. SQLite data and uploaded images require **persistent storage**.
 - For a public domain, use HTTPS with a secure reverse proxy, set `NODE_ENV=production` and `BASE_URL=https://your-domain.example`, and register the corresponding Discord OAuth2 redirect.
 - Protect the `.env` and database at filesystem level; do not publish them in GitHub or a website folder.

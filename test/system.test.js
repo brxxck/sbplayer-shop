@@ -1,15 +1,16 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {test,after,before} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010'};
 const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
+const {config}=await import('../src/config.js');
 const {verifyAudit}=await import('../src/audit.js');
 const fakeRoles=[
   {id:ids.guild,name:'@everyone',position:0,permissions:'0',managed:false,color:0},
@@ -184,12 +185,15 @@ test('profile image upload validates real image bytes and remains private to acc
   assert.equal(r.status,303);
   const uploaded=one('SELECT avatar_path FROM profiles WHERE user_id=?',ids.member).avatar_path;
   assert.match(uploaded,/^\/uploads\/[a-f0-9]{32}\.png$/);
+  const storedFile=join(dirname(config.dbPath),'uploads',basename(uploaded));
+  assert.equal(existsSync(storedFile),true,'uploaded file must be stored next to SQLite on the persistent volume');
+  assert.equal(existsSync(resolve(import.meta.dirname,'..','public',uploaded.slice(1))),false,'do not save new uploads in ephemeral public folder');
   assert.equal((await get(uploaded,'member2')).status,403);
   assert.equal((await get(uploaded,'member')).status,200);
   const bad=new FormData();bad.set('_csrf',sessions.get('member').csrf);bad.set('image',new Blob(['<script>bad</script>'],{type:'image/png'}),'fake.png');
   r=await fetch(base+'/profile/upload/banner',{method:'POST',headers:{cookie:sessions.get('member').cookie},body:bad,redirect:'manual'});
   assert.equal(r.status,400);
-  unlinkSync(resolve(import.meta.dirname,'..','public',uploaded.slice(1)));
+  unlinkSync(storedFile);
 });
 
 test('all staff access events retained and audit hash chain still valid',async()=>{
