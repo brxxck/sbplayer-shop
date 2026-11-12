@@ -4,7 +4,7 @@
 import {createInterface} from 'node:readline/promises';
 import {stdin as input,stdout as output} from 'node:process';
 import {sanitizeInPvPStorageState} from '../src/mega-session-state.js';
-import {MEGA_TEAM_URL} from '../src/mega-team.js';
+const MEGA_TEAM_URL='https://inpvp.net/megasmp/teams?team=SBsxScam&gamemode=megasmp&id=5638a504-3347-43fc-89d6-424dad53b7f6';
 
 const args=process.argv.slice(2);
 const local=args.includes('--local');
