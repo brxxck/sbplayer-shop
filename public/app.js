@@ -188,3 +188,19 @@ for(const button of document.querySelectorAll('button[data-share-path]')){
     }
   });
 }
+
+
+// V1.5: the top-right account menu closes on Escape and on outside taps.
+const topAccountMenu=document.querySelector('[data-account-dropdown]');
+if(topAccountMenu){
+  document.addEventListener('pointerdown',event=>{
+    if(topAccountMenu.open&&!topAccountMenu.contains(event.target))topAccountMenu.open=false;
+  });
+  topAccountMenu.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&topAccountMenu.open){
+      topAccountMenu.open=false;
+      topAccountMenu.querySelector('summary')?.focus();
+      event.preventDefault();
+    }
+  });
+}
