@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.7
+# SB's & Cam's Store — Community Portal V1.3.8
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.8 — Staff, Mod and Temp Mod sections
+
+- **Our Staff** keeps **Ownership** and **Administration**, then replaces the former generic **Other Staff** grid with three separate groups in this order: **Staff → Mod → Temp Mod**. Each group is visible even if no members are currently assigned.
+- **Temp Mod** membership is determined exclusively by the Discord role ID \`1539085168281919648\`, not by fuzzy name matching. The label uses the role's current Discord name.
+- **Mod** includes the store's \`Mod\`, \`Moderator\`, and \`Head Mod\` roles. **Staff** includes normal/head/senior store \`Staff\` roles, plus explicitly configured reviewer/team staff roles when they do not hold a more specific rank.
+- People with more than one staff role appear **once**, in their highest applicable group: **Ownership > Administration > Staff > Mod > Temp Mod**. The displayed role badge comes from the matched internal role, not unrelated Mega SMP staff roles.
+- **Known Members** (Mega SMP / Prison staff) and **Team Members** (SBs x Scam) remain separate. External staff and team roles cannot accidentally create an **Our Staff** card.
+- **Safe deployment:** This is a presentation/role-classification update. No database schema changes or new Railway settings are needed. Keep the existing \`sbplayer-shop\` service and \`/app/data\` volume, back up before redeploying GitHub \`main\`, and verify \`https://sbstore.info/health\` reports \`"version":"1.3.8"\`.
 
 ## V1.3.7 — Mega Staff Trusted directory fix and cleaner heading
 
