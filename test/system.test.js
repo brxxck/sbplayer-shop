@@ -314,6 +314,7 @@ test('MegaSMP dashboard preserves rosters, manually recorded money, source prove
  assert.equal(imported.transactions.filter(t=>t.member_id===id).length,0,'manual ledger is not overwritten by imports');
  assert.equal(imported.transactions.length,2);
  assert.equal(imported.totals.missing,1,'missing imported values stay missing');
+ assert.equal(imported.totals.net,null,'team net is withheld when any member lacks deposit or withdrawal totals');
  assert.equal((await post('/team/mega/member-status','adminA',{season,member_id:String(id),status:'former'})).status,303);
  assert.equal(megaDashboard(season).totals.activeMembers,1);
  assert.equal(megaDashboard(season).totals.deposited,800000,'former players retain their historical season contribution');
