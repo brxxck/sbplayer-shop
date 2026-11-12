@@ -111,9 +111,15 @@ export async function captureTeamBankPage(page,{
       // Do not accidentally collapse separate identical no-ID transactions.
       // Per snapshot occurrence numbers are assigned in the parser, after collection.
       // Text+explicit event ID is only used to dedupe DOM virtualization repeats.
-      for(const [index,row] of rows.entries()){
-        const key=(row.eventId?'id:'+row.eventId:'text:'+row.text+':'+index);
-        found.set(key,row);
+      const occurrences=new Map();
+      for(const row of rows){
+        const keyText=row.text.replace(/\s+/g,' ').trim();
+        const ordinal=(occurrences.get(keyText)||0)+1;
+        occurrences.set(keyText,ordinal);
+        // Stable across viewport shifts. Identical events in different viewports
+        // remain an explicit ambiguity unless provider IDs are available.
+        const key=row.eventId?'id:'+row.eventId:'text:'+keyText+':'+ordinal;
+        if(!found.has(key))found.set(key,row);
       }
       if(found.size>=MAX_ROWS)break;
       noGrowth=found.size===start?noGrowth+1:0;
