@@ -13,7 +13,7 @@ const {parseMegaMoneyCents,formatMegaCents,parseMegaEventRow,prepareMegaEvents}=
 const {saveMegaCapture,megaCapturedBankSummary,noteMegaCaptureFailure}=await import('../src/mega-team-bank-event-store.js');
 const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
 const {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount}=await import('../src/mega-team-discord-matches.js');
-const {captureTeamBankPage,openBankTab}=await import('../src/mega-team-page-collector.js');
+const {captureTeamBankPage,openBankTab,openEventLogSection,selectBankEventLog}=await import('../src/mega-team-page-collector.js');
 const {MEGA_TEAM_ID,MEGA_TEAM_URL}=await import('../src/mega-team.js');
 after(()=>{db.close();rmSync(tmp,{recursive:true,force:true});});
 
@@ -150,6 +150,63 @@ test('selected Bank tab avoids clicking and blocked controls fail visibly',async
   getByText:()=>absent
  };
  await assert.rejects(()=>openBankTab(disabledPage),/visible but not actionable/);
+});
+
+test('collector opens Event Log parent before its initially missing Bank tab',async()=>{
+  let parentOpen=false;
+  const actions=[];
+  const node=click=>({
+   isVisible:async()=>true,isEnabled:async()=>true,
+   getAttribute:async()=>null,click
+  });
+  const present=target=>({count:async()=>1,first:()=>target,nth:()=>target});
+  const absent={count:async()=>0,first:()=>({})};
+  const parent=present(node(async()=>{actions.push('event-log');parentOpen=true;}));
+  const bank=present(node(async()=>{actions.push('bank');}));
+  const mock={
+   getByRole:(role,{name})=>{
+    const n=String(name);
+    if(/Event Log/.test(n))return parent;
+    if(/Bank/.test(n))return parentOpen?bank:absent;
+    return absent;
+   },
+   getByText:()=>absent,
+   evaluate:async(fn,arg)=>arg?.cap?sample:({roster:[],bankBalance:null}),
+   goto:async()=>{},
+   url:()=>MEGA_TEAM_URL,
+   locator:()=>({innerText:async()=> 'Event Log (4)'})
+  };
+  const captured=await captureTeamBankPage(mock,{maxScrolls:3,maxPages:1});
+  assert.deepEqual(actions,['event-log','bank']);
+  assert.equal(captured.rows.length,4);
+  assert.equal(captured.incomplete,false);
+});
+test('selected Event Log parent needs no extra click',async()=>{
+  let clicks=0;
+  const current={
+   isVisible:async()=>true,isEnabled:async()=>true,
+   getAttribute:async key=>key==='aria-selected'?'true':null,
+   click:async()=>{clicks++;}
+  };
+  const absent={count:async()=>0,first:()=>({})};
+  const page={
+   getByRole:(role,{name})=>/Event Log/.test(String(name))?
+    {count:async()=>1,first:()=>current}:absent,
+   getByText:()=>absent
+  };
+  assert.equal(await openEventLogSection(page),true);
+  assert.equal(clicks,0);
+});
+test('collector clearly identifies missing team detail view without fabricating events',async()=>{
+  const absent={count:async()=>0,first:()=>({})};
+  const page={
+   getByRole:()=>absent,
+   getByText:()=>absent,
+   evaluate:async(fn,arg)=>arg?.cap?[]:{
+     team:false,events:false,bank:false,signin:false,directory:true
+   }
+  };
+  await assert.rejects(()=>selectBankEventLog(page),/Team detail view unavailable/);
 });
 
 test('all captured bank events remain browsable across 50-row pages with type/player filters',()=>{
