@@ -47,27 +47,33 @@ export function adminVote({appId,userId,choice,note,role,ip}){
 }
 export const userProfile=id=>one('SELECT * FROM profiles WHERE user_id=?',id);
 export const profileSections=id=>all('SELECT * FROM profile_sections WHERE user_id=? ORDER BY sort_order,id',id);
-export function listPosts(viewerId,{page=0,userId=null,limit=20}={}){
+export function listPosts(viewerId,{page=0,userId=null,limit=20,following=false,saved=false,media=false,likesFor=null}={}){
   const where=['p.deleted_at IS NULL'];const args=[];
   if(userId){where.push('p.user_id=?');args.push(userId);}
+  if(following){where.push('(p.user_id=? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followed_id=p.user_id))');args.push(viewerId,viewerId);}
+  if(saved){where.push('EXISTS(SELECT 1 FROM post_bookmarks b WHERE b.post_id=p.id AND b.user_id=?)');args.push(viewerId);}
+  if(media)where.push("p.image_path!=''");
+  if(likesFor){where.push('EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id=p.id AND pl.user_id=?)');args.push(likesFor);}
   const sql=`SELECT p.*,u.username,u.display_name,u.avatar,pr.nickname,pr.avatar_path,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id=p.id) AS like_count,
   (SELECT COUNT(*) FROM comments c WHERE c.kind='post' AND c.target_id=CAST(p.id AS TEXT) AND c.deleted_at IS NULL) AS comment_count,
   (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of=p.id AND rp.deleted_at IS NULL) AS repost_count,
   EXISTS(SELECT 1 FROM post_likes WHERE post_id=p.id AND user_id=?) AS liked,
-  EXISTS(SELECT 1 FROM posts r WHERE r.repost_of=p.id AND r.user_id=? AND r.deleted_at IS NULL) AS reposted
+  EXISTS(SELECT 1 FROM posts r WHERE r.repost_of=p.id AND r.user_id=? AND r.deleted_at IS NULL) AS reposted,
+  EXISTS(SELECT 1 FROM post_bookmarks b WHERE b.post_id=p.id AND b.user_id=?) AS bookmarked
   FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN profiles pr ON pr.user_id=u.id
   WHERE ${where.join(' AND ')} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
-  return all(sql,viewerId,viewerId,...args,limit,Math.min(1000,Math.max(0,page))*limit);
+  return all(sql,viewerId,viewerId,viewerId,...args,limit,Math.min(1000,Math.max(0,page))*limit);
 }
 export function postDetails(id,viewerId){return one(`SELECT p.*,u.username,u.display_name,u.avatar,pr.nickname,pr.avatar_path,
   (SELECT COUNT(*) FROM post_likes WHERE post_id=p.id) AS like_count,
   (SELECT COUNT(*) FROM comments WHERE kind='post' AND target_id=CAST(p.id AS TEXT) AND deleted_at IS NULL) AS comment_count,
   (SELECT COUNT(*) FROM posts WHERE repost_of=p.id AND deleted_at IS NULL) AS repost_count,
   EXISTS(SELECT 1 FROM post_likes WHERE post_id=p.id AND user_id=?) AS liked,
-  EXISTS(SELECT 1 FROM posts WHERE repost_of=p.id AND user_id=? AND deleted_at IS NULL) AS reposted
+  EXISTS(SELECT 1 FROM posts WHERE repost_of=p.id AND user_id=? AND deleted_at IS NULL) AS reposted,
+  EXISTS(SELECT 1 FROM post_bookmarks b WHERE b.post_id=p.id AND b.user_id=?) AS bookmarked
   FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN profiles pr ON pr.user_id=p.user_id
-  WHERE p.id=? AND p.deleted_at IS NULL`,viewerId,viewerId,id);
+  WHERE p.id=? AND p.deleted_at IS NULL`,viewerId,viewerId,viewerId,id);
 }
 export const listComments=(kind,targetId)=>all(`SELECT c.*,u.username,u.display_name,u.avatar,p.nickname FROM comments c JOIN users u ON c.user_id=u.id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.kind=? AND c.target_id=? AND c.deleted_at IS NULL ORDER BY c.created_at ASC LIMIT 300`,kind,String(targetId));
 export function listSuggestions(page=0){return all(`SELECT s.*,u.username,u.display_name,u.avatar,
