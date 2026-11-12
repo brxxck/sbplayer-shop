@@ -81,6 +81,32 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/members?q=mem','member')).status,200);
 });
 
+test('verified SB Store Staff, Mod and Temp Mod Discord roles use promotion navigation',async()=>{
+  for(const who of ['member7','member8','member9'])await login(who);
+  const promotedNavUsers=['owner','adminA','reviewer','member6','member7','member8','member9'];
+  for(const who of promotedNavUsers){
+    const response=await get('/',who);
+    assert.equal(response.status,200);
+    const page=await response.text();
+    const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
+    assert.ok(nav.includes('Apply for a Promotion'),who+' should have promotion tab');
+    assert.equal((nav.match(/href="\/promotions"/g)||[]).length,1,who+' gets one promotion tab');
+    assert.ok(!nav.includes('href="/tickets/mine"'),who+' should not have My Tickets tab');
+    assert.ok(!nav.includes('href="/dashboard"'),who+' should not have My Applications tab');
+    assert.ok(!nav.includes('href="/apply"'),who+' should not have Apply for Staff tab');
+  }
+  // An external Mega SMP/Prison/SBs role must not be mistaken for SB Store Staff.
+  for(const who of ['member','member2','member3','member4']){
+    const page=await (await get('/',who)).text();
+    const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
+    for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(nav.includes('href="'+link+'"'),who+' should retain '+link);
+    assert.ok(!nav.includes('Apply for a Promotion'),who+' should not see promotion tab');
+  }
+  assert.equal((await get('/promotions/new','member6')).status,403,'Staff cannot create promotion tickets beyond Staff');
+  assert.equal((await get('/promotions/new','member7')).status,200,'Temp Mod can submit promotion requests');
+  assert.equal((await get('/promotions/new','member8')).status,200,'Mod can submit promotion requests');
+});
+
 test('Our Staff keeps actual store staff and Known Members separates Mega SMP / Prison tabs',async()=>{
   const team=await (await get('/team','member')).text();
   assert.ok(team.includes('Our Staff'));

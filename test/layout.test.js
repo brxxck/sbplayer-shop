@@ -22,8 +22,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.4-promotions/);
-  assert.match(page,/\/static\/app\.js\?v=1\.4-promotions/);
+  assert.match(page,/\/static\/style\.css\?v=1\.4\.3-staff-navigation/);
+  assert.match(page,/\/static\/app\.js\?v=1\.4\.3-staff-navigation/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -38,23 +38,31 @@ test('signed-in avatars specify safe dimensions and mobile header remains CSS-co
   assert.match(avatar(signed.user,'unrecognized'),/width="43" height="43"/);
 });
 
-test('admins and owners do not see member-only ticket/application tabs, while members and reviewers do',()=>{
-  const user={id:'100000000000000002',username:'staff-user',display_name:'Staff User'};
-  for(const role of ['member','reviewer','admin','owner']){
-    const page=home({...blank,user,role,csrf:'fixture'});
+test('staff, mods and temp mods use promotion navigation; ordinary members keep applications',()=>{
+  const user={id:'100000000000000002',username:'sbs-user',display_name:'SB'};
+  const variants=[
+    {role:'member',staffNavigation:false,kind:'ordinary member',promote:false},
+    {role:'member',staffNavigation:true,kind:'Staff',promote:true},
+    {role:'member',staffNavigation:true,kind:'Mod',promote:true},
+    {role:'member',promotionEligible:true,kind:'Temp Mod',promote:true},
+    {role:'reviewer',kind:'Reviewer staff',promote:true},
+    {role:'admin',kind:'Admin',promote:true},
+    {role:'owner',kind:'Owner',promote:true}
+  ];
+  for(const v of variants){
+    const page=home({...blank,...v,user,csrf:'fixture'});
     const discover=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
     const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
-    if(['admin','owner'].includes(role)){
-      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(!discover.includes('href="'+link+'"'),role+' must not see '+link+' in sidebar');
-      assert.match(discover, /href="\/promotions"[^>]*>[\\s\\S]*?Apply for a Promotion/, 'admin/owner must have Apply for a Promotion shortcut');
-      assert.ok(mobile.includes('<a href="/promotions">Apply for a Promotion</a>'), 'admin/owner mobile shortcut for promotion');
-      for(const link of ['/tickets/mine','/dashboard'])assert.ok(!mobile.includes('href="'+link+'"'),role+' must not see '+link+' in mobile nav');
-      assert.match(discover,/href="\/tickets\/new"/,'admins still have the regular ticket submission shortcut');
-      assert.match(page,/href="\/staff\/tickets"/,'admin/owner keep staff ticket management');
-      assert.match(page,/href="\/staff"/,'admin/owner keep staff application reviews');
+    if(v.promote){
+      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(!discover.includes('href="'+link+'"'),v.kind+' must not see '+link+' in sidebar');
+      for(const link of ['/tickets/mine','/dashboard'])assert.ok(!mobile.includes('href="'+link+'"'),v.kind+' must not see '+link+' in mobile navigation');
+      assert.equal((discover.match(/href="\/promotions"/g)||[]).length,1,v.kind+' gets one promotion link');
+      assert.ok(discover.includes('Apply for a Promotion'),v.kind+' should see promotion shortcut');
+      assert.ok(mobile.includes('<a href="/promotions">Apply for a Promotion</a>'),v.kind+' should have mobile promotion shortcut');
     }else{
-      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(discover.includes('href="'+link+'"'),role+' should keep '+link+' in sidebar');
-      for(const link of ['/tickets/mine','/dashboard'])assert.ok(mobile.includes('href="'+link+'"'),role+' should keep '+link+' in mobile nav');
+      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(discover.includes('href="'+link+'"'),v.kind+' keeps '+link+' in sidebar');
+      for(const link of ['/tickets/mine','/dashboard'])assert.ok(mobile.includes('href="'+link+'"'),v.kind+' keeps '+link+' in mobile navigation');
+      assert.ok(!discover.includes('href="/promotions"'),v.kind+' must not see the promotion shortcut');
     }
   }
 });
