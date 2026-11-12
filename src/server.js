@@ -7,7 +7,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {config,root,validateConfig} from './config.js';
 import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
 import {appendAudit,verifyAudit} from './audit.js';
-import {shouldAuditAction,collectAuditDiscordIds,readableAuditRows,auditDisplayText} from './audit-display.js';
+import {shouldAuditAction,VISIBLE_AUDIT_ACTIONS,collectAuditDiscordIds,readableAuditRows} from './audit-display.js';
 import {classify,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
 import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
@@ -989,12 +989,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('owner');
       const filter=text(url.searchParams.get('q'),80),like='%'+filter+'%';
       // Name search is read-only; keep the raw IDs and original hash-chained rows.
+      const actionList=VISIBLE_AUDIT_ACTIONS.map(()=>'?').join(',');
       const events=filter?all(`SELECT a.* FROM owner_audit_log a
         LEFT JOIN users u ON u.id=a.actor_id
-        WHERE a.actor_id LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?
-          OR a.action LIKE ? OR a.target LIKE ? OR a.details LIKE ? OR a.outcome LIKE ?
-        ORDER BY a.id DESC LIMIT 300`,like,like,like,like,like,like,like):
-        all('SELECT * FROM owner_audit_log ORDER BY id DESC LIMIT 300');
+        WHERE a.action IN (${actionList}) AND
+          (a.actor_id LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?
+          OR a.action LIKE ? OR a.target LIKE ? OR a.details LIKE ? OR a.outcome LIKE ?)
+        ORDER BY a.id DESC LIMIT 300`,...VISIBLE_AUDIT_ACTIONS,like,like,like,like,like,like,like):
+        all('SELECT * FROM owner_audit_log WHERE action IN ('+actionList+') ORDER BY id DESC LIMIT 300',...VISIBLE_AUDIT_ACTIONS);
       const names=await auditUsernamesFor(events);
       return html(view.audit(ctx,{events:readableAuditRows(events,names),verified:verifyAudit(db),filter}));
     }
@@ -1006,9 +1008,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const names=new Map(all('SELECT id,username FROM users')
         .filter(user=>user.username&&user.username!=='unknown')
         .map(user=>[user.id,user.username]));
+      const includeFullHistory=url.searchParams.get('full')==='1';
+      const actionList=VISIBLE_AUDIT_ACTIONS.map(()=>'?').join(',');
+      const statement=includeFullHistory?
+        db.prepare('SELECT * FROM owner_audit_log ORDER BY id'):
+        db.prepare('SELECT * FROM owner_audit_log WHERE action IN ('+actionList+') ORDER BY id');
       res.writeHead(200,{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="sbs-owner-audit.csv"','cache-control':'no-store'});
       res.write([...keys,'actor_username','target_display','details_display'].join(',')+'\r\n');
-      for(const row of db.prepare('SELECT * FROM owner_audit_log ORDER BY id').iterate()){
+      for(const row of statement.iterate(...(includeFullHistory?[]:VISIBLE_AUDIT_ACTIONS))){
         const display=readableAuditRows([row],names)[0];
         const fields=[...keys.map(k=>row[k]),display.actorDisplay,display.targetDisplay,display.detailsDisplay];
         res.write(fields.map(csvValue).join(',')+'\r\n');
