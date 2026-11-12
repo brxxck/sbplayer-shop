@@ -1,6 +1,8 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // Conservative aggregation: absent statistics are null, never fabricated zeros.
 import {all,one,run,transaction} from './db.js';
+import {megaCapturedBankSummary} from './mega-team-bank-event-store.js';
+import {megaBrowserSnapshot} from './mega-team-browser-snapshot.js';
 import {
  activeMegaSeason,megaSeasons,resolveMegaSeason,MEGA_TEAM_ID,MEGA_TEAM_NAME,MEGA_TEAM_URL,
  validGamertag,moneyAmount,upsertMegaMember,recordMegaBank
@@ -37,8 +39,46 @@ export function megaDashboard(requestedSeason=activeMegaSeason()){
   }
   return observed?total:null;
  };
+ // Captured bank events are an independent observed source, never added to manual
+ // or imported totals. Only player identities with observed events are populated.
+ const captured=megaCapturedBankSummary(season.season);
+ const browser=megaBrowserSnapshot(season.season);
+ const observed=new Map(captured.players.map(p=>[p.gamertag.toLowerCase(),p]));
+ const seenNames=new Set(members.map(m=>m.gamertag.toLowerCase()));
+ const snapshotRoles=new Map(browser.roster.map(p=>[p.gamertag.toLowerCase(),p.role]));
+ for(const member of members){
+  const info=observed.get(member.gamertag.toLowerCase());
+  if(!info)continue;
+  member.observedDeposits=info.deposited;
+  member.observedWithdrawals=info.withdrawn;
+  member.observedNet=info.net;
+  member.observedEvents=info.recordedEvents;
+ }
+ for(const p of captured.players){
+  if(seenNames.has(p.gamertag.toLowerCase()))continue;
+  members.push({
+   id:null,gamertag:p.gamertag,role:snapshotRoles.get(p.gamertag.toLowerCase())||'Member',
+   status:'observed',source:'captured_events',deposits:null,withdrawals:null,net:null,
+   observedDeposits:p.deposited,observedWithdrawals:p.withdrawn,observedNet:p.net,
+   observedEvents:p.recordedEvents,updatedAt:captured.status?.last_success||null
+  });
+  seenNames.add(p.gamertag.toLowerCase());
+ }
+ for(const p of browser.roster){
+  if(seenNames.has(p.gamertag.toLowerCase()))continue;
+  members.push({
+   id:null,gamertag:p.gamertag,role:p.role,status:'observed',source:'browser_roster',
+   deposits:null,withdrawals:null,net:null,updatedAt:p.seenAt
+  });
+  seenNames.add(p.gamertag.toLowerCase());
+ }
+ // A captured bank balance is independent of cumulative contributions.
+ // Preserve cents from the source and prefer a newer captured observation.
+ const capturedBalance=browser.bank&&Number.isSafeInteger(browser.bank.balanceCents)?
+  {balance:browser.bank.balanceCents/100,as_of:browser.bank.observedAt,source:'browser_capture'}:null;
  const deposits=safeSubtotal('deposits'),withdrawals=safeSubtotal('withdrawals');
- const bank=one('SELECT balance,as_of,source FROM mega_team_bank_snapshots WHERE season=? ORDER BY as_of DESC,id DESC LIMIT 1',season.season);
+ const recordedBank=one('SELECT balance,as_of,source FROM mega_team_bank_snapshots WHERE season=? ORDER BY as_of DESC,id DESC LIMIT 1',season.season);
+ const bank=capturedBalance&&(!recordedBank||capturedBalance.as_of>recordedBank.as_of)?capturedBalance:recordedBank;
  const transactions=all("SELECT l.id,l.kind,l.amount,l.occurred_at,l.notes,l.actor_id,m.gamertag "+
    "FROM mega_team_ledger l JOIN mega_team_members m ON m.id=l.member_id "+
    "WHERE l.season=? ORDER BY l.occurred_at DESC,l.id DESC LIMIT 50",season.season);
@@ -46,7 +86,11 @@ export function megaDashboard(requestedSeason=activeMegaSeason()){
    season,activeSeason:activeMegaSeason(),seasons:megaSeasons(),members,
    totals:{activeMembers:active.length,recordedMembers:members.length,withBoth:complete.length,missing:members.length-complete.length,
      deposited:deposits,withdrawn:withdrawals,net:complete.length===members.length&&deposits!==null&&withdrawals!==null?deposits-withdrawals:null},
-   bank:bank||null,transactions,sync:one('SELECT * FROM mega_team_sync_state WHERE id=1')};
+   bank:bank||null,transactions,
+   capturedTransactions:captured.events,
+   captured:{...captured,events:undefined,players:undefined},
+   browserRosterCount:browser.roster.length,
+   sync:one('SELECT * FROM mega_team_sync_state WHERE id=1')};
 }
 
 // Expected authorized feed format (documented in README):

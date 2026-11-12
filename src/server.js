@@ -22,6 +22,7 @@ import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMe
 import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
 import {createMegaTeamSync} from './mega-team-sync.js';
+import {createMegaBrowserRunner} from './mega-team-browser-runner.js';
 import {megaCapturedBankHistory} from './mega-team-bank-history.js';
 import {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount} from './mega-team-discord-matches.js';
 import {megaHistoryPage,megaMatchesPage} from './mega-team-history-views.js';
@@ -151,6 +152,7 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
   const megaSync=createMegaTeamSync();
+  const megaBrowser=createMegaBrowserRunner();
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
   // Resolve historical IDs on read without changing the signed hash-chain records.
   // Local users are preferred; limited external lookups are cached to protect API quotas.
@@ -247,7 +249,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.0'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -421,7 +423,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         data.members=data.members.map(({discordId,...rest})=>rest);
         data.transactions=data.transactions.map(({notes,actor_id,...rest})=>rest);
       }
-      return respond(res,200,JSON.stringify({...data,syncEnabled:megaSync.enabled}),'application/json; charset=utf-8');
+      return respond(res,200,JSON.stringify({...data,syncEnabled:megaSync.enabled,browserCaptureEnabled:megaBrowser.enabled}),'application/json; charset=utf-8');
     }
     if(pathname.startsWith('/team/mega/')&&req.method==='POST'){
       const task=pathname.slice('/team/mega/'.length);
@@ -1420,10 +1422,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
   });
   megaSync.start();
-  website.on('close',()=>megaSync.stop());
+  megaBrowser.start();
+  website.on('close',()=>{megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.1 running at ${config.baseUrl}`));
 }

@@ -9,7 +9,7 @@
  const money=value=>value===null||value===undefined?'Not recorded':'$'+Number(value).toLocaleString('en-US');
  const short=value=>value===null||value===undefined?'—':'$'+new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(value);
  const date=value=>value?new Date(value).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not available';
- const source=value=>value==='authorized_feed'?'Authorized feed':value==='manual_import'?'Submitted snapshot':value==='manual'?'Recorded manually':'Not recorded';
+ const source=value=>value==='authorized_feed'?'Authorized feed':value==='manual_import'?'Submitted snapshot':value==='manual'?'Recorded manually':value==='captured_events'?'Captured activity':value==='browser_roster'?'Observed roster':'Not recorded';
  const cell=(row,label,cls='')=>{
   const td=document.createElement('td');if(cls)td.className=cls;
   td.textContent=label;row.append(td);
@@ -30,17 +30,17 @@
       info.append(linked);td.append(info);
     }
     tr.append(td);
-    cell(tr,money(m.deposits),'mega-number');cell(tr,money(m.withdrawals),'mega-number');cell(tr,money(m.net),'mega-number');
+    cell(tr,money(m.deposits??m.observedDeposits),'mega-number');cell(tr,money(m.withdrawals??m.observedWithdrawals),'mega-number');cell(tr,money(m.net??m.observedNet),'mega-number');
     fragment.append(tr);
    }
    if(!fragment.childNodes.length){const tr=document.createElement('tr');cell(tr,'No imported in-game roster yet.');fragment.append(tr);}
    rows.replaceChildren(fragment);
   }
   if(rank){
-   const active=(data.members||[]).filter(m=>m.status==='active').sort((a,b)=>(b.deposits??-1)-(a.deposits??-1)||a.gamertag.localeCompare(b.gamertag));
+   const active=(data.members||[]).filter(m=>m.status==='active').sort((a,b)=>(b.deposits??b.observedDeposits??-1)-(a.deposits??a.observedDeposits??-1)||a.gamertag.localeCompare(b.gamertag));
    const fragment=document.createDocumentFragment();
    for(const [i,m] of active.entries()){
-    const tr=document.createElement('tr');cell(tr,'#'+(i+1));cell(tr,m.gamertag);cell(tr,money(m.deposits),'mega-number');
+    const tr=document.createElement('tr');cell(tr,'#'+(i+1));cell(tr,m.gamertag);cell(tr,money(m.deposits??m.observedDeposits),'mega-number');
     fragment.append(tr);
    }
    if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No ranked contributions yet.');fragment.append(empty);}
@@ -55,6 +55,15 @@
    }
    if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No individual transactions recorded yet.');fragment.append(empty);}
    history.replaceChildren(fragment);
+  }
+  const observed=root.querySelector('[data-mega-observed]');
+  if(observed){const fragment=document.createDocumentFragment();
+   for(const event of data.capturedTransactions||[]){
+    const row=document.createElement('tr');cell(row,event.time||'Unknown time');cell(row,event.gamertag);
+    cell(row,event.kind);cell(row,event.amount==null?'Not recorded':'$'+event.amount,'mega-number');fragment.append(row);
+   }
+   if(!fragment.childNodes.length){const row=document.createElement('tr');cell(row,'No browser-captured bank events yet.');fragment.append(row);}
+   observed.replaceChildren(fragment);
   }
  }
  let busy=false;
@@ -75,6 +84,15 @@
       deposits:data.totals.deposited,withdrawals:data.totals.withdrawn,net:data.totals.net})){
     const element=root.querySelector('[data-mega-value="'+key+'"]');if(element)element.textContent=short(amount);
    }
+   for(const [key,amount] of Object.entries({'captured-deposits':data.captured?.deposited,'captured-withdrawals':data.captured?.withdrawn})){
+    const element=root.querySelector('[data-mega-value="'+key+'"]');if(element)element.textContent=amount==null?'—':'$'+Number(amount).toLocaleString('en-US',{maximumFractionDigits:2});
+   }
+   const capture=root.querySelector('[data-mega-capturestatus]');
+   const last=data.captured?.status?.last_success||0;
+   if(capture)capture.textContent=last?(Date.now()-last>900000?'Browser capture stale: ':'Browser captured: ')+date(last):
+    data.browserCaptureEnabled?'Browser collector enabled; awaiting first capture':'Browser collector not configured';
+   const captureError=root.querySelector('[data-mega-captureerror]');
+   if(captureError)captureError.textContent=data.captured?.status?.last_error?'Collector warning: '+data.captured.status.last_error:'';
    const count=root.querySelector('[data-mega-count]');
    if(count)count.textContent=String(data.totals.activeMembers);
    const coverage=root.querySelector('[data-mega-coverage]');

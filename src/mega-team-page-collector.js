@@ -91,6 +91,31 @@ async function nextPage(page){
   return false;
 }
 
+// Read only labeled team information, never infer membership from bank activity.
+export async function extractTeamOverview(page){
+ return page.evaluate(()=>{
+  const clean=x=>String(x||'').replace(/\s+/g,' ').trim();
+  const body=document.body?.innerText||'';
+  let bankBalance=null;
+  const match=body.match(/(?:Team Bank|Bank Balance|Team Balance)\s*[:\n]?\s*(\$[\d,]+(?:\.\d{1,2})?)/i);
+  if(match)bankBalance=match[1];
+  let roster=[];
+  const section=[...document.querySelectorAll('section,article,[data-testid]')].find(el=>{
+   const h=el.querySelector('h1,h2,h3,h4');
+   return h&&/^(Team Members|Roster|Members)$/i.test(clean(h.textContent));
+  });
+  if(section){
+   const items=[...section.querySelectorAll('tr,li,[role="row"],[data-player-name]')];
+   roster=items.map(el=>{
+    const tag=clean(el.getAttribute('data-player-name')||el.querySelector('[data-player-name]')?.getAttribute('data-player-name')||'');
+    const role=/(?:^|\s)(Leader|Officer)(?:$|\s)/i.exec(clean(el.innerText||''));
+    return tag?{gamertag:tag,role:role?role[1]:'Member'}:null;
+   }).filter(Boolean);
+  }
+  return {roster:roster.slice(0,300),bankBalance};
+ });
+}
+
 export async function captureTeamBankPage(page,{
  url=MEGA_TEAM_URL,selector=process.env.MEGA_TEAM_BANK_ROW_SELECTOR||'',
  maxScrolls=60,maxPages=60
@@ -105,6 +130,7 @@ export async function captureTeamBankPage(page,{
     throw new Error('Team page redirected to an unexpected destination or a login page.');
   if(await page.getByText(/challenge|verify you are human|captcha/i).count())
     throw new Error('Browser challenge requires normal user action; collector will not bypass it.');
+  const overview=await extractTeamOverview(page);
   const bankSelected=await openBankTab(page);
   if(!bankSelected)throw new Error('Bank tab was not found. Site layout needs calibration.');
   const found=new Map();
@@ -149,7 +175,7 @@ export async function captureTeamBankPage(page,{
   const match=/Event Log\s*\(([\d,]+)\)/i.exec(display.slice(0,20000));
   if(match)reportedCount=Number(match[1].replaceAll(',',''));
   const incomplete=reportedCount===null||rows.length<reportedCount;
-  return {teamId:MEGA_TEAM_ID,rows,reportedCount,
+  return {teamId:MEGA_TEAM_ID,rows,roster:overview.roster,bankBalance:overview.bankBalance,reportedCount,
     scan:{pagesVisited,scrollOperations:loops,rowSelector:selector||'automatic'},
     historyComplete:false, // No provider IDs/full-history guarantee from visible HTML alone.
     incomplete,capturedAt:Date.now()};
