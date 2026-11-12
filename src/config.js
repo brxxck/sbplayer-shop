@@ -33,6 +33,9 @@ export const config = {
   teamRoleIds: ids(process.env.TEAM_ROLE_IDS),
   applicationRoleIds: pairs(process.env.APPLICATION_ROLE_IDS),
   webhook: process.env.DISCORD_WEBHOOK_URL || '',
+  adminReportWebhook: process.env.DISCORD_ADMIN_REPORT_WEBHOOK_URL || '',
+  ownerReportWebhook: process.env.DISCORD_OWNER_REPORT_WEBHOOK_URL || '',
+
   invite: process.env.DISCORD_INVITE_URL || '',
   applicationRoles: (process.env.APPLICATION_ROLES || 'Helper,Moderator,Staff').split(',').map(x=>x.trim()).filter(Boolean).slice(0, 25),
   applicationsOpen: process.env.APPLICATIONS_OPEN !== 'false',
@@ -47,7 +50,9 @@ export function validateConfig() {
   const u = new URL(config.baseUrl);
   if (config.production && u.protocol !== 'https:') throw new Error('Production BASE_URL must use https');
   if (u.protocol !== 'https:' && !(u.protocol==='http:' && ['localhost','127.0.0.1','[::1]'].includes(u.hostname))) throw new Error('BASE_URL must use HTTPS, except localhost');
-  if (config.webhook && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/[a-zA-Z0-9_-]+$/.test(config.webhook)) throw new Error('Invalid DISCORD_WEBHOOK_URL');
+  for (const [label,url] of Object.entries({DISCORD_WEBHOOK_URL:config.webhook,DISCORD_ADMIN_REPORT_WEBHOOK_URL:config.adminReportWebhook,DISCORD_OWNER_REPORT_WEBHOOK_URL:config.ownerReportWebhook})) {
+    if (url && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\/\d+\/[a-zA-Z0-9_-]+$/.test(url)) throw new Error('Invalid '+label);
+  }
   if (config.production && !config.adminIds.size) throw new Error('Production requires ADMIN_ROLE_IDS');
   if (config.finalApproverId && !/^\d{15,22}$/.test(config.finalApproverId)) throw new Error('FINAL_APPROVER_USER_ID must be a numeric Discord user ID');
 }
