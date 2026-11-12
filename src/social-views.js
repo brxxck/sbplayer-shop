@@ -1,6 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // V1.5 pages for private notifications, bookmarks and the relationship graph.
 import {shell,esc,token,titlebar,avatar,postCard} from './views.js';
+import {icon} from './icons.js';
 
 const date=value=>value?new Date(value).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'';
 const kindText={
@@ -17,7 +18,7 @@ function target(n){
 }
 export function notifications(ctx,{items=[]}={}){
   const unread=items.filter(n=>!n.read_at).length;
-  const action='<form method="post" action="/notifications/read">'+token(ctx)+'<button class="btn btn-outline btn-sm" type="submit">Mark all as read</button></form>';
+  const action='<form method="post" action="/notifications/read">'+token(ctx)+'<button class="btn btn-outline btn-sm" type="submit">'+icon('check-check',{size:16})+' Mark all as read</button></form>';
   const list=items.map(n=>{
     const name=esc(n.nickname||n.display_name||n.username);
     const classes='social-notification panel'+(!n.read_at?' unread':'');
@@ -45,7 +46,7 @@ export function savedPosts(ctx,{posts=[],page=0}={}){
   return shell(ctx,'Saved Posts','<div class="social-page">'+
     titlebar('PRIVATE COLLECTION','Your <span class="gradient">saved posts.</span>',
       'Only you can see this collection. Save or unsave posts without leaving the page.',
-      '<a class="btn btn-outline" href="/feed">Browse Main Feed →</a>')+
+      '<a class="btn btn-outline" href="/feed">'+icon('newspaper',{size:17})+' Browse Main Feed</a>')+
     '<div class="social-post-list">'+html+'</div><div class="pager">'+prev+next+'</div></div>');
 }
 export function connections(ctx,{person,profile={},which='followers',items=[],self=false}={}){
@@ -55,9 +56,9 @@ export function connections(ctx,{person,profile={},which='followers',items=[],se
     avatar(u,'lg',true)+'<span class="social-person-main"><b>'+esc(u.nickname||u.display_name)+'</b>'+
     '<small>@'+esc(u.username)+'</small>'+
     (u.bio?'<span class="social-person-bio">'+esc(u.bio.slice(0,115))+'</span>':'')+
-    '</span><span class="table-link">View profile →</span></a>').join('');
+    '</span><span class="table-link">View profile '+icon('chevron-right',{size:16})+'</span></a>').join('');
   return shell(ctx,label,'<div class="social-page">'+
-    '<a class="support-back" href="/u/'+encodeURIComponent(person.id)+'">← Back to profile</a>'+
+    '<a class="support-back" href="/u/'+encodeURIComponent(person.id)+'">'+icon('arrow-left',{size:16})+' Back to profile</a>'+
     titlebar('COMMUNITY CONNECTIONS',esc(owner)+' <span class="gradient">'+label.toLowerCase()+'.</span>',
       self?'People connected to your profile.':'Visible connections for this community member.')+
     '<nav class="social-tabs" aria-label="Connection lists">'+

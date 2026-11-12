@@ -1,6 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {shell,esc,avatar,tag,token,titlebar} from './views.js';
 import {categoryLabel} from './support.js';
+import {icon} from './icons.js';
 
 const date=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const text=v=>esc(String(v??'')).replace(/\n/g,'<br>');
@@ -15,19 +16,19 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
        <h1>Welcome back, <span class="gradient">${esc(greeting(ctx.user))}.</span></h1>
        <p>Your community, support requests and profile in one place.</p>
        <div class="dash-welcome-actions"><a class="btn btn-primary" href="/tickets/new">+ Submit a Ticket</a>
-       <a class="btn btn-outline" href="/feed">Community Feed →</a><a class="btn btn-outline" href="/profile">◉ My Profile</a></div></div>
+       <a class="btn btn-outline" href="/feed">Community Feed →</a><a class="btn btn-outline" href="/profile">${icon('circle-user-round',{size:17})} My Profile</a></div></div>
      <img class="dash-brand-mark" src="/static/sb-logo.png" alt="SB Store" width="112" height="112">
    </section>
    <div class="dash-summary-row">
      <a href="/tickets/mine" class="dash-summary-card"><span>MY OPEN TICKETS</span><strong>${active}</strong><small>${unread?String(unread)+' unread replies':'View your support requests'} →</small></a>
      <a href="/dashboard" class="dash-summary-card"><span>STAFF APPLICATIONS</span><strong>${pending}</strong><small>Track application progress →</small></a>
-     <a href="/profile" class="dash-summary-card"><span>MY PROFILE</span><strong>◉</strong><small>View your social profile and posts →</small></a>
+     <a href="/profile" class="dash-summary-card"><span>MY PROFILE</span><strong>${icon('circle-user-round',{size:30})}</strong><small>View your social profile and posts →</small></a>
    </div>
    <div class="dash-member-grid">
      <section class="panel padded dash-quick-actions"><div class="section-heading"><h2>Quick access</h2></div>
-       <a class="dash-action" href="/tickets/new"><span class="dash-action-icon">▣</span><span><b>Submit a Ticket</b><small>Bug reports, player reports, reward claims, staff reports and ban appeals</small></span><span class="dash-chevron">›</span></a>
-       <a class="dash-action" href="/tickets/mine"><span class="dash-action-icon">◷</span><span><b>View My Tickets</b><small>Continue chats with staff and check resolved tickets</small></span><span class="dash-chevron">›</span></a>
-       <a class="dash-action" href="/profile"><span class="dash-action-icon">◉</span><span><b>My Profile</b><small>See your posts, followers, media and activity</small></span><span class="dash-chevron">›</span></a><a class="dash-action" href="/profile/edit"><span class="dash-action-icon">✦</span><span><b>Customize Profile</b><small>Change your bio, banner, pictures, links and layout</small></span><span class="dash-chevron">›</span></a>
+       <a class="dash-action" href="/tickets/new"><span class="dash-action-icon">${icon('ticket-plus',{size:21})}</span><span><b>Submit a Ticket</b><small>Bug reports, player reports, reward claims, staff reports and ban appeals</small></span><span class="dash-chevron">${icon('chevron-right',{size:18})}</span></a>
+       <a class="dash-action" href="/tickets/mine"><span class="dash-action-icon">${icon('tickets',{size:21})}</span><span><b>View My Tickets</b><small>Continue chats with staff and check resolved tickets</small></span><span class="dash-chevron">${icon('chevron-right',{size:18})}</span></a>
+       <a class="dash-action" href="/profile"><span class="dash-action-icon">${icon('circle-user-round',{size:21})}</span><span><b>My Profile</b><small>See your posts, followers, media and activity</small></span><span class="dash-chevron">${icon('chevron-right',{size:18})}</span></a><a class="dash-action" href="/profile/edit"><span class="dash-action-icon">${icon('user-round-pen',{size:21})}</span><span><b>Customize Profile</b><small>Change your bio, banner, pictures, links and layout</small></span><span class="dash-chevron">${icon('chevron-right',{size:18})}</span></a>
      </section>
      <section class="panel padded dash-feed-preview"><div class="section-heading"><h2>Main Feed</h2><a href="/feed" class="table-link">See all →</a></div>
        ${posts.length?posts.map(p=>`<article class="dash-post-preview">
@@ -48,17 +49,17 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
        <h1>Staff command <span class="gradient">center.</span></h1>
        <p>Welcome back, ${esc(name)}. Manage support tickets, talk with your team and keep everything organised.</p>
        <div class="dash-welcome-actions"><a href="/staff/tickets" class="btn btn-primary">View All Tickets →</a>
-       <a href="/profile" class="btn btn-outline">◉ My Profile</a><a href="/profile/edit" class="btn btn-outline">✎ Customize Profile</a></div></div>
+       <a href="/profile" class="btn btn-outline">${icon('circle-user-round',{size:17})} My Profile</a><a href="/profile/edit" class="btn btn-outline">${icon('user-round-pen',{size:17})} Customize Profile</a></div></div>
    </section>
    <div class="dash-summary-row">
      <a class="dash-summary-card" href="/staff/tickets"><span>ACTIVE SUPPORT TICKETS</span><strong>${activeCount}</strong><small>See the full accessible queue →</small></a>
      <a class="dash-summary-card" href="/staff"><span>ACTIVE APPLICATIONS</span><strong>${applications.length}</strong><small>View staff applications →</small></a>
      <a class="dash-summary-card" href="${ctx.role==='owner'?'/owner/approvals':'/profile/edit'}"><span>${ctx.role==='owner'?'FINAL APPROVALS':'CUSTOMIZE PROFILE'}</span>
-       <strong>${ctx.role==='owner'?ownerCount:'✎'}</strong><small>${ctx.role==='owner'?'Owner review queue':'Personalize your profile'} →</small></a>
+       <strong>${ctx.role==='owner'?ownerCount:icon('user-round-pen',{size:29})}</strong><small>${ctx.role==='owner'?'Owner review queue':'Personalize your profile'} →</small></a>
    </div>
    <div class="staff-dashboard-columns">
      <section class="panel padded staff-chat-panel"><div class="section-heading">
-        <div><h2>Staff Chat</h2><p class="muted tiny">Private · verified staff members only</p></div><span class="pill pill-accepted">● Team</span>
+        <div><h2>Staff Chat</h2><p class="muted tiny">Private · verified staff members only</p></div><span class="pill pill-accepted">${icon('activity',{size:14})} Team</span>
       </div>
       <div id="staff-chat-messages" class="staff-chat-messages" data-last-id="${staffMessages.at(-1)?.id||0}" data-poll-url="/staff/chat/messages">
         ${staffMessages.length?staffMessages.map(m=>staffChatMessage(m)).join(''):'<div class="empty staff-chat-empty">No messages yet. Say hello to your team.</div>'}

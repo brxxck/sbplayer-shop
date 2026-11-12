@@ -111,7 +111,7 @@ for(const form of document.querySelectorAll('form[data-post-like]')){
       button.classList.toggle('activated',result.liked);
       button.setAttribute('aria-pressed',String(result.liked));
       button.setAttribute('aria-label',result.liked?'Unlike post':'Like post');
-      heart.textContent=result.liked?'♥':'♡';
+      heart.classList.toggle('is-liked',result.liked); // Preserve Lucide SVG path on both toggles.
       count.textContent=String(result.like_count);
     }catch{
       const error=document.createElement('small');
@@ -150,7 +150,8 @@ for(const form of document.querySelectorAll('form[data-post-repost],form[data-po
         const count=form.querySelector('[data-repost-count]');
         if(count)count.textContent=String(result.repost_count);
       }else{
-        button.textContent=enabled?'▣ Saved':'▢ Save';
+        const label=button.querySelector('[data-bookmark-label]');
+        if(label)label.textContent=enabled?'Saved':'Save'; // Do not destroy the SVG icon.
       }
       button.classList.toggle('activated',enabled);
       button.setAttribute('aria-pressed',String(enabled));
@@ -172,7 +173,7 @@ for(const button of document.querySelectorAll('button[data-share-path]')){
     const path=button.getAttribute('data-share-path')||'';
     if(!/^\/(?:post\/\d+|u\/\d{15,22})$/.test(path))return;
     const url=new URL(path,window.location.origin).href;
-    const original=button.textContent;
+    const original=button.innerHTML; // Preserve the original icon after copied-link feedback.
     try{
       if(navigator.share){
         await navigator.share({title:"SB's & Cam's Store",url});
@@ -180,8 +181,8 @@ for(const button of document.querySelectorAll('button[data-share-path]')){
       }
       if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(url);
-      button.textContent='✓ Link copied';
-      setTimeout(()=>{button.textContent=original;},2200);
+      button.textContent='Link copied';
+      setTimeout(()=>{button.innerHTML=original;},2200);
     }catch(error){
       if(error?.name==='AbortError')return;
       window.prompt('Copy this link:',url);

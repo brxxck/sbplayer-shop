@@ -142,6 +142,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,notificationCount:0,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
     const c=cookies(req.headers.cookie);
     if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
+    // Share the member's uploaded avatar with the global header; Discord avatar remains fallback.
+    if(ctx.user)ctx.profileAvatarPath=one('SELECT avatar_path FROM profiles WHERE user_id=?',ctx.user.id)?.avatar_path||'';
     const html=(content,status=200)=>respond(res,status,content);
     const success=(path,message)=>redirect(res,urlWithNotice(path,message));
     const warn=(path,message)=>redirect(res,urlWithNotice(path,message,'error'));
@@ -189,7 +191,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.0'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.1'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -1218,5 +1220,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.1 running at ${config.baseUrl}`));
 }
