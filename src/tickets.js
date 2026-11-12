@@ -34,7 +34,8 @@ export function reserveStaffPing(appId,cooldownMs=300000) {
 }
 
 export function ownerRecommendation(appId) {
-  const rows=all('SELECT admin_id,choice FROM admin_decisions WHERE application_id=?',appId).filter(v=>v.admin_id!==config.finalApproverId);
+  // Count the designated owner's admin vote too; final authorization remains separate.
+  const rows=all('SELECT admin_id,choice FROM admin_decisions WHERE application_id=?',appId);
   const accepts=rows.filter(x=>x.choice==='accept').length;
   const denies=rows.filter(x=>x.choice==='deny').length;
   return accepts>=2?'accepted':denies>=2?'denied':null;
