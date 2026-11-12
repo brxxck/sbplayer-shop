@@ -21,6 +21,7 @@ const changingActions=new Set([
   'profile.section.create','profile.section.edit','profile.section.move','profile.section.delete',
    'mega.team.member.upsert','mega.team.member.status','mega.team.transaction.record',
    'mega.team.bank.snapshot','mega.team.snapshot.import','mega.team.season.create',
+   'mega.team.discord.link','mega.team.discord.unlink',
   // Ticket reads only. Legacy application.view events were successful ticket reads.
   'application.view','application.access','application.attachment.access',
   'support_ticket.access','support_ticket.attachment.access',
