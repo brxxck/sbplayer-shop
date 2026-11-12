@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.4
+# SB's & Cam's Store — Community Portal V1.3.5
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.5 — Discord roles on every member profile
+
+- Every member profile now has a **Discord Roles** section **directly below the bio and above the profile statistics**, using coloured, mobile-wrapping badges for the user's roles from the configured Discord guild.
+- Role names and colours come from live Discord server role definitions, ordered by **Discord role position** (highest first). The shared **\`@everyone\`** role is excluded; managed, regular community, store-staff, Mega SMP Staff and Prison Staff roles are included when assigned.
+- This is **read-only** and requires no manual role entry. Role and member lookups are cached for **60 seconds** to reduce Discord API usage; refresh the member's profile after that interval to see changes. Your own page uses your freshly verified Discord membership where possible.
+- **Privacy:** another user's private profile does not show roles and does not trigger an additional role lookup. A person viewing their own private profile can still see their roles.
+- Missing Discord data is shown as an unavailable state, never fabricated roles. Escaped role labels and validated hex colours prevent user-controlled role names from injecting markup or CSS.
+- **Safe deployment:** keep the existing Railway service and \`/app/data\` persistent volume. This release changes presentation and read-only API lookups only: **no SQLite schema changes, no reset, and no new environment variables**. Back up the volume as normal, deploy the latest \`main\` commit, then verify \`https://sbstore.info/health\` returns \`"version":"1.3.5"\`.
 
 ## V1.3.4 — Known Members tab on Meet the Team
 
