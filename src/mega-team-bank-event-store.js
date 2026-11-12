@@ -78,7 +78,7 @@ export function megaCapturedBankSummary(season=activeMegaSeason()){
    totalEvents:one('SELECT COUNT(*) n FROM mega_team_captured_bank_events WHERE season=?',season).n,
    deposited:exact?amount(deposits):null,withdrawn:exact?amount(withdrawals):null,
    players:byPlayer.map(p=>({gamertag:p.gamertag,deposited:amount(p.deposit_cents),
-     withdrawn:amount(p.withdrawal_cents),net:Number.isSafeInteger(p.deposit_cents-p.withdrawal_cents)?String((BigInt(p.deposit_cents)-BigInt(p.withdrawal_cents))/100n):null,
+     withdrawn:amount(p.withdrawal_cents),net:Number.isSafeInteger(p.deposit_cents-p.withdrawal_cents)?((p.deposit_cents-p.withdrawal_cents)<0?'-':'')+formatMegaCents(Math.abs(p.deposit_cents-p.withdrawal_cents)):null,
      recordedEvents:p.event_count})),
    events:events.map(e=>({eventId:e.source_event_id,gamertag:e.gamertag,
       kind:e.kind,amount:amount(e.amount_cents),time:e.display_time,
