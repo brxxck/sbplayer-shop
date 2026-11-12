@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014'};
-const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009',sbsLeader:'1557586028729077841',sbsMember:'1565070132676661439'};
+const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009',megaTrusted:'200000000000000010',megaStaffTrusted:'200000000000000011',sbsLeader:'1557586028729077841',sbsMember:'1565070132676661439'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
@@ -23,6 +23,8 @@ const fakeRoles=[
   {id:roles.mega,name:'Mega Smp Staff',position:7,permissions:'0',managed:false,color:112233},
   {id:roles.prison,name:'Prison Staff',position:6,permissions:'0',managed:false,color:223344},
   {id:roles.storeStaff,name:'Staff',position:5,permissions:'0',managed:false,color:334455},
+  {id:roles.megaTrusted,name:'Mega Smp Staff Trusted',position:13,permissions:'0',managed:false,color:335577},
+  {id:roles.megaStaffTrusted,name:'Mega Staff Trusted',position:14,permissions:'0',managed:false,color:445588},
   {id:roles.sbsLeader,name:'SBs Team Leader',position:12,permissions:'0',managed:false,color:0xdb2626},
   {id:roles.sbsMember,name:'[SBs] SBs Team Member',position:11,permissions:'0',managed:false,color:0xff2525}
 ];
@@ -34,9 +36,10 @@ for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{use
  memberMap.get(ids.member5).roles.push(roles.mega,roles.prison);
  memberMap.get(ids.member6).roles.push(roles.storeStaff);
  memberMap.get(ids.adminA).roles.push(roles.mega,roles.sbsMember);
- memberMap.get(ids.member2).roles.push(roles.sbsMember);
- memberMap.get(ids.member3).roles.push(roles.sbsLeader);
+ memberMap.get(ids.member2).roles.push(roles.sbsMember,roles.megaTrusted);
+ memberMap.get(ids.member3).roles.push(roles.sbsLeader,roles.megaStaffTrusted);
  memberMap.get(ids.member4).roles.push(roles.sbsLeader,roles.sbsMember);
+ memberMap.get(ids.member6).roles.push(roles.megaTrusted);
 let additions=0;let failNextRole=false;const notifications=[];
 const fake={
   getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
@@ -103,6 +106,29 @@ test('Our Staff keeps actual store staff and Known Members separates Mega SMP / 
   assert.ok(unknown.includes('Other Staff'),'unknown top-level tab safely returns main team');
 });
 
+
+test('Mega SMP Staff Trusted stays in Known Members, never becomes store staff on its own',async()=>{
+  const store=await (await get('/team?tab=team','member')).text();
+  assert.ok(!store.includes('href="/u/'+ids.member2+'"'),'trusted Mega staff role plus SBs team role is not SB Store staff');
+  assert.ok(!store.includes('href="/u/'+ids.member3+'"'),'Mega Staff Trusted variant plus team leader is not store staff');
+  assert.ok(store.includes('href="/u/'+ids.member6+'"'),'true Store Staff role still appears even with trusted external role');
+  const storeCard=store.split('href="/u/'+ids.member6+'"')[1]?.split('</a>')[0]||'';
+  assert.ok(storeCard.includes('>Staff<'),'store staff badge uses Staff, not Mega Trusted');
+  assert.ok(!storeCard.includes('Mega Smp Staff Trusted'),'external role never overrides store role title');
+  const knownMega=await (await get('/team?tab=known&known=mega','member')).text();
+  for(const id of [ids.member2,ids.member3,ids.member6])
+    assert.ok(knownMega.includes('href="/u/'+id+'"'),'trusted Mega role is classified under Known Members');
+  assert.equal(knownMega.split('href="/u/'+ids.member3+'"').length-1,1,'multiple Mega staff variants yield one card');
+  const prison=await (await get('/team?tab=known&known=prison','member')).text();
+  assert.ok(!prison.includes('href="/u/'+ids.member2+'"'),'Mega trusted does not leak into Prison Staff');
+});
+
+test('Meet the Team heading omits technical automatic-role-count subtitle',async()=>{
+ const page=await (await get('/team','member')).text();
+ assert.match(page,/Meet our <span class="gradient">team\.<\/span>/);
+ assert.doesNotMatch(page,/Automatically detected from \d+ Discord server roles/);
+ assert.ok(page.includes('>Our Staff</span>'),'role-based directory remains functional');
+});
 
 test('profile shows every assigned Discord role, correct colours and highest-first order',async()=>{
  const page=await (await get('/u/'+ids.member5,'member')).text();
