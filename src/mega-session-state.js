@@ -4,7 +4,7 @@
 const isInPvP=host=>host==='inpvp.net'||/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.inpvp\.net$/.test(host);
 const cookieName=/^[a-zA-Z0-9_.$-]{1,256}$/;
 const storageKey=name=>typeof name==='string'&&name.length>0&&name.length<=256&&
-  !/[\\u0000-\\u001f\\u007f]/.test(name);
+  !/[\u0000-\u001f\u007f]/.test(name);
 
 export function sanitizeInPvPStorageState(source){
   if(!source||typeof source!=='object'||Array.isArray(source))
@@ -46,8 +46,10 @@ export function sanitizeInPvPStorageState(source){
       throw new Error('Invalid InPvP localStorage.');
     const localStorage=[];
     for(const row of entry.localStorage){
-      if(!row||!storageKey(row.name)||typeof row.value!=='string'||
-         row.value.length>65536)throw new Error('Invalid InPvP storage entry.');
+      if(!row||!storageKey(row.name)||typeof row.value!=='string')
+        throw new Error('Invalid InPvP storage entry format.');
+      if(row.value.length>65536)
+        throw new Error('An InPvP storage value exceeds the 64 KB limit.');
       localStorage.push({name:row.name,value:row.value});
     }
     if(localStorage.length)origins.push({origin:origin.origin,localStorage});
