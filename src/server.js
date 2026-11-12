@@ -17,6 +17,7 @@ import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
 import * as homeView from './home-views.js';
+import * as socialView from './social-views.js';
 import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
@@ -262,7 +263,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     // V1.5: an obvious canonical entry to each user's own public or private profile.
     if(pathname==='/profile'&&req.method==='GET')return redirect(res,'/u/'+ctx.user.id);
     if(pathname==='/notifications'&&req.method==='GET')
-      return html(view.notifications(ctx,{items:notificationsFor(ctx.user.id)}));
+      return html(socialView.notifications(ctx,{items:notificationsFor(ctx.user.id)}));
     if(pathname==='/notifications/read'&&req.method==='POST'){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id);
@@ -276,7 +277,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/saved'&&req.method==='GET'){
       const page=pageNumber(url.searchParams.get('page'));
-      return html(view.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
+      return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
     }
     // V1.3.1 support tickets: one permission check is reused by listing, page and attachment routes.
     function denyAppealOnlyOtherTypes(category) {
@@ -921,7 +922,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const profile=userProfile(id)||{};
       const self=id===ctx.user.id;
       if(!self&&(!profile.public||!profile.show_follows))missing();
-      return html(view.connections(ctx,{person,profile,which,items:connectionsFor(id,which,ctx.user.id),self}));
+      return html(socialView.connections(ctx,{person,profile,which,items:connectionsFor(id,which,ctx.user.id),self}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(follow|comment)$/.exec(pathname);
     if(userMatch&&req.method==='POST'){
