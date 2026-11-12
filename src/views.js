@@ -7,7 +7,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.3.5-profile-roles';
+const assetVersion = '1.3.6-sbs-team';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -84,7 +84,7 @@ ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tick
 </div><div class="side-bottom">${user?`<a class="side-profile" href="/u/${attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.5</span></footer></div></div></body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.6</span></footer></div></div></body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
@@ -196,15 +196,19 @@ ${admin?`<section class="panel padded"><h3>Who voted <span class="pill">Admin on
 export function members(ctx,{found=[],q='',fallback=false}){return shell(ctx,'Socials & Members',`${titlebar('COMMUNITY DIRECTORY','Find your <span class="gradient">people.</span>','Search Discord server members and view their customizable profiles.')}
 <form method="get" action="/members" class="panel search-panel"><label class="sr-only" for="member-search">Search members</label><input id="member-search" name="q" value="${attr(q)}" maxlength="80" placeholder="Search by Discord username or user ID..."><button class="btn btn-primary">Search members</button></form>${fallback?'<div class="alert alert-error">Discord member search is unavailable. Showing website members only. Enable Guild Members Intent in the Discord Developer Portal for complete search.</div>':''}<div class="member-grid">${found.map(m=>`<a class="member-card panel" href="/u/${attr(m.id)}">${avatar(m,'lg',true)}<b>${esc(m.nickname||m.display_name)}</b><span>@${esc(m.username)}</span><span class="table-link">View profile →</span></a>`).join('')||'<div class="empty panel">No members found. Try another username.</div>'}</div>`);}
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+const sbsNameTag=member=>member?'<span class="sbs-member-tag" title="SBs Team Member" aria-label="SBs Team Member">[SBs]</span>':'';
 const teamCards=members=>members.map(m=>`<a class="team-card panel" href="/u/${attr(m.id)}"><div class="team-banner"></div>
- ${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}</h3><p>@${esc(m.username)}</p>
+ ${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}${sbsNameTag(m.sbsMember)}</h3><p>@${esc(m.username)}</p>
  ${tag(m.staffTitle)}<span class="table-link">View profile →</span></a>`).join('');
-export function team(ctx,{groups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0}){
+export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0}){
  const knownTotal=new Set(knownGroups.flatMap(g=>g.members.map(m=>m.id))).size;
  const selected=knownGroups.find(g=>g.key===knownTab)||knownGroups[0]||{key:'mega',title:'Mega SMP Staff',members:[]};
+ const sbsTotal=sbsGroups.reduce((sum,g)=>sum+g.members.length,0);
  const tabs=`<nav class="team-directory-tabs" aria-label="Meet the team sections">
  <a class="team-directory-tab ${tab==='team'?'active':''}" href="/team?tab=team" ${tab==='team'?'aria-current="page"':''}>
-   <span>Meet the Team</span><small>Our staff</small></a>
+   <span>Our Staff</span><small>Store staff</small></a>
+ <a class="team-directory-tab ${tab==='sbs'?'active':''}" href="/team?tab=sbs" ${tab==='sbs'?'aria-current="page"':''}>
+   <span>Team Members</span><small>${sbsTotal} member${sbsTotal===1?'':'s'}</small></a>
  <a class="team-directory-tab ${tab==='known'?'active':''}" href="/team?tab=known" ${tab==='known'?'aria-current="page"':''}>
    <span>Known Members</span><small>${knownTotal} member${knownTotal===1?'':'s'}</small></a></nav>`;
  const knownContent=`<section class="team-section known-member-section">
@@ -217,6 +221,14 @@ export function team(ctx,{groups=[],knownGroups=[],tab='team',knownTab='mega',pa
    <div class="member-grid">${teamCards(selected.members)}</div>
    ${selected.members.length?'':'<div class="empty panel">No '+esc(selected.title)+' members found yet. Check that these Discord roles exist and the bot has member-list access.</div>'}
  </section>`;
+ const sbsContent=`<section class="team-section sbs-team-section"><div class="section-heading"><div>
+   <h2>SBs x Scam</h2><p class="muted tiny">SBs Team Leaders and Team Members, verified through Discord roles.</p></div>
+   <span class="muted">${sbsTotal} member${sbsTotal===1?'':'s'}</span></div>
+   ${sbsGroups.map(g=>`<section class="team-section">
+     <div class="section-heading"><h3>${esc(g.title)}</h3><span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
+     <div class="member-grid">${teamCards(g.members)}</div></section>`).join('')||
+       '<div class="empty panel">No SBs x Scam team members found yet. Check the two Discord team roles and Guild Members Intent.</div>'}
+ </section>`;
  const teamContent=groups.map(g=>`<section class="team-section">
    <div class="section-heading"><h2>${esc(g.title)}</h2>
      <span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
@@ -225,7 +237,7 @@ export function team(ctx,{groups=[],knownGroups=[],tab='team',knownTab='mega',pa
  return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>',
    'Automatically detected from '+rolesCount+' Discord server roles.')}
    ${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
-   ${tabs}${tab==='known'?knownContent:teamContent}`);
+   ${tabs}${tab==='known'?knownContent:tab==='sbs'?sbsContent:teamContent}`);
 }
 
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
@@ -248,11 +260,11 @@ export function discordRoleSection({state='unavailable',roles=[]}={}){
      `<p class="profile-roles-empty">${empty}</p>`}
  </section>`;
 }
-export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]}}){
+export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
 return shell(ctx,'Member Profile',`<section class="profile-page theme-${attr(profile?.theme||'midnight')} accent-${attr(profile?.accent||'blue')} font-${attr(profile?.font||'system')} layout-${attr(profile?.layout||'classic')} ${profile?.animations?'fx-enabled':''}">
 <div class="profile-banner" ${canView&&profile?.banner_path?`style="background-image:url('${attr(path(profile.banner_path))}')"`:''}></div>
-<div class="profile-panel panel" ${canView&&profile?.background_path?`style="background-image:linear-gradient(90deg,rgba(8,20,42,.92),rgba(8,20,42,.95)),url('${attr(path(profile.background_path))}')"`:''}><div class="profile-top">${avatar(u,'xxl',true)}<div class="profile-actions">${self?'<a href="/profile/edit" class="btn btn-outline">✎ Edit profile</a>':`<form method="post" action="/u/${attr(person.id)}/follow">${token(ctx)}<button class="btn ${following?'btn-outline':'btn-primary'}">${following?'Following ✓':'+ Follow'}</button></form>`}</div></div><div class="profile-identity"><h1>${esc(u.nickname||u.display_name)}</h1><span>@${esc(person.username)} <span class="verified">✓ Discord linked</span></span>${canView&&profile?.pronouns?`<span class="muted"> · ${esc(profile.pronouns)}</span>`:''}</div>${canView&&profile?.status_text?`<p class="profile-status">✦ ${esc(profile.status_text)}</p>`:''}<p class="profile-bio">${canView?lines(profile?.bio||'Member of SB’s & Cam’s Store.'):privateProfile?'This member has made their profile private.':''}</p>${canView?discordRoleSection(discordRoles):''}<div class="profile-stats"><span><b>${counts.posts||0}</b> Posts</span>${canView&&(!profile||profile.show_follows)?`<span><b>${counts.followers||0}</b> Followers</span><span><b>${counts.following||0}</b> Following</span>`:''}<span><b>${counts.suggestions||0}</b> Suggestions</span></div>${canView?`<div class="profile-links">${[profile?.social_1,profile?.social_2,profile?.social_3].filter(Boolean).map(v=>`<a href="${attr(safeHttpUrl(v))}" rel="noopener noreferrer nofollow" target="_blank">↗ ${esc(new URL(v).hostname)}</a>`).join('')}</div>`:''}</div>
+<div class="profile-panel panel" ${canView&&profile?.background_path?`style="background-image:linear-gradient(90deg,rgba(8,20,42,.92),rgba(8,20,42,.95)),url('${attr(path(profile.background_path))}')"`:''}><div class="profile-top">${avatar(u,'xxl',true)}<div class="profile-actions">${self?'<a href="/profile/edit" class="btn btn-outline">✎ Edit profile</a>':`<form method="post" action="/u/${attr(person.id)}/follow">${token(ctx)}<button class="btn ${following?'btn-outline':'btn-primary'}">${following?'Following ✓':'+ Follow'}</button></form>`}</div></div><div class="profile-identity"><h1>${esc(u.nickname||u.display_name)}${canView?sbsNameTag(sbsMember):''}</h1><span>@${esc(person.username)} <span class="verified">✓ Discord linked</span></span>${canView&&profile?.pronouns?`<span class="muted"> · ${esc(profile.pronouns)}</span>`:''}</div>${canView&&profile?.status_text?`<p class="profile-status">✦ ${esc(profile.status_text)}</p>`:''}<p class="profile-bio">${canView?lines(profile?.bio||'Member of SB’s & Cam’s Store.'):privateProfile?'This member has made their profile private.':''}</p>${canView?discordRoleSection(discordRoles):''}<div class="profile-stats"><span><b>${counts.posts||0}</b> Posts</span>${canView&&(!profile||profile.show_follows)?`<span><b>${counts.followers||0}</b> Followers</span><span><b>${counts.following||0}</b> Following</span>`:''}<span><b>${counts.suggestions||0}</b> Suggestions</span></div>${canView?`<div class="profile-links">${[profile?.social_1,profile?.social_2,profile?.social_3].filter(Boolean).map(v=>`<a href="${attr(safeHttpUrl(v))}" rel="noopener noreferrer nofollow" target="_blank">↗ ${esc(new URL(v).hostname)}</a>`).join('')}</div>`:''}</div>
 ${canView?`<div class="profile-columns"><div class="stack">${sections.filter(s=>s.visible).map(s=>`<section class="panel padded profile-section"><h3>${esc(s.title)}</h3><p>${lines(s.content)}</p></section>`).join('')||'<div class="panel padded"><p class="muted">This member has not added custom sections yet.</p></div>'}<section class="panel padded"><h2>Profile wall</h2>${profile?.allow_comments!==0?commentList(ctx,comments,'u',person.id):'<p class="muted">Profile comments are disabled.</p>'}</section></div><div class="stack">${pinnedPost?`<section class="panel padded"><span class="eyebrow">📌 PINNED POST</span></section>${postCard(ctx,pinnedPost)}`:''}<div class="section-heading"><h2>Posts</h2></div>${posts.filter(p=>p.id!==pinnedPost?.id).map(p=>postCard(ctx,p)).join('')||'<div class="panel padded"><p class="muted">No posts from this member yet.</p></div>'}</div></div>`:''}</section>`);
 }
 const selected=(value,current)=>value===current?'selected':'';
