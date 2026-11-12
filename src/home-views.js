@@ -1,6 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {shell,esc,avatar,tag,token,titlebar} from './views.js';
-import {queueRows,categoryLabel} from './support-views.js';
+import {categoryLabel} from './support.js';
 
 const date=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const text=v=>esc(String(v??'')).replace(/\n/g,'<br>');
