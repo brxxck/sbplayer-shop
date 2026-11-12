@@ -11,7 +11,7 @@ Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),D
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
 const {config}=await import('../src/config.js');
-const {verifyAudit}=await import('../src/audit.js');
+const {verifyAudit,appendAudit}=await import('../src/audit.js');
 const fakeRoles=[
   {id:ids.guild,name:'@everyone',position:0,permissions:'0',managed:false,color:0},
   {id:roles.admin,name:'Administrator',position:50,permissions:'8',managed:false,color:16711680},
@@ -565,6 +565,23 @@ test('a reported abusive post enters moderation queue and admin removal is audit
   assert.equal((await post(`/admin/moderation/${report.id}/resolve`,'adminB',{action:'remove'})).status,303);
   assert.ok(one('SELECT deleted_at FROM posts WHERE id=?',p.id).deleted_at);
   assert.ok(all('SELECT action FROM owner_audit_log WHERE target=?','post:'+p.id).some(x=>x.action==='moderation.report.remove'));
+  assert.equal(verifyAudit(db).ok,true);
+});
+
+test('legacy noisy page views remain hash-verifiable but are hidden from normal audit and CSV',async()=>{
+  const original=one('SELECT COUNT(*) c FROM owner_audit_log').c;
+  appendAudit(db,{actor:ids.owner,role:'owner',action:'staff.page.read',target:'/team',
+    details:{method:'GET',historical:true},ip:'127.0.0.1'});
+  assert.equal(one('SELECT COUNT(*) c FROM owner_audit_log').c,original+1);
+  assert.equal(verifyAudit(db).ok,true);
+  const page=await (await get('/owner/audit','owner')).text();
+  assert.doesNotMatch(page,/staff\.page\.read/,'legacy read spam hidden from the normal table');
+  assert.match(page,/Changes &amp; ticket access/);
+  const exportCsv=await (await get('/owner/audit/export','owner')).text();
+  assert.doesNotMatch(exportCsv,/staff\.page\.read/,'default CSV follows the same meaningful-action filter');
+  const fullCsv=await (await get('/owner/audit/export?full=1','owner')).text();
+  assert.match(fullCsv,/staff\.page\.read/,'full forensic CSV retains old rows for verification');
+  assert.ok(fullCsv.includes('previous_hash,entry_hash'),'hash fields remain exportable');
   assert.equal(verifyAudit(db).ok,true);
 });
 
