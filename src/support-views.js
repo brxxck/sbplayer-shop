@@ -20,7 +20,7 @@ const field=(name,label,{placeholder='',help='',required=true,multiline=false}={
 export function chooseTicket(ctx){
  return shell(ctx,'Submit a Ticket',`<div class="support-container">
  ${titlebar('CONTACT SUPPORT','How can we <span class="gradient">help?</span>','Select the category that best describes your issue. Your Discord identity is verified automatically.')}
- <div class="support-picker">${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${t.icon}</span>
+ <div class="support-picker">${ctx.promotionEligible?'<a class="support-choice tone-violet" href="/promotions/new"><span class="support-choice-icon">♛</span><span class="support-choice-content"><b>Promotion Ticket</b><small>Request a staff promotion</small></span><span class="support-chevron">›</span></a>':''}${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${t.icon}</span>
   <span class="support-choice-content"><b>${t.label}</b><small>${t.desc}</small></span><span class="support-chevron">›</span></a>`).join('')}</div>
  <a class="support-choice support-view-all" href="/tickets/mine"><span class="support-choice-icon">◷</span>
  <span class="support-choice-content"><b>View My Tickets</b><small>Track your open and resolved tickets</small></span><span class="support-chevron">›</span></a>

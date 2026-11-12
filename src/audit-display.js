@@ -21,7 +21,9 @@ const changingActions=new Set([
   'profile.section.create','profile.section.edit','profile.section.move','profile.section.delete',
   // Ticket reads only. Legacy application.view events were successful ticket reads.
   'application.view','application.access','application.attachment.access',
-  'support_ticket.access','support_ticket.attachment.access'
+  'support_ticket.access','support_ticket.attachment.access',
+   'promotion.create','promotion.reply','promotion.admin.vote','promotion.decision',
+   'promotion.access','promotion.role.assigned','promotion.role.failed'
 ]);
 export const VISIBLE_AUDIT_ACTIONS=Object.freeze([...changingActions]);
 export function shouldAuditAction(action){return changingActions.has(action);}

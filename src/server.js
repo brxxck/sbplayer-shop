@@ -14,6 +14,8 @@ import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as view from './views.js';
 import * as supportView from './support-views.js';
+import * as promotionView from './promotion-views.js';
+import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
 import * as homeView from './home-views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
@@ -124,7 +126,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
     const url=new URL(req.url||'/','http://localhost');
     const pathname=url.pathname;
-    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
+    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
     const c=cookies(req.headers.cookie);
     if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
     const html=(content,status=200)=>respond(res,status,content);
@@ -145,6 +147,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ctx.member=actual;
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
+       // Sidebar eligibility is verified from Discord, not client-supplied claims.
+       try{ctx.promotionEligible=!!promotionEligibility(actual,await discord.getRoles(),config);}catch{ctx.promotionEligible=false;}
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       // Routine browsing, session refreshes and page loads must not fill the audit.
       // Successful reads of individual private tickets are recorded at their routes.
@@ -163,7 +167,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.9'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.0'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -174,9 +178,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       // Use the same permission filter for the homepage, full staff queue and ticket URLs.
       const supports=await supportQueueVisible(ctx,openSupportTickets(),discord,config);
+       const promotions=isAdminRole(ctx.role)?queuePromotions():[];
       const applications=all("SELECT a.*,u.display_name,u.username FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
       const tickets=[
         ...supports.map(t=>({...t,displayId:'T-'+t.id,href:'/staff/tickets/'+t.id})),
+         ...promotions.map(t=>({...t,displayId:'P-'+t.id,category:'promotion',href:'/staff/promotions/'+t.id})),
         ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
       return html(homeView.staffHome(ctx,{tickets,staffMessages:staffChatRecent(),applications,activeCount:supports.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
@@ -250,6 +256,81 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(ctx.role==='appeal-only')return redirect(res,'/tickets/new/ban_appeal');
       return html(supportView.chooseTicket(ctx));
     }
+    // V1.4 promotion tickets are separate private records, not generic support requests.
+    async function stageForCurrentUser(){
+      if(!ctx.member||ctx.member.pending)return null;
+      const roles=await discord.getRoles();
+      return promotionEligibility(ctx.member,roles,config);
+    }
+    if(pathname==='/promotions'&&req.method==='GET'){
+      return html(promotionView.promotionHome(ctx,{stage:await stageForCurrentUser(),tickets:ownPromotions(ctx.user.id)}));
+    }
+    if(pathname==='/promotions/new'&&['GET','POST'].includes(req.method)){
+      const stage=await stageForCurrentUser();
+      if(!stage)forbidden('Only current Temp Mods and Mods can submit promotion tickets.');
+      if(req.method==='GET')return html(promotionView.promotionForm(ctx,stage));
+      rate(ctx,'promotion.submit',3,86400000);
+      const {fields}=await form();
+      const reason=formValue(fields,'reason',3000,30);
+      if(one("SELECT id FROM promotion_tickets WHERE user_id=? AND (status IN ('open','reviewing') OR (status='accepted' AND role_sync_status!='assigned'))",ctx.user.id))
+        return warn('/promotions','You already have a promotion request in progress.');
+      const id=createPromotion({userId:ctx.user.id,stage,reason,role:ctx.role,ip:ctx.ip});
+      await discord.notify({title:'New Promotion Ticket #'+id,description:'A staff member requested '+stage.fromLabel+' → '+stage.toLabel+'.',
+        fields:[{name:'Review privately',value:config.baseUrl+'/staff/promotions/'+id}],pingHere:false});
+      return success('/promotions/'+id,'Promotion ticket submitted.');
+    }
+    if(pathname==='/staff/promotions'&&req.method==='GET'){
+      await authorize('admin');
+      return html(promotionView.promotionQueue(ctx,{tickets:queuePromotions(url.searchParams.get('status')==='all')}));
+    }
+    const promotionPageMatch=/^\/(staff\/)?promotions\/(\d+)$/.exec(pathname);
+    const promotionActionMatch=/^\/(staff\/)?promotions\/(\d+)\/(reply|decide|retry)$/.exec(pathname);
+    if(promotionPageMatch&&req.method==='GET'){
+      const staffView=!!promotionPageMatch[1],id=idFrom(promotionPageMatch[2]),ticket=promotionTicket(id);
+      if(staffView)await authorize('admin');
+      if(!ticket)missing();
+      if(!staffView&&ticket.user_id!==ctx.user.id)missing();
+      if(!staffView)run('UPDATE promotion_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
+      logAction(ctx,'promotion.access','promotion:'+id,{staffView});
+      return html(promotionView.promotionDetails(ctx,{ticket,staffView,decisions:staffView?promotionDecisions(id):[],messages:promotionMessages(id)}));
+    }
+    if(promotionActionMatch&&req.method==='POST'){
+      const staffView=!!promotionActionMatch[1],id=idFrom(promotionActionMatch[2]),action=promotionActionMatch[3];
+      if(staffView)await authorize('admin');
+      if(!staffView&&action!=='reply')forbidden();
+      const ticket=promotionTicket(id);
+      if(!ticket)missing();
+      if(!staffView&&ticket.user_id!==ctx.user.id)missing();
+      rate(ctx,'promotion.action',15,3600000);
+      const {fields}=await form();
+      if(action==='reply'){
+        const body=formValue(fields,'body',2000,1);
+        writePromotionMessage({ticketId:id,userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+        return success(staffView?'/staff/promotions/'+id:'/promotions/'+id,'Reply sent.');
+      }
+      if(action==='decide'){
+        if(!['accept','deny'].includes(fields.choice))invalid('Invalid decision.');
+        if(ticket.user_id===ctx.user.id)forbidden('You cannot decide your own promotion.');
+        if(one('SELECT 1 FROM promotion_decisions WHERE ticket_id=? AND admin_id=?',id,ctx.user.id))return warn('/staff/promotions/'+id,'You have already voted on this promotion.');
+        if(!['open','reviewing'].includes(ticket.status))return warn('/staff/promotions/'+id,'Already finalized.');
+        const note=formValue(fields,'note',1500,0);
+        const outcome=decidePromotion({ticketId:id,adminId:ctx.user.id,choice:fields.choice,note,role:ctx.role,ip:ctx.ip});
+        if(outcome.result.final==='accepted'){
+          const result=await deliverPromotion({ticketId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
+          return result.ok?success('/staff/promotions/'+id,'Two admin approvals recorded; Discord promotion completed.'):
+            warn('/staff/promotions/'+id,'Promotion accepted; role delivery failed: '+String(result.error).slice(0,120));
+        }
+        if(outcome.result.final==='denied')return success('/staff/promotions/'+id,'Two admins denied the promotion.');
+        return success('/staff/promotions/'+id,'Admin vote saved. Waiting for a second matching vote.');
+      }
+      if(action==='retry'){
+        if(ticket.status!=='accepted')invalid('Promotion is not accepted.');
+        const result=await deliverPromotion({ticketId:id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,discord});
+        return result.ok?success('/staff/promotions/'+id,'Discord role delivery confirmed.'):
+          warn('/staff/promotions/'+id,'Role delivery failed: '+String(result.error).slice(0,120));
+      }
+    }
+
     const createTicketMatch=/^\/tickets\/new\/([a-z_]+)$/.exec(pathname);
     if(createTicketMatch&&['GET','POST'].includes(req.method)){
       const category=createTicketMatch[1];
@@ -306,9 +387,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const supports=mySupportTickets(ctx.user.id)
         .filter(t=>ctx.role!=='appeal-only'||t.category==='ban_appeal')
         .map(t=>({...t,href:'/tickets/'+t.id}));
-      const apps=ctx.role==='appeal-only'?[]:ownApplications(ctx.user.id)
+      const promotions=ctx.role==='appeal-only'?[]:ownPromotions(ctx.user.id).map(p=>({...p,category:'promotion',href:'/promotions/'+p.id}));
+       const apps=ctx.role==='appeal-only'?[]:ownApplications(ctx.user.id)
         .map(a=>({...a,category:'application',unread:a.unread_replies||0,href:'/dashboard/applications/'+a.id}));
-      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps].sort((a,b)=>b.updated_at-a.updated_at)}));
+      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps,...promotions].sort((a,b)=>b.updated_at-a.updated_at)}));
     }
     const applicationAttachmentMatch=/^\/applications\/attachments\/(\d+)$/.exec(pathname);
     if(applicationAttachmentMatch&&req.method==='GET'){
@@ -381,11 +463,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('staff');
       const scope=url.searchParams.get('status')==='all'?'all':'active';
       const available=await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
+       const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
       const apps=scope==='all'
         ?all('SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.updated_at DESC LIMIT 150')
         :all("SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
       const tickets=[
         ...available.map(t=>({...t,href:'/staff/tickets/'+t.id,displayId:'T-'+t.id})),
+         ...promotions.map(t=>({...t,category:'promotion',href:'/staff/promotions/'+t.id,displayId:'P-'+t.id})),
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
       return html(supportView.staffTicketQueue(ctx,{tickets,status:scope}));
@@ -1058,5 +1142,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.9 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4 running at ${config.baseUrl}`));
 }

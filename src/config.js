@@ -32,6 +32,9 @@ export const config = {
   protectedIds: ids(process.env.PROTECTED_ROLE_IDS),
   teamRoleIds: ids(process.env.TEAM_ROLE_IDS),
   applicationRoleIds: pairs(process.env.APPLICATION_ROLE_IDS),
+  promotionTempRoleId: (process.env.PROMOTION_TEMP_ROLE_ID||'').trim(),
+  promotionModRoleId: (process.env.PROMOTION_MOD_ROLE_ID||'').trim(),
+  promotionStaffRoleId: (process.env.PROMOTION_STAFF_ROLE_ID||'').trim(),
   webhook: process.env.DISCORD_WEBHOOK_URL || '',
   adminReportWebhook: process.env.DISCORD_ADMIN_REPORT_WEBHOOK_URL || '',
   ownerReportWebhook: process.env.DISCORD_OWNER_REPORT_WEBHOOK_URL || '',
@@ -55,4 +58,5 @@ export function validateConfig() {
   }
   if (config.production && !config.adminIds.size) throw new Error('Production requires ADMIN_ROLE_IDS');
   if (config.finalApproverId && !/^\d{15,22}$/.test(config.finalApproverId)) throw new Error('FINAL_APPROVER_USER_ID must be a numeric Discord user ID');
+  for(const [name,id] of Object.entries({PROMOTION_TEMP_ROLE_ID:config.promotionTempRoleId,PROMOTION_MOD_ROLE_ID:config.promotionModRoleId,PROMOTION_STAFF_ROLE_ID:config.promotionStaffRoleId}))if(id&&!/^\d{15,22}$/.test(id))throw new Error(name+' must be a numeric Discord role ID');
 }
