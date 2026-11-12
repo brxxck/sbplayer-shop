@@ -7,7 +7,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.3.3-link-previews';
+const assetVersion = '1.3.4-known-members';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -84,7 +84,7 @@ ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tick
 </div><div class="side-bottom">${user?`<a class="side-profile" href="/u/${attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.3</span></footer></div></div></body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.4</span></footer></div></div></body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
@@ -195,8 +195,38 @@ ${admin?`<section class="panel padded"><h3>Who voted <span class="pill">Admin on
 }
 export function members(ctx,{found=[],q='',fallback=false}){return shell(ctx,'Socials & Members',`${titlebar('COMMUNITY DIRECTORY','Find your <span class="gradient">people.</span>','Search Discord server members and view their customizable profiles.')}
 <form method="get" action="/members" class="panel search-panel"><label class="sr-only" for="member-search">Search members</label><input id="member-search" name="q" value="${attr(q)}" maxlength="80" placeholder="Search by Discord username or user ID..."><button class="btn btn-primary">Search members</button></form>${fallback?'<div class="alert alert-error">Discord member search is unavailable. Showing website members only. Enable Guild Members Intent in the Discord Developer Portal for complete search.</div>':''}<div class="member-grid">${found.map(m=>`<a class="member-card panel" href="/u/${attr(m.id)}">${avatar(m,'lg',true)}<b>${esc(m.nickname||m.display_name)}</b><span>@${esc(m.username)}</span><span class="table-link">View profile →</span></a>`).join('')||'<div class="empty panel">No members found. Try another username.</div>'}</div>`);}
-export function team(ctx,{groups=[],partial=false,rolesCount=0}){return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>',`Automatically detected from ${rolesCount} Discord server roles.`)}${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
-${groups.map(g=>`<section class="team-section"><div class="section-heading"><h2>${esc(g.title)}</h2><span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div><div class="member-grid">${g.members.map(m=>`<a class="team-card panel" href="/u/${attr(m.id)}"><div class="team-banner"></div>${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}</h3><p>@${esc(m.username)}</p>${tag(m.staffTitle)}<span class="table-link">View profile →</span></a>`).join('')}</div></section>`).join('')||'<div class="empty panel">No team members detected yet. Check your bot permissions and role configuration.</div>'}`);}
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+const teamCards=members=>members.map(m=>`<a class="team-card panel" href="/u/${attr(m.id)}"><div class="team-banner"></div>
+ ${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}</h3><p>@${esc(m.username)}</p>
+ ${tag(m.staffTitle)}<span class="table-link">View profile →</span></a>`).join('');
+export function team(ctx,{groups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0}){
+ const knownTotal=new Set(knownGroups.flatMap(g=>g.members.map(m=>m.id))).size;
+ const selected=knownGroups.find(g=>g.key===knownTab)||knownGroups[0]||{key:'mega',title:'Mega SMP Staff',members:[]};
+ const tabs=`<nav class="team-directory-tabs" aria-label="Meet the team sections">
+ <a class="team-directory-tab ${tab==='team'?'active':''}" href="/team?tab=team" ${tab==='team'?'aria-current="page"':''}>
+   <span>Meet the Team</span><small>Our staff</small></a>
+ <a class="team-directory-tab ${tab==='known'?'active':''}" href="/team?tab=known" ${tab==='known'?'aria-current="page"':''}>
+   <span>Known Members</span><small>${knownTotal} member${knownTotal===1?'':'s'}</small></a></nav>`;
+ const knownContent=`<section class="team-section known-member-section">
+   <div class="section-heading"><div><h2>Known Members</h2><p class="muted tiny">Recognised Mega SMP and Prison staff members from our Discord server.</p></div>
+     <span class="muted">${knownTotal} member${knownTotal===1?'':'s'}</span></div>
+   <nav class="known-member-tabs" aria-label="Known member categories">
+     ${knownGroups.map(g=>`<a href="/team?tab=known&amp;known=${attr(g.key)}" class="known-member-tab ${selected.key===g.key?'active':''}" ${selected.key===g.key?'aria-current="page"':''}>
+        ${esc(g.title)} <span>${g.members.length}</span></a>`).join('')}
+   </nav>
+   <div class="member-grid">${teamCards(selected.members)}</div>
+   ${selected.members.length?'':'<div class="empty panel">No '+esc(selected.title)+' members found yet. Check that these Discord roles exist and the bot has member-list access.</div>'}
+ </section>`;
+ const teamContent=groups.map(g=>`<section class="team-section">
+   <div class="section-heading"><h2>${esc(g.title)}</h2>
+     <span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
+   <div class="member-grid">${teamCards(g.members)}</div></section>`).join('')||
+   '<div class="empty panel">No team members detected yet. Check your bot permissions and role configuration.</div>';
+ return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>',
+   'Automatically detected from '+rolesCount+' Discord server roles.')}
+   ${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
+   ${tabs}${tab==='known'?knownContent:teamContent}`);
+}
 export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
 return shell(ctx,'Member Profile',`<section class="profile-page theme-${attr(profile?.theme||'midnight')} accent-${attr(profile?.accent||'blue')} font-${attr(profile?.font||'system')} layout-${attr(profile?.layout||'classic')} ${profile?.animations?'fx-enabled':''}">
