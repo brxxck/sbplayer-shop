@@ -39,10 +39,51 @@ const responseHeaders={
   'x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
   'x-frame-options':'DENY','permissions-policy':'camera=(),microphone=(),geolocation=()',
   'cross-origin-resource-policy':'same-origin',
-  'content-security-policy':"default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; upgrade-insecure-requests"
+  'content-security-policy':"default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' blob:; connect-src 'self'; upgrade-insecure-requests"
 };
 function respond(res,status,body,type='text/html; charset=utf-8',extra={}) {res.writeHead(status,{'content-type':type,'cache-control':'no-store',...extra});res.end(body);}
 function redirect(res,url){res.writeHead(303,{location:url,'cache-control':'no-store'});res.end();}
+// V1.5.3: private media stays under the *same* ticket authorization checks as downloads.
+// The stored filename extension (validated from file signatures at upload) chooses MIME,
+// not untrusted metadata. Existing links still download; ?preview=1 permits inline media.
+const evidenceMime=Object.freeze({
+  png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',
+  mp4:'video/mp4',mov:'video/quicktime',webm:'video/webm'
+});
+function sendTicketEvidence(req,res,file,{preview=false}={}){
+  const ext=extname(file).slice(1).toLowerCase();
+  const mime=evidenceMime[ext];
+  if(!mime)throw new HttpError(404,'Evidence type not supported.');
+  const data=readFileSync(file);
+  const inline=preview&&(mime.startsWith('image/')||mime.startsWith('video/'));
+  const video=mime.startsWith('video/');
+  const headers={
+    'content-disposition':(inline?'inline':'attachment')+'; filename="ticket-evidence.'+ext+'"',
+    'x-content-type-options':'nosniff','cache-control':'private, no-store',
+    'cross-origin-resource-policy':'same-origin',
+    ...(video?{'accept-ranges':'bytes'}:{})
+  };
+  // Partial content is required for seeking and resuming MP4/WebM in browsers.
+  if(inline&&video&&req.headers.range){
+    const range=/^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range));
+    if(!range||(range[1]===''&&range[2]===''))return respond(res,416,'',mime,{...headers,'content-range':'bytes */'+data.length});
+    let start,end;
+    if(range[1]===''){
+      const suffix=Number(range[2]);
+      if(!Number.isSafeInteger(suffix)||suffix<1)return respond(res,416,'',mime,{...headers,'content-range':'bytes */'+data.length});
+      start=Math.max(0,data.length-suffix);
+      end=data.length-1;
+    }else{
+      start=Number(range[1]);end=range[2]===''?data.length-1:Number(range[2]);
+    }
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=data.length||end<start)
+      return respond(res,416,'',mime,{...headers,'content-range':'bytes */'+data.length});
+    end=Math.min(end,data.length-1);
+    return respond(res,206,data.subarray(start,end+1),mime,{...headers,'content-range':'bytes '+start+'-'+end+'/'+data.length});
+  }
+  return respond(res,200,data,mime,headers);
+}
+
 const urlWithNotice=(to,message,kind='success')=>{const u=new URL(to,'http://localhost');u.searchParams.set('notice',String(message).slice(0,250));u.searchParams.set('type',kind);return u.pathname+u.search;};
 function setCookie(res,name,value,{maxAge=0}={}) {
   const host=config.production?'; Secure':'';
@@ -451,10 +492,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const file=safeTicketFile(att.stored_path);
       if(!file)missing();
       logAction(ctx,'application.attachment.access','application:'+app.id,{attachmentId:att.id});
-      return respond(res,200,readFileSync(file),att.mime_type,{
-        'content-disposition':'attachment; filename="application-evidence.'+att.stored_path.split('.').at(-1)+'"',
-        'x-content-type-options':'nosniff','cache-control':'no-store'
-      });
+      return sendTicketEvidence(req,res,file,{preview:url.searchParams.get('preview')==='1'});
     }
     if(attachmentMatch&&req.method==='GET'){
       const att=one('SELECT * FROM support_ticket_attachments WHERE id=?',idFrom(attachmentMatch[1]));
@@ -464,10 +502,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const file=safeTicketFile(att.stored_path);
       if(!file)missing();
       logAction(ctx,'support_ticket.attachment.access','support_ticket:'+t.id,{attachmentId:att.id});
-      return respond(res,200,readFileSync(file),att.mime_type,{
-        'content-disposition':'attachment; filename="ticket-evidence.'+att.stored_path.split('.').at(-1)+'"',
-        'x-content-type-options':'nosniff','cache-control':'no-store'
-      });
+      return sendTicketEvidence(req,res,file,{preview:url.searchParams.get('preview')==='1'});
     }
     if((supportTicketMatch||staffSupportMatch)&&req.method==='GET'){
       const forStaff=!!staffSupportMatch;
