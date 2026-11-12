@@ -15,19 +15,19 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
        <h1>Welcome back, <span class="gradient">${esc(greeting(ctx.user))}.</span></h1>
        <p>Your community, support requests and profile in one place.</p>
        <div class="dash-welcome-actions"><a class="btn btn-primary" href="/tickets/new">+ Submit a Ticket</a>
-       <a class="btn btn-outline" href="/feed">Community Feed →</a></div></div>
+       <a class="btn btn-outline" href="/feed">Community Feed →</a><a class="btn btn-outline" href="/profile">◉ My Profile</a></div></div>
      <img class="dash-brand-mark" src="/static/sb-logo.png" alt="SB Store" width="112" height="112">
    </section>
    <div class="dash-summary-row">
      <a href="/tickets/mine" class="dash-summary-card"><span>MY OPEN TICKETS</span><strong>${active}</strong><small>${unread?String(unread)+' unread replies':'View your support requests'} →</small></a>
      <a href="/dashboard" class="dash-summary-card"><span>STAFF APPLICATIONS</span><strong>${pending}</strong><small>Track application progress →</small></a>
-     <a href="/profile/edit" class="dash-summary-card"><span>MY PROFILE</span><strong>✎</strong><small>Customize your public profile →</small></a>
+     <a href="/profile" class="dash-summary-card"><span>MY PROFILE</span><strong>◉</strong><small>View your social profile and posts →</small></a>
    </div>
    <div class="dash-member-grid">
      <section class="panel padded dash-quick-actions"><div class="section-heading"><h2>Quick access</h2></div>
        <a class="dash-action" href="/tickets/new"><span class="dash-action-icon">▣</span><span><b>Submit a Ticket</b><small>Bug reports, player reports, reward claims, staff reports and ban appeals</small></span><span class="dash-chevron">›</span></a>
        <a class="dash-action" href="/tickets/mine"><span class="dash-action-icon">◷</span><span><b>View My Tickets</b><small>Continue chats with staff and check resolved tickets</small></span><span class="dash-chevron">›</span></a>
-       <a class="dash-action" href="/profile/edit"><span class="dash-action-icon">✦</span><span><b>Customize Profile</b><small>Change your bio, banner, pictures, links and layout</small></span><span class="dash-chevron">›</span></a>
+       <a class="dash-action" href="/profile"><span class="dash-action-icon">◉</span><span><b>My Profile</b><small>See your posts, followers, media and activity</small></span><span class="dash-chevron">›</span></a><a class="dash-action" href="/profile/edit"><span class="dash-action-icon">✦</span><span><b>Customize Profile</b><small>Change your bio, banner, pictures, links and layout</small></span><span class="dash-chevron">›</span></a>
      </section>
      <section class="panel padded dash-feed-preview"><div class="section-heading"><h2>Main Feed</h2><a href="/feed" class="table-link">See all →</a></div>
        ${posts.length?posts.map(p=>`<article class="dash-post-preview">
@@ -48,7 +48,7 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
        <h1>Staff command <span class="gradient">center.</span></h1>
        <p>Welcome back, ${esc(name)}. Manage support tickets, talk with your team and keep everything organised.</p>
        <div class="dash-welcome-actions"><a href="/staff/tickets" class="btn btn-primary">View All Tickets →</a>
-       <a href="/profile/edit" class="btn btn-outline">✎ Customize Profile</a></div></div>
+       <a href="/profile" class="btn btn-outline">◉ My Profile</a><a href="/profile/edit" class="btn btn-outline">✎ Customize Profile</a></div></div>
    </section>
    <div class="dash-summary-row">
      <a class="dash-summary-card" href="/staff/tickets"><span>ACTIVE SUPPORT TICKETS</span><strong>${activeCount}</strong><small>See the full accessible queue →</small></a>
