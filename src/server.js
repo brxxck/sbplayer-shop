@@ -125,7 +125,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.2'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.3'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -181,6 +181,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(isStaffRole(ctx.role))logAction(ctx,'staff.logout',ctx.user.id);
       if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));setCookie(res,'sid','');return redirect(res,'/');
     }
+    // Public, non-sensitive HTML for signed-out links. Discordbot can read OG tags
+    // without being redirected to Discord OAuth. Real protected data remains gated.
+    if(req.method==='GET' && !ctx.user && pathname!=='/' && view.linkPreviewData(pathname))
+      return html(view.signedOutPreview(ctx));
+
     // All routes below this point are server-member-only.
     await member();
 
@@ -948,5 +953,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.3 running at ${config.baseUrl}`));
 }
