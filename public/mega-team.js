@@ -22,7 +22,14 @@
     const tr=document.createElement('tr'),td=document.createElement('td');
     const title=document.createElement('b');title.textContent=m.gamertag;
     const sub=document.createElement('small');sub.textContent=(m.role||'Member')+' · '+source(m.source)+(m.status==='former'?' · Former':'');
-    td.append(title,sub);tr.append(td);
+    td.append(title,sub);
+    if(m.linkedDiscord&&/^\d{15,22}$/.test(String(m.linkedDiscord.id||''))){
+      const info=document.createElement('small'),linked=document.createElement('a');
+      linked.className='mega-matched-discord';linked.href='/u/'+m.linkedDiscord.id;
+      linked.textContent='@'+String(m.linkedDiscord.username||'Discord member');
+      info.append(linked);td.append(info);
+    }
+    tr.append(td);
     cell(tr,money(m.deposits),'mega-number');cell(tr,money(m.withdrawals),'mega-number');cell(tr,money(m.net),'mega-number');
     fragment.append(tr);
    }
