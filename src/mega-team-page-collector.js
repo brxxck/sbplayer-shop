@@ -185,7 +185,7 @@ export async function revealTeamEventLog(page,{checks=14,intervalMs=500}={}){
   const result=await page.evaluate(({step,total})=>{
    const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
    const headings=[...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')];
-   const target=headings.find(el=>/^Event Log(?:\s*\([\d,]+\))?$/i.test(clean(el.textContent)));
+   const target=headings.find(el=>/^Event Log\b/i.test(clean(el.textContent)));
    if(target){
     target.scrollIntoView({block:'center',behavior:'instant'});
     return {found:true};
