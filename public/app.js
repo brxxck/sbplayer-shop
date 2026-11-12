@@ -123,3 +123,68 @@ for(const form of document.querySelectorAll('form[data-post-like]')){
     }finally{button.disabled=false;}
   });
 }
+
+
+// V1.5: update repost and bookmark buttons in place, preserving scroll position.
+for(const form of document.querySelectorAll('form[data-post-repost],form[data-post-bookmark]')){
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const button=form.querySelector('button[type="submit"]');
+    if(!button||button.disabled)return;
+    const repost=form.hasAttribute('data-post-repost');
+    button.disabled=true;
+    form.querySelector('[data-social-error]')?.remove();
+    try{
+      const response=await fetch(form.action,{
+        method:'POST',
+        headers:{accept:'application/json'},
+        body:new URLSearchParams(new FormData(form)),
+        credentials:'same-origin',redirect:'follow'
+      });
+      if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw new Error('Social action failed');
+      const result=await response.json();
+      const enabled=repost?result.reposted:result.saved;
+      if(typeof enabled!=='boolean')throw new Error('Invalid social response');
+      if(repost){
+        if(!Number.isSafeInteger(result.repost_count)||result.repost_count<0)throw new Error('Invalid repost count');
+        const count=form.querySelector('[data-repost-count]');
+        if(count)count.textContent=String(result.repost_count);
+      }else{
+        button.textContent=enabled?'▣ Saved':'▢ Save';
+      }
+      button.classList.toggle('activated',enabled);
+      button.setAttribute('aria-pressed',String(enabled));
+      button.setAttribute('aria-label',repost?(enabled?'Undo repost':'Repost'):(enabled?'Remove saved post':'Save post'));
+    }catch{
+      const error=document.createElement('small');
+      error.dataset.socialError='';
+      error.className='muted tiny';
+      error.setAttribute('role','alert');
+      error.textContent='Could not update this action. Try again.';
+      form.append(error);
+    }finally{button.disabled=false;}
+  });
+}
+
+// Share a verified local post/profile URL. Never construct links from user text.
+for(const button of document.querySelectorAll('button[data-share-path]')){
+  button.addEventListener('click',async()=>{
+    const path=button.getAttribute('data-share-path')||'';
+    if(!/^\/(?:post\/\d+|u\/\d{15,22})$/.test(path))return;
+    const url=new URL(path,window.location.origin).href;
+    const original=button.textContent;
+    try{
+      if(navigator.share){
+        await navigator.share({title:"SB's & Cam's Store",url});
+        return;
+      }
+      if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(url);
+      button.textContent='✓ Link copied';
+      setTimeout(()=>{button.textContent=original;},2200);
+    }catch(error){
+      if(error?.name==='AbortError')return;
+      window.prompt('Copy this link:',url);
+    }
+  });
+}
