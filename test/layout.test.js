@@ -11,6 +11,7 @@ Object.assign(process.env,{
   DISCORD_BOT_TOKEN:'fake',DISCORD_GUILD_ID:'100000000000000001',BASE_URL:'https://sbstore.info'
 });
 const {home,avatar}=await import('../src/views.js');
+const {evidenceGallery,evidenceViewerDialog}=await import('../src/evidence-views.js');
 const {createServer}=await import('../src/server.js');
 const {db}=await import('../src/db.js');
 let server;
@@ -22,8 +23,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.5\.2-admin-tickets/);
-  assert.match(page,/\/static\/app\.js\?v=1\.5\.2-admin-tickets/);
+  assert.match(page,/\/static\/style\.css\?v=1\.5\.3-evidence-viewer/);
+  assert.match(page,/\/static\/app\.js\?v=1\.5\.3-evidence-viewer/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -36,6 +37,43 @@ test('signed-in avatars specify safe dimensions and mobile header remains CSS-co
   assert.match(page,/class="mobile-brand"[^>]+>[\s\S]*width="36" height="36"/);
   assert.match(avatar(signed.user,'xxl'),/width="106" height="106"/);
   assert.match(avatar(signed.user,'unrecognized'),/width="43" height="43"/);
+});
+
+test('evidence galleries use authenticated routes, safe filenames, accessible controls and privacy-friendly previews',()=>{
+ const card=evidenceGallery([
+   {id:12,original_name:'IMG_2794.png',mime_type:'image/png',file_size:887808},
+   {id:13,original_name:'proof.mp4',mime_type:'video/mp4',file_size:9987},
+   {id:14,original_name:'"<script>alert(1)</script>.png',mime_type:'image/png',file_size:888}
+ ],'/tickets/attachments');
+ assert.match(card,/class="evidence-gallery"/);
+ assert.match(card,/src="\/tickets\/attachments\/12\?preview=1"/);
+ assert.match(card,/loading="lazy"/);
+ assert.match(card,/data-evidence-kind="image"/);
+ assert.match(card,/data-evidence-kind="video"/);
+ assert.match(card,/data-evidence-download="\/tickets\/attachments\/13"/);
+ assert.match(card,/href="\/tickets\/attachments\/12"/);
+ assert.ok(!card.includes('<script>alert(1)</script>'),'filenames are always HTML-escaped');
+ assert.ok(card.includes('&quot;&lt;script&gt;alert(1)&lt;/script&gt;'));
+ assert.ok(!card.includes('/ticket-files/'),'storage paths must never appear in gallery markup');
+ const application=evidenceGallery([
+   {id:3,mime_type:'image/jpeg',original_name:'application.jpg',file_size:1234}
+ ],'/applications/attachments',true);
+ assert.match(application,/evidence-gallery-compact/);
+ assert.ok(application.includes('/applications/attachments/3?preview=1'));
+ assert.equal(evidenceGallery([]),'');
+ const viewer=evidenceViewerDialog();
+ for(const action of ['data-evidence-close','data-evidence-prev','data-evidence-next',
+   'data-evidence-zoom-in','data-evidence-zoom-out','data-evidence-reset','data-evidence-download'])
+   assert.ok(viewer.includes(action),action);
+ const page=home(signed);
+ assert.ok(page.includes('data-evidence-dialog'));
+ assert.match(page,/\/static\/evidence\.js\?v=/);
+ const script=readFileSync(new URL('../public/evidence.js',import.meta.url),'utf8');
+ for(const marker of ["document.addEventListener('keydown'","dialog.showModal()","URL.createObjectURL(file)",
+   "URL.revokeObjectURL(url)","selected evidence".replace(/^s/,'S'),"name=\"evidence\""])
+   assert.ok(script.includes(marker),marker+' evidence viewer behavior');
+ assert.match(script,/field\.addEventListener\('change'/);
+ assert.match(script,/media\.replaceChildren\(\)/);
 });
 
 test('staff, mods and temp mods use promotion navigation; ordinary members keep applications',()=>{

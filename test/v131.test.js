@@ -99,7 +99,17 @@ test('bug report with media has private chat and staff replies; member can reope
  assert.equal((await get('/tickets/attachments/'+at.id,'member')).status,200);
  assert.equal((await get('/tickets/attachments/'+at.id,'other')).status,404);
  assert.equal((await get('/tickets/attachments/'+at.id,'reviewer')).status,200);
+ const direct=await get('/tickets/attachments/'+at.id,'member');
+ assert.match(direct.headers.get('content-disposition'),/^attachment;/,'existing links still download evidence');
+ assert.match(direct.headers.get('cache-control'),/no-store/);
+ const embedded=await get('/tickets/attachments/'+at.id+'?preview=1','member');
+ assert.equal(embedded.status,200);
+ assert.equal(embedded.headers.get('content-type'),'image/png','validated image has safe type');
+ assert.match(embedded.headers.get('content-disposition'),/^inline;/);
+ assert.equal((await get('/tickets/attachments/'+at.id+'?preview=1','other')).status,404,'private inline image remains inaccessible');
  let html=await (await get('/tickets/'+t.id,'member')).text();
+ assert.ok(html.includes('data-evidence-open'),'ticket shows clickable image gallery');
+ assert.ok(html.includes('/tickets/attachments/'+at.id+'?preview=1'),'thumbnail uses authenticated preview route');
  assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>alert/);
  assert.match(html,/Write your reply/);assert.match(html,/Upload video\/pictures/);
  assert.equal((await post('/staff/tickets/'+t.id+'/reply','member',{body:'Forged'})).status,403);
@@ -115,6 +125,42 @@ test('bug report with media has private chat and staff replies; member can reope
  assert.ok(notifications.some(n=>n.pingHere===true && n.title.includes('Bug Report')));
 });
 
+
+test('private video evidence supports inline playback and HTTP byte-range seeking',async()=>{
+ const mp4=Buffer.from([0,0,0,20,102,116,121,112,105,115,111,109,0,0,0,0,105,115,111,109]);
+ const created=await multipart('/tickets/new/bug_report','other',{
+   description:'Video evidence should play and allow private, authenticated media seeking.'
+ },[{bytes:mp4,name:'incident.mp4',type:'video/mp4'}]);
+ assert.equal(created.status,303);
+ const ticket=one("SELECT id FROM support_tickets WHERE user_id=? AND category='bug_report' ORDER BY id DESC LIMIT 1",ids.other);
+ const att=one('SELECT * FROM support_ticket_attachments WHERE ticket_id=?',ticket.id);
+ assert.ok(att);
+ const path='/tickets/attachments/'+att.id;
+ const download=await get(path,'other');
+ assert.match(download.headers.get('content-disposition'),/^attachment;/);
+ const preview=await get(path+'?preview=1','other');
+ assert.equal(preview.status,200);
+ assert.equal(preview.headers.get('content-type'),'video/mp4');
+ assert.match(preview.headers.get('content-disposition'),/^inline;/);
+ assert.equal(preview.headers.get('accept-ranges'),'bytes');
+ assert.equal((await preview.arrayBuffer()).byteLength,mp4.byteLength);
+ const session=sessions.get('other');
+ const part=await fetch(base+path+'?preview=1',{headers:{cookie:session.cookie,range:'bytes=0-7'},redirect:'manual'});
+ assert.equal(part.status,206);
+ assert.equal(part.headers.get('content-range'),'bytes 0-7/'+mp4.byteLength);
+ assert.equal((await part.arrayBuffer()).byteLength,8);
+ const suffix=await fetch(base+path+'?preview=1',{headers:{cookie:session.cookie,range:'bytes=-4'},redirect:'manual'});
+ assert.equal(suffix.status,206);
+ assert.equal(suffix.headers.get('content-range'),'bytes 16-19/20');
+ const bad=await fetch(base+path+'?preview=1',{headers:{cookie:session.cookie,range:'bytes=999-1000'},redirect:'manual'});
+ assert.equal(bad.status,416);
+ assert.equal(bad.headers.get('content-range'),'bytes */20');
+ assert.equal((await get(path+'?preview=1','member')).status,404,'other members cannot stream the video');
+ assert.equal((await get(path+'?preview=1','adminB')).status,200,'authorized admins can stream regular-ticket evidence');
+ const page=await (await get('/tickets/'+ticket.id,'other')).text();
+ assert.ok(page.includes('data-evidence-kind="video"'));
+ assert.ok(page.includes('data-evidence-download="'+path+'"'));
+});
 
 test('admins can open ordinary tickets with Discord Administrator permission even when their role ID is not configured',async()=>{
  const member=members.get(ids.other),originalRoles=[...member.roles];
@@ -173,6 +219,8 @@ test('staff reports about admins are owner-confidential in queues, pages and att
  assert.equal((await get('/staff/tickets/'+t.id,'owner')).status,200);
  assert.equal((await get('/tickets/'+t.id,'member')).status,200);
  assert.equal((await get('/tickets/attachments/'+att.id,'owner')).status,200);
+ assert.equal((await get('/tickets/attachments/'+att.id+'?preview=1','adminB')).status,404,'preview cannot bypass owner-only report');
+ assert.equal((await get('/tickets/attachments/'+att.id+'?preview=1','owner')).status,200,'owner can preview confidential report');
  const queue=await (await get('/staff/tickets?status=all','adminB')).text();
  assert.ok(!queue.includes('/staff/tickets/'+t.id));
  const adminHome=await (await get('/','adminB')).text();
@@ -289,7 +337,14 @@ test('staff application conversation accepts private media replies and keeps own
  assert.equal((await get('/applications/attachments/'+att.id,'other')).status,200);
  assert.equal((await get('/applications/attachments/'+att.id,'member')).status,404);
  assert.equal((await get('/applications/attachments/'+att.id,'adminB')).status,200);
+ const memberPreview=await get('/applications/attachments/'+att.id+'?preview=1','other');
+ assert.equal(memberPreview.status,200);
+ assert.match(memberPreview.headers.get('content-disposition'),/^inline;/);
+ assert.equal((await get('/applications/attachments/'+att.id+'?preview=1','member')).status,404);
+ assert.equal((await get('/applications/attachments/'+att.id+'?preview=1','adminB')).status,200);
  const page=await (await get('/dashboard/applications/'+a.id,'other')).text();
+ assert.ok(page.includes('data-evidence-open'),'application conversation also shows media previews');
+ assert.ok(page.includes('/applications/attachments/'+att.id+'?preview=1'));
  assert.match(page,/ticket-chat-log/);assert.match(page,/Upload video\/pictures/);
  assert.equal((await post('/staff/applications/'+a.id+'/reply','reviewer',{body:'Your ticket is in review.'})).status,303);
  assert.match(await (await get('/dashboard/applications/'+a.id,'other')).text(),/Your ticket is in review/);

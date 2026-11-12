@@ -1,7 +1,17 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.5.2
+# SB's & Cam's Store — Community Portal V1.5.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.5.3 — Private inline Evidence Viewer
+
+- Replace download-only attachment rows with image thumbnails in **Original Evidence** and private support-ticket replies; show application reply attachments in the same gallery.
+- A native, keyboard-accessible lightbox opens images full-screen with zoom controls (100–400%), previous/next navigation, filename and download button. MP4 and WebM recordings play inside the ticket with native video controls and HTTP Range requests for seeking. QuickTime MOV playback depends on browser codec support; original download remains available.
+- Evidence selection previews appear **before submitting** a support ticket, support reply, or application reply. Selected files stay local until form submission. File count and maximum-size warnings appear in the preview.
+- Every inline preview request is authenticated and uses the **same existing ticket/application authorization** as its original download route, preserving staff-report owner confidentiality and application privacy. A `?preview=1` flag permits safe image/video inline rendering, while existing URLs continue downloading. Stored-file extensions determine MIME, with `nosniff`, private `no-store` and same-origin restrictions.
+- Uploads, users, SQLite records, role approvals and the owner-only audit remain unchanged. No schema changes or dependencies. Promotion tickets are currently text-only, so this release does not introduce promotion attachments.
+- Locally bundled `/static/evidence.js` with CSP limited to site media and local browser Blob previews. Gallery images are loaded lazily and browser object URLs are revoked.
+- After successful tests, deploy from GitHub `main` to the existing Railway service, preserving `/app/data`. Verify `/health` reports `1.5.3` and test screenshots/videos with applicant and staff accounts.
 
 ## V1.5.2 — Admin support-ticket access fix
 
