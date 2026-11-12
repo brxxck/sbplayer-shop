@@ -7,7 +7,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.3.2-owner-vote';
+const assetVersion = '1.3.3-link-previews';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -18,19 +18,65 @@ export function avatar(u,size='md',custom=false) {
 export function tag(status) {return `<span class="pill pill-${attr(status||'pending')}">${esc(String(status||'pending').replaceAll('_',' '))}</span>`;}
 export const token=(ctx)=>`<input type="hidden" name="_csrf" value="${attr(ctx.csrf)}">`;
 const navLink=(link,label,icon,ctx)=>`<a class="nav-link ${ctx.pathname===link||ctx.pathname.startsWith(link+'/')?'active':''}" href="${link}"><span class="nav-icon">${icon}</span><span>${label}</span></a>`;
+
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Public, non-sensitive Discord previews. Do not include private ticket details.
+const publicLinkPages=Object.freeze({
+ '/':["SB's & Cam's Store","Official SB's & Cam's Store community website. Connect with Discord, share posts, open tickets and discover our team."],
+ '/team':["Our Team | SB's & Cam's Store","Meet the staff and community team of SB's & Cam's Store. Sign in with Discord to browse the team."],
+ '/members':["Community Members | SB's & Cam's Store","Find member profiles and connect with our community."],
+ '/feed':["Main Feed | SB's & Cam's Store","Browse posts, updates and community conversations."],
+ '/suggestions':["Server Suggestions | SB's & Cam's Store","Share your ideas and vote on community suggestions."],
+ '/apply':["Staff Applications | SB's & Cam's Store","Apply for a staff role and track your application on the official portal."],
+ '/tickets/new':["Support Tickets | SB's & Cam's Store","Create a private report, reward claim or ban appeal in our support portal."],
+ '/tickets/new/ban_appeal':["Ban Appeals | SB's & Cam's Store","Submit a ban or mute appeal through our Discord-verified support portal."],
+ '/dashboard':["My Applications | SB's & Cam's Store","Sign in to follow your staff applications and private messages."]
+});
+export function linkPreviewData(p='/'){
+ return publicLinkPages[p] || (/^\/u\/\d{15,22}$/.test(p)?["Member Profile | SB's & Cam's Store","Discover member profiles on the official community website."]:null);
+}
+function socialMetadata(ctx){
+ const [title,description]=linkPreviewData(ctx.pathname)||["SB's & Cam's Store","The official community website for SB's & Cam's Store."];
+ const base=ctx.config?.baseUrl||'https://sbstore.info';
+ const url=new URL(ctx.pathname?.startsWith('/')?ctx.pathname:'/',base).href;
+ const img=new URL('/static/sb-logo.png',base).href;
+ return '<meta name="description" content="'+esc(description)+'">'+
+   '<meta property="og:type" content="website">'+
+   '<meta property="og:site_name" content="SB&#39;s &amp; Cam&#39;s Store">'+
+   '<meta property="og:title" content="'+esc(title)+'">'+
+   '<meta property="og:description" content="'+esc(description)+'">'+
+   '<meta property="og:url" content="'+esc(url)+'">'+
+   '<meta property="og:image" content="'+esc(img)+'">'+
+   '<meta property="og:image:type" content="image/png">'+
+   '<meta property="og:image:alt" content="SB&#39;s &amp; Cam&#39;s Store logo">'+
+   '<meta name="twitter:card" content="summary">'+
+   '<meta name="twitter:title" content="'+esc(title)+'">'+
+   '<meta name="twitter:description" content="'+esc(description)+'">'+
+   '<meta name="twitter:image" content="'+esc(img)+'">';
+}
+export function signedOutPreview(ctx){
+ const p=linkPreviewData(ctx.pathname);
+ if(!p)throw Error('Page is not publicly previewable');
+ return shell(ctx,p[0],'<div class="hero"><div><div class="eyebrow">SB\\'S & CAM\\'S STORE</div>'+
+   '<h2>'+esc(p[0])+'</h2><p>'+esc(p[1])+'</p>'+
+   '<div class="actions"><a class="btn btn-primary" href="/auth/login">Continue with Discord →</a>'+
+   '<a class="btn btn-outline" href="/">Visit homepage</a></div></div>'+
+   '<div class="hero-logo"><img src="/static/sb-logo.png" width="148" height="148" alt="SB Store logo" style="width:148px;height:148px;object-fit:cover"></div></div>');
+}
+
 export function shell(ctx,title,content) {
   const user=ctx.user,role=ctx.role||'none';
   const staff=['reviewer','admin','owner'].includes(role),admin=['admin','owner'].includes(role);
   return `<!doctype html>
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title><link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script></head>
 <body><div class="shell"><aside class="sidebar"><div class="sidebar-scroll"><a href="/" class="brand"><img class="brand-logo" src="/static/sb-logo.png?v=${assetVersion}" alt="SB logo" width="44" height="44" style="width:44px;height:44px;min-width:44px;max-width:44px;max-height:44px;object-fit:cover"><span><b>SB's & Cam's</b><small>STORE COMMUNITY</small></span></a>
 <div class="sidebar-title">DISCOVER</div><nav>${navLink('/','Home','⌂',ctx)}${user?`${role==='appeal-only'?`${navLink('/tickets/new/ban_appeal','Submit Ban Appeal','✉',ctx)}${navLink('/tickets/mine','My Appeals','◷',ctx)}`:`${navLink('/tickets/new','Submit a Ticket','✉',ctx)}${navLink('/tickets/mine','My Tickets','◷',ctx)}${navLink('/dashboard','My Applications','▣',ctx)}${navLink('/apply','Apply for Staff','✎',ctx)}${navLink('/feed','Main Feed','◉',ctx)}${navLink('/suggestions','Server Suggestions','✧',ctx)}${navLink('/members','Socials & Members','♧',ctx)}${navLink('/team','Team Members','♛',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}`}`:''}</nav>
 ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tickets','All Tickets','▣',ctx)}${navLink('/staff','Application Reviews','▤',ctx)}${admin?`${navLink('/admin/roles','Role Management','⬡',ctx)}${navLink('/admin/settings','Admin Settings','⚙',ctx)}${navLink('/admin/moderation','Moderation','⚑',ctx)}`:''}${role==='owner'?`${navLink('/owner/approvals','Final Approvals','✓',ctx)}${navLink('/owner/audit','Owner Audit Log','☷',ctx)}${navLink('/owner/owners','Owner Access','♜',ctx)}`:''}</nav>`:''}
 </div><div class="side-bottom">${user?`<a class="side-profile" href="/u/${attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.2</span></footer></div></div></body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.3</span></footer></div></div></body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
