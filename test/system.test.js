@@ -555,8 +555,8 @@ test('Discord role delivery failure is visible, logged and retryable by an admin
 
 test('V1.4 promotion tickets are role-gated and require two distinct admins',async()=>{
   for(const who of ['member7','member8','member9'])await login(who);
-  assert.equal((await get('/promotions/new','member')).status,403);
-  assert.equal((await post('/promotions/new','member',{reason:'I want promotion to higher staff rank and have years of experience.'})).status,403);
+  assert.equal((await get('/promotions/new','member2')).status,403);
+  assert.equal((await post('/promotions/new','member2',{reason:'I want promotion to higher staff rank and have years of experience.'})).status,403);
   assert.equal((await get('/promotions/new','member7')).status,200);
   assert.equal((await get('/promotions/new','member8')).status,200);
   assert.equal((await get('/promotions/new','member9')).status,403,'existing Staff is not promotion-eligible');
