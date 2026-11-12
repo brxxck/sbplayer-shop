@@ -3,6 +3,16 @@
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.7.6 — Private InPvP login pairing and encrypted automatic team-data session
+
+- Private owner/co-owner route: `/owner/mega/session`. Never appears in public navigation.
+- Owner creates a 10-minute, one-use setup code. Local Playwright Chromium signs in on InPvP with Microsoft's official flow, then sends only `inpvp.net` website storage over HTTPS to SB Store.
+- The server saves the filtered InPvP session encrypted with AES-256-GCM on the **existing** Railway volume, under the SQLite directory. The key stays in Railway configuration.
+- The five-minute read-only browser collector loads this encrypted session in a memory-only Chromium context. After a successful capture, it can retain legitimate InPvP session updates without overwriting newer owner imports.
+- Explicit disconnect removes the encrypted local session. Public admins, reviewers, and ordinary members cannot generate pairing codes or access the owner pages.
+- This **does not** save a Microsoft refresh token or promise perpetual authentication. InPvP sessions may expire, and the collector still depends on verified real website DOM/permissions.
+- Setup and safe deployment: `docs/INPVP_PERSISTENT_SESSION.md`. Keep the current Railway service and `/app/data` SQLite volume; back up before deployment. No destructive database migrations.
+
 ## V1.7.5 — Diagnose Railway's actual InPvP Event Log view
 
 - Railway V1.7.4 shows SBsxScam's roster and bank balance but no Event Log. Rather than guessing another live selector, this release adds a privacy-safe diagnostic report for the *actual* Chromium page: whether the body/main contain Event Log, whether Bank controls are present, rendered page height/scroll depth, page readiness, and counts of unsuccessful same-origin fetch/XHR requests and runtime page errors. No player data, query-string URLs, cookies, headers or error bodies appear in these logs.

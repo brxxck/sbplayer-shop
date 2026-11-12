@@ -13,6 +13,11 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as view from './views.js';
+import * as microsoftView from './owner-microsoft-views.js';
+import {megaSessionPage} from './mega-session-views.js';
+import {createMegaSessionVault} from './mega-session-vault.js';
+import {createMegaSessionPairing} from './mega-session-pairing.js';
+import {createOwnerMicrosoftAuth} from './owner-microsoft.js';
 import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
@@ -153,6 +158,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
   const megaSync=createMegaTeamSync();
   const megaBrowser=createMegaBrowserRunner();
+  const microsoftAuth=createOwnerMicrosoftAuth({baseUrl:config.baseUrl});
+  const megaSessionVault=createMegaSessionVault({dbPath:config.dbPath});
+  const megaSessionPairing=createMegaSessionPairing({vault:megaSessionVault});
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
   // Resolve historical IDs on read without changing the signed hash-chain records.
   // Local users are preferred; limited external lookups are cached to protect API quotas.
@@ -249,7 +257,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.5',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.6',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -312,6 +320,48 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(isStaffRole(ctx.role))logAction(ctx,'staff.logout',ctx.user.id);
       if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));setCookie(res,'sid','');return redirect(res,'/');
     }
+
+    // One-use local InPvP browser handoff. No Discord cookie required: a
+    // cryptographically random owner-issued code is the short-lived credential.
+    if(pathname==='/owner/mega/session/pair'&&req.method==='POST'){
+      rate(ctx,'mega.session.pair.upload',7,60000);
+      if(!megaSessionVault.configured)
+        return respond(res,503,JSON.stringify({saved:false}),
+          'application/json; charset=utf-8');
+      if(String(req.headers['content-type']||'').split(';')[0].trim()!=='application/json')
+        return respond(res,415,JSON.stringify({saved:false}),
+          'application/json; charset=utf-8');
+      const limit=320*1024;
+      let chunks=[],bytes=0;
+      try{
+        for await(const chunk of req){
+          bytes+=chunk.length;
+          if(bytes>limit)throw new HttpError(413,'Pairing upload too large.');
+          chunks.push(chunk);
+        }
+      }catch{
+        return respond(res,413,JSON.stringify({saved:false}),
+          'application/json; charset=utf-8');
+      }
+      let upload;
+      try{upload=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
+      catch{
+        return respond(res,400,JSON.stringify({saved:false}),
+          'application/json; charset=utf-8');
+      }
+      let paired;
+      try{paired=megaSessionPairing.redeem(upload?.code,upload?.state);}
+      catch{
+        return respond(res,403,JSON.stringify({saved:false}),
+          'application/json; charset=utf-8');
+      }
+      transaction(()=>appendAudit(db,{actor:paired.ownerId,role:'owner',
+        action:'mega.session.paired',target:'inpvp-website',ip:ctx.ip,
+        details:{source:'one-use-owner-pairing'}}));
+      return respond(res,200,JSON.stringify({saved:true}),
+        'application/json; charset=utf-8');
+    }
+
     // Public, non-sensitive HTML for signed-out links. Discordbot can read OG tags
     // without being redirected to Discord OAuth. Real protected data remains gated.
     if(req.method==='GET' && !ctx.user && pathname!=='/' && view.linkPreviewData(pathname))
@@ -319,6 +369,58 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 
     // All routes below this point are server-member-only.
     await member();
+
+    // Private Microsoft Graph OAuth utility: no public navigation or persistent tokens.
+    // Callback must be processed before the generic server-member routes.
+    if(pathname==='/owner/microsoft/callback'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.callback',15,3600000);
+      const state=String(url.searchParams.get('state')||'');
+      const code=String(url.searchParams.get('code')||'');
+      const error=String(url.searchParams.get('error')||'');
+      const completed=await microsoftAuth.complete({
+        state,code,error,sessionKey:ctx.session.token_hash,userId:ctx.user.id
+      });
+      logAction(ctx,completed.cancelled?'owner.microsoft.cancel':'owner.microsoft.connect',
+        'microsoft-graph',{result:completed.cancelled?'cancelled':'connected'});
+      return redirect(res,urlWithNotice('/owner/microsoft',completed.cancelled?
+        'Microsoft sign-in cancelled.':'Microsoft Graph access token obtained.'));
+    }
+    if(pathname==='/owner/microsoft'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.read',40,60000);
+      return html(microsoftView.ownerMicrosoftPage(ctx,{
+        ...microsoftAuth.status(ctx.session.token_hash,ctx.user.id),
+        redirectUri:microsoftAuth.redirectUri
+      }));
+    }
+    if(pathname==='/owner/microsoft/start'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.start',5,3600000);
+      await form();
+      if(!microsoftAuth.configured)
+        return warn('/owner/microsoft','Microsoft app registration is not configured.');
+      const target=microsoftAuth.begin(ctx.session.token_hash,ctx.user.id);
+      logAction(ctx,'owner.microsoft.start','microsoft-graph');
+      return redirect(res,target);
+    }
+    if(pathname==='/owner/microsoft/reveal'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.reveal',5,3600000);
+      await form();
+      const token=microsoftAuth.reveal(ctx.session.token_hash,ctx.user.id);
+      if(!token)return warn('/owner/microsoft','Token expired or already revealed. Sign in again.');
+      logAction(ctx,'owner.microsoft.reveal','microsoft-graph',{result:'one-time'});
+      return html(microsoftView.ownerMicrosoftTokenPage(ctx,token));
+    }
+    if(pathname==='/owner/microsoft/forget'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.forget',12,3600000);
+      await form();
+      microsoftAuth.forget(ctx.session.token_hash,ctx.user.id);
+      logAction(ctx,'owner.microsoft.forget','microsoft-graph');
+      return success('/owner/microsoft','Local Microsoft authorization cleared.');
+    }
 
     // V1.5: an obvious canonical entry to each user's own public or private profile.
     if(pathname==='/profile'&&req.method==='GET')return redirect(res,'/u/'+ctx.user.id);
@@ -339,6 +441,35 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const page=pageNumber(url.searchParams.get('page'));
       return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
     }
+    // Session management pages require live Discord owner/co-owner authorization.
+    if(pathname==='/owner/mega/session'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'mega.session.status',40,60000);
+      return html(megaSessionPage(ctx,{
+        ...megaSessionVault.status(),collectorEnabled:megaBrowser.enabled
+      }));
+    }
+    if(pathname==='/owner/mega/session/code'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'mega.session.pair.code',5,3600000);
+      await form();
+      if(!megaSessionVault.configured)
+        return warn('/owner/mega/session','Encrypted session storage is not configured.');
+      const issued=megaSessionPairing.issue(ctx.user.id);
+      logAction(ctx,'mega.session.pair_code','inpvp-website');
+      return html(megaSessionPage(ctx,{...megaSessionVault.status(),
+        collectorEnabled:megaBrowser.enabled,pairCode:issued.code,
+        expiresAt:issued.expiresAt}));
+    }
+    if(pathname==='/owner/mega/session/disconnect'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'mega.session.disconnect',12,3600000);
+      await form();
+      megaSessionVault.clear();
+      logAction(ctx,'mega.session.deleted','inpvp-website');
+      return success('/owner/mega/session','Stored InPvP browser session deleted.');
+    }
+
     // Railway's last failed public InPvP capture is visible only to the
     // verified website owner. It is never served by /static or /uploads.
     if(pathname==='/owner/mega/collector-screenshot.png'&&req.method==='GET'){

@@ -81,6 +81,24 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/members?q=mem','member')).status,200);
 });
 
+test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
+  const path='/owner/mega/session';
+  for(const who of ['member','adminA','reviewer'])
+    assert.equal((await get(path,who)).status,403,who+' cannot access private InPvP session');
+  const owner=await get(path,'owner');
+  assert.equal(owner.status,200);
+  assert.match(await owner.text(),/session pairing/);
+  const home=await (await get('/','member')).text();
+  assert.ok(!home.includes('href="/owner/mega/session"'),'no public owner session navigation');
+  assert.equal((await post('/owner/mega/session/code','adminA')).status,403);
+  assert.equal((await post('/owner/mega/session/disconnect','member')).status,403);
+  const pair=await fetch(base+'/owner/mega/session/pair',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({code:'invalid',state:{cookies:[],origins:[]}}),redirect:'manual'
+  });
+  assert.equal(pair.status,503,'pairing is disabled without encryption key');
+});
+
 test('collector diagnostic screenshots require verified website owner access',async()=>{
  const path='/owner/mega/collector-screenshot.png';
  assert.equal((await get(path,'member')).status,403);
