@@ -83,29 +83,50 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  const privateTier=ticket.category==='staff_report'?(ticket.visibility==='owner'?'Owner Confidential':'Admin Confidential'):'';
  const back=staff?'/staff/tickets':'/tickets/mine';
  const submit=staff?'/staff/tickets/'+ticket.id+'/reply':'/tickets/'+ticket.id+'/reply';
+ const filesFor=id=>attachments.filter(f=>f.message_id===id).map(f=>
+   `<a class="ticket-message-file" href="/tickets/attachments/${f.id}">↧ ${val(f.original_name)} <small>${Math.ceil(f.file_size/1024)} KB</small></a>`).join('');
+ const initialFiles=attachments.filter(f=>!f.message_id);
  return shell(ctx,'Ticket #'+ticket.id,`<div class="support-container ticket-view">
  <a class="support-back" href="${back}">← Back to tickets</a>
  ${titlebar('PRIVATE SUPPORT TICKET','Ticket <span class="gradient">#${ticket.id}</span>','Opened '+date(ticket.created_at))}
  <div class="ticket-detail-head"><span class="ticket-type-label ticket-type-${val(ticket.category)}">${categoryLabel(ticket.category)}</span> ${tag(ticket.status)}
  ${privateTier?`<span class="pill pill-protected">${privateTier}</span>`:''}</div>
- <div class="ticket-detail-layout"><section class="panel padded"><h2>Request details</h2><div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
+ <div class="ticket-detail-layout">
+ <section class="panel padded ticket-detail-card"><h2>Request details</h2>
+ <div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)} · Verified via Discord</small></span></div>
  ${fieldList(ticket)}
- ${attachments.length?`<h3>Attachments</h3><div class="ticket-files">${attachments.map(f=>`<a class="ticket-file" href="/tickets/attachments/${f.id}">↧ ${val(f.original_name)} <span>${Math.ceil(f.file_size/1024)} KB</span></a>`).join('')}</div>`:'<p class="muted tiny">No attachments submitted.</p>'}
+ ${initialFiles.length?`<h3>Original evidence</h3><div class="ticket-files">${initialFiles.map(f=>`<a class="ticket-file" href="/tickets/attachments/${f.id}">↧ ${val(f.original_name)} <span>${Math.ceil(f.file_size/1024)} KB</span></a>`).join('')}</div>`:'<p class="muted tiny">No original attachments submitted.</p>'}
  ${staff?`<form class="ticket-status-form" method="post" action="/staff/tickets/${ticket.id}/status">${token(ctx)}
- <label>Ticket status<select name="status">${['open','reviewing','resolved'].map(s=>`<option value="${s}" ${ticket.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}</select></label>
- <button class="btn btn-outline">Update status</button></form>`:''}
- </section><section class="panel padded ticket-conversation"><h2>Private conversation</h2>
- <div class="ticket-messages">${messages.length?messages.map(m=>`<article class="ticket-message">${avatar({id:m.author_id,avatar:m.avatar,display_name:m.display_name},'sm')}
- <div class="ticket-message-main"><div class="ticket-message-meta"><b>${val(m.display_name)}</b><span class="pill">${m.author_id===ticket.user_id?'Applicant':'Staff'}</span><small>${date(m.created_at)}</small></div>
- <p>${text(m.body)}</p></div></article>`).join(''):'<div class="empty">No replies yet. Send a message to start the conversation.</div>'}</div>
- <form method="post" action="${submit}">${token(ctx)}<label>Reply<textarea name="body" rows="4" maxlength="2000" required placeholder="Write a reply..."></textarea></label>
- <button class="btn btn-primary">Send Reply →</button></form></section></div></div>`);
+  <label>Ticket status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
+  <button class="btn btn-outline">Update status</button></form>
+  ${ticket.status!=='resolved'?`<form method="post" action="/staff/tickets/${ticket.id}/status" class="ticket-resolve-form">${token(ctx)}
+  <button class="btn btn-outline btn-sm" name="status" value="resolved">✓ Mark as resolved</button></form>`:''}`:''}
+ </section>
+ <section class="panel padded ticket-conversation chat-ticket"><div class="panel-heading ticket-heading">
+   <div><h2>Ticket conversation</h2><p class="muted tiny">Private messages between you and the support team</p></div>
+   <span class="pill pill-accepted">${messages.length} messages</span></div>
+   <div class="ticket-chat-log">${messages.length?messages.map(m=>`<article class="ticket-message chat-bubble ${m.author_id===ctx.user.id?'is-own':''}">
+     ${avatar({id:m.author_id,avatar:m.avatar,display_name:m.display_name},'sm')}
+     <div class="ticket-message-main"><div class="ticket-message-meta"><b>${val(m.display_name)}</b>
+       <small>${m.author_id===ticket.user_id?'Member':'Staff'} · ${date(m.created_at)}</small></div>
+       <div class="ticket-bubble-body">${text(m.body)}</div>
+       ${filesFor(m.id)?`<div class="ticket-message-files">${filesFor(m.id)}</div>`:''}
+     </div></article>`).join(''):'<div class="empty">No messages yet. Send a reply to start the conversation.</div>'}</div>
+   <form method="post" action="${submit}" enctype="multipart/form-data" class="ticket-chat-composer">
+      ${token(ctx)}<label class="sr-only">Reply to ticket</label>
+      <textarea name="body" rows="3" maxlength="2000" minlength="1" required placeholder="Write your reply..."></textarea>
+      <div class="ticket-compose-actions"><label class="btn btn-outline btn-sm ticket-upload-control">📎 Upload video/pictures
+         <input type="file" name="evidence" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm">
+      </label><small class="muted">Max 5 files · 12 MB each</small>
+      <button class="btn btn-primary btn-sm" type="submit">Send Reply →</button></div>
+   </form>
+ </section></div></div>`);
 }
 export function staffTicketQueue(ctx,{tickets=[],status='active'}){
- const label=status==='all'?'All support tickets':'Active support tickets';
+ const label=status==='all'?'All accessible tickets':'All active tickets';
  return shell(ctx,'Support Tickets',`<div class="support-container">
- ${titlebar('STAFF TICKETS','Support <span class="gradient">queue.</span>','Only tickets you have permission to view will appear.')}
+ ${titlebar('STAFF TICKETS','Ticket <span class="gradient">queue.</span>','Only tickets you have permission to view will appear.')}
  <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets">Active</a>
  <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All accessible</a></div>
  <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} ticket${tickets.length===1?'':'s'}</span></div>
@@ -114,7 +135,7 @@ export function staffTicketQueue(ctx,{tickets=[],status='active'}){
 export function queueRows(tickets=[]){
  if(!tickets.length)return '';
  return `<div class="table-wrap"><table><thead><tr><th>USER</th><th>TYPE</th><th>STATUS</th><th>UPDATED</th><th></th></tr></thead><tbody>
- ${tickets.map(t=>`<tr><td><b>${val(t.display_name||t.username||'Member')}</b><br><small class="muted">#${t.id}</small></td>
+ ${tickets.map(t=>`<tr><td><b>${val(t.display_name||t.username||'Member')}</b><br><small class="muted">#${val(t.displayId||t.id)}</small></td>
  <td><span class="ticket-type-label ticket-type-${val(t.category)}">${categoryLabel(t.category)}</span></td>
  <td>${tag(t.status)}</td><td>${date(t.updated_at)}</td><td><a class="table-link" href="${t.href}">Open →</a></td></tr>`).join('')}</tbody></table></div>`;
 }
