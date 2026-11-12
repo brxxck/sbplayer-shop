@@ -382,3 +382,58 @@
   .social-tab{padding:9px 12px;font-size:11px}
   .profile-page .profile-actions .btn{min-height:36px;padding:8px 11px}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.5 top-right social toolbar and accessible account menu. */
+.topbar{overflow:visible}
+.top-account{max-width:70%;flex:0 1 auto;min-width:0;gap:8px}
+.top-social-shortcuts{display:flex;align-items:center;gap:6px;flex:none;border-right:1px solid var(--line);padding-right:11px;margin-right:3px}
+.top-social-link{width:37px;height:37px;display:grid;place-items:center;position:relative;color:#9fbfe6;background:#10253f;border:1px solid #213e61;border-radius:11px;flex:none;transition:background .15s,color .15s,border-color .15s}
+.top-social-link:hover,.top-social-link:focus-visible{background:#194474;border-color:#448ad7;color:#fff}
+.top-social-symbol{font-size:20px;font-weight:800;line-height:1}
+.top-social-badge{position:absolute;right:-6px;top:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:20px;background:#ec657d;color:#fff;font-size:10px;font-weight:900;display:grid;place-items:center;box-shadow:0 0 0 2px #071525}
+.top-account .account-profile-link{display:flex;align-items:center;gap:9px;min-width:0;flex-shrink:1;border-radius:9px;padding:3px 2px}
+.top-account-dropdown{position:relative;flex:none;min-width:0}
+.top-account-dropdown>summary{list-style:none;display:grid;place-items:center;width:32px;height:34px;border:1px solid #244464;background:#10243d;color:#b5d4f7;border-radius:9px;cursor:pointer;font-size:22px;line-height:1;user-select:none}
+.top-account-dropdown>summary::-webkit-details-marker{display:none}
+.top-account-dropdown>summary:hover,.top-account-dropdown[open]>summary{color:#fff;border-color:#438be0;background:#17477a}
+.top-account-dropdown>summary:focus-visible{outline:2px solid #7bc1ff;outline-offset:2px}
+.top-account-menu{position:absolute;right:0;top:calc(100% + 13px);width:min(292px,calc(100vw - 24px));max-height:min(76vh,680px);overflow-y:auto;overflow-x:hidden;background:#0a1b32;border:1px solid #31547f;border-radius:14px;box-shadow:0 21px 60px rgba(0,0,0,.57);padding:10px;z-index:120;scrollbar-width:thin;scrollbar-color:#456a96 transparent}
+.top-account-menu:before{content:"";position:absolute;right:10px;top:0;width:13px;height:3px;border-radius:8px;background:#448eef}
+.top-account-menu-head{padding:11px 12px 13px;display:flex;flex-direction:column;border-bottom:1px solid #253d60;gap:4px}
+.top-account-menu-head b{font-size:14px;color:#eff7ff;overflow-wrap:anywhere}
+.top-account-menu-head small{font-size:12px;color:#8fadd0;overflow-wrap:anywhere}
+.top-account-menu-label{padding:14px 12px 6px;color:#669ed3;font-size:10px;font-weight:850;letter-spacing:.12em}
+.top-account-menu>a{display:flex;align-items:center;gap:10px;border-radius:9px;padding:10px 12px;color:#d2e3f7;font-size:12px;font-weight:700;min-height:36px}
+.top-account-menu>a>span:first-child{font-size:16px;width:23px;text-align:center;color:#75b5ff;flex:none}
+.top-account-menu>a:hover,.top-account-menu>a:focus-visible{background:#1b416e;color:#fff}
+.top-account-menu-signout{margin-top:9px;padding-top:9px;border-top:1px solid #253d60}
+.top-account-menu-signout form{margin:0}
+.top-account-menu-signout .account-menu-logout{display:flex;align-items:center;gap:10px;width:100%;min-height:39px;text-align:left;border:0;border-radius:9px;background:transparent;color:#f6acbb;padding:9px 12px;font-size:12px;font-weight:750}
+.top-account-menu-signout .account-menu-logout:hover{background:#482235;color:#fff}
+@media(max-width:1210px){
+  .top-account{max-width:62%}
+  .top-social-shortcuts{gap:4px}
+  .top-social-link{width:34px;height:34px}
+  .top-social-members{display:none}
+}
+@media(max-width:840px){
+  .top-account{max-width:53%}
+  .top-social-shortcuts{padding-right:6px;margin-right:0}
+  .top-social-link{width:34px;height:34px}
+  .top-social-feed,.top-social-saved{display:none}
+}
+@media(max-width:610px){
+  .topbar{padding:0 14px}
+  .top-account{gap:5px;max-width:48%}
+  .top-social-shortcuts{border-right:0;padding-right:0}
+  .top-social-link{width:32px;height:32px}
+  .top-account .account-profile-link{padding:0}
+  .top-account .account-name{display:none}
+  .top-account-dropdown>summary{width:30px;height:32px;font-size:19px}
+  .top-account-menu{right:-2px;top:calc(100% + 12px);max-height:72vh}
+}
+@media(max-width:370px){
+  .topbar .mobile-brand span{display:none}
+  .top-account{max-width:70%}
+}
