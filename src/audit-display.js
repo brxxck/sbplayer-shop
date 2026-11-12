@@ -14,6 +14,7 @@ const changingActions=new Set([
   'owner.access.granted','owner.access.revoked',
   'owner.microsoft.start','owner.microsoft.connect','owner.microsoft.cancel',
   'owner.microsoft.reveal','owner.microsoft.forget',
+  'mega.session.pair_code','mega.session.paired','mega.session.deleted',
   'settings.applications_open','settings.role_mapping','settings.webhook.test',
   'content.delete','moderation.report','moderation.report.dismiss','moderation.report.remove',
   'role.change.success',
