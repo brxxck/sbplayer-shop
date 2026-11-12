@@ -28,6 +28,8 @@ const discord={
  getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
  getGuildMember:async id=>members.get(id)||null,
  searchMembers:async q=>[...members.values()].filter(m=>m.user.username.startsWith(q.toLowerCase())),
+ getRoles:async()=>[{id:ids.guild,name:'@everyone',position:0},{id:roles.admin,name:'Administrator',position:20},{id:roles.reviewer,name:'Staff',position:5}],
+ listMembers:async()=>[...members.values()],
  notify:async data=>{notifications.push(data);return true;}
 };
 let server,base;const sessions=new Map();
@@ -193,8 +195,24 @@ test('staff chat is private, stores messages and returns them via the polling en
  assert.equal(one('SELECT COUNT(*) c FROM staff_chat_messages').c,1);
 });
 
-test('non-members may use Discord-verified Ban Appeal pages only',async()=>{
- assert.match(await (await get('/','banned')).text(),/Ban appeal/);
+test('non-members can sign in, submit Ban Appeals, and view the staff team only',async()=>{
+ const home=await (await get('/','banned')).text();
+ assert.match(home,/Ban appeal/);
+ assert.match(home,/Meet the Team/);
+ assert.match(home,/href="\/team"/);
+ const staff=await get('/team','banned');
+ assert.equal(staff.status,200);
+ const html=await staff.text();
+ assert.match(html,/Meet our <span class="gradient">team/);
+ assert.match(html,/Our Staff/);
+ assert.match(html,/class="team-card panel"/);
+ assert.doesNotMatch(html,/href="\/u\/\d+"/,'non-member team cards are read-only');
+ assert.equal((await get('/team?tab=sbs','banned')).status,200);
+ assert.equal((await get('/team?tab=known&known=mega','banned')).status,200);
+ for(const path of ['/feed','/members','/suggestions','/apply','/dashboard','/profile/edit','/u/'+ids.adminA,
+   '/staff','/staff/tickets','/admin/settings','/owner/audit']){
+   assert.equal((await get(path,'banned')).status,403,'restricted non-member route: '+path);
+ }
  assert.equal((await get('/feed','banned')).status,403);
  assert.equal((await get('/staff/tickets','banned')).status,403);
  assert.equal((await get('/tickets/new/player_report','banned')).status,403);
