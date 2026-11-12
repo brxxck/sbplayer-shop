@@ -3,6 +3,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {profileRoleBadges,createProfileRoleLookup} from '../src/profile-roles.js';
 import {discordRoleSection} from '../src/views.js';
+import {SBS_TEAM_LEADER_ROLE_ID,SBS_TEAM_MEMBER_ROLE_ID,sbsTeamMembership} from '../src/sbs-team.js';
 
 const fixture=[
  {id:'100',name:'@everyone',position:0,color:0},
@@ -89,4 +90,14 @@ test('Discord outages and missing members never fabricate a role',async()=>{
    getGuildMember:async()=>null
  },'100');
  assert.deepEqual(await missing('123'),{state:'not_member',roles:[]});
+});
+
+test('SBs x Scam team membership uses exact Discord role IDs and no inferred membership',()=>{
+ assert.deepEqual(sbsTeamMembership([]),{leader:false,member:false});
+ assert.deepEqual(sbsTeamMembership([SBS_TEAM_LEADER_ROLE_ID]),{leader:true,member:false});
+ assert.deepEqual(sbsTeamMembership([SBS_TEAM_MEMBER_ROLE_ID]),{leader:false,member:true});
+ assert.deepEqual(sbsTeamMembership([SBS_TEAM_MEMBER_ROLE_ID,SBS_TEAM_LEADER_ROLE_ID]),{leader:true,member:true});
+ assert.deepEqual(sbsTeamMembership(['1557586028729077840','1565070132676661438']),{leader:false,member:false});
+ assert.equal(SBS_TEAM_LEADER_ROLE_ID,'1557586028729077841');
+ assert.equal(SBS_TEAM_MEMBER_ROLE_ID,'1565070132676661439');
 });
