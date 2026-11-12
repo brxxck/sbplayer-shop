@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.8
+# SB's & Cam's Store — Community Portal V1.3.9
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.9 — Focused audit, Discord usernames, and restricted access for non-members
+
+- **Owner audit events** now show Discord **@usernames** instead of raw user IDs wherever a verified username can be resolved. Original numeric IDs remain intact in the underlying, hash-chained records. Known usernames are resolved from the app's local user database, with bounded Discord membership lookups for missing names. Unknown/unresolvable accounts show the ID rather than an invented identity.
+- The **target and details** columns also display resolved usernames where possible; exports retain the original IDs, row hashes, and other forensic data plus readable display columns.
+- **Audit scope:** record **state changes** (staff review decisions, ticket replies and status updates, role changes, settings, owner access, profile/content edits, etc.) and **successful access to individual private tickets/attachments**. Routine page loads, audit page views, queue refreshes, failed attempts and webhook notification delivery no longer add noisy audit entries.
+- Old browsing-related events are **hidden from the audit page** and from its default **Export changes & ticket access** CSV, but are **not deleted or changed**. Owners can use **Full historical CSV** to retrieve all original events, preserving the tamper-evident hash chain.
+- **Any personal Discord account may sign in** using OAuth, even if it isn't in the Discord guild. Missing guild membership or pending membership screening gives the restricted \`appeal-only\` role, which can **submit and track its own Ban Appeals** and now visit **Meet the Team** (including Our Staff, Team Members / SBs x Scam, and Known Members). Regular feeds, member profiles, other ticket types and staff/admin features remain blocked.
+- For restricted users, the team directory cards show names, avatars and role labels but **do not link to member profiles**. The restricted homepage and sidebar include **Meet the Team**, and people signing in from shared team links return to that page after Discord authentication.
+- **Safe Railway update:** no destructive migrations, no changes to existing application/ticket data, and no new environment variables. **Back up the existing Railway volume**, keep \`/app/data\` mounted and \`DB_PATH=/app/data/app.sqlite\`, deploy the latest tested GitHub \`main\` on your existing \`sbplayer-shop\` service, and verify \`https://sbstore.info/health\` returns \`"version":"1.3.9"\`.
+- **Test procedure:** sign in with a Discord account that is *not* in your server, verify the **Ban Appeal** and **Meet the Team** links work, then confirm \`/feed\`, \`/dashboard\`, \`/members\` and \`/staff\` deny access. Check Owner Audit Log for @username labels and clean event categories.
 
 ## V1.3.8 — Staff, Mod and Temp Mod sections
 
