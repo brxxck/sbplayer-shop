@@ -43,6 +43,14 @@ CREATE TABLE IF NOT EXISTS ticket_messages (
  created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ticket_messages ON ticket_messages(application_id,id);
+CREATE TABLE IF NOT EXISTS application_ticket_attachments (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+ message_id INTEGER NOT NULL REFERENCES ticket_messages(id) ON DELETE CASCADE,
+ original_name TEXT NOT NULL,stored_path TEXT NOT NULL UNIQUE,
+ mime_type TEXT NOT NULL,file_size INTEGER NOT NULL,created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_application_files ON application_ticket_attachments(application_id,id);
 CREATE TABLE IF NOT EXISTS owner_review_actions (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  application_id INTEGER NOT NULL REFERENCES applications(id),
