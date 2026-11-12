@@ -1,8 +1,15 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.6.0
+# SB's & Cam's Store — Community Portal V1.7.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.7.0 — Captured Bank History and Owner-only Minecraft/Discord Matching
+
+- **Complete stored-history browsing:** `/team/mega/history` presents every *captured* InPvP Bank Event Log transaction using 50-record pages, player/season/type filters, exact amounts (including cents), and linked Discord profiles. Historical coverage is labelled partial until the upstream source is verified complete; unlike the old summary, the history page has no 100-row viewing cap.
+- **Owner-only account associations:** `/team/mega/matches` lets a verified Discord server owner search live guild members and associate one or more Minecraft Gamertags with a Discord account. Owners can correct or unlink associations; mappings are season-scoped and carry **no permission or role changes**. Both link and unlink actions are tamper-evident owner-audited, and all writes enforce CSRF.
+- **Read-only collector source:** A separate Playwright-compatible script can visit the approved `SBsxScam` InPvP team page, read its visible Bank Event Log, and save events at five-minute intervals, including pagination/older-event controls. It requires an explicitly enabled permission flag, a persistent private browser session and separate runtime; it is **not started by the live website** and its exact HTML selectors have not been validated against InPvP. No unverified automatic transaction import is enabled by this release.
+- **No double counting:** Captured events live in an additive, independent SQLite table. The existing manually recorded contributions, authorized-feed cumulative totals, and observed bank events are not blindly added together.
+- **Deployment:** Merge to `main` to trigger the existing Railway service, preserving the existing volume `/app/data` and SQLite data. Confirm `/health` reports `1.7.0`. The history and matching pages work even when zero events have been captured. Before running the browser collector against production data, verify the real site and its member history in an isolated test environment; see [browser collector preparation](docs/MEGASMP_BROWSER_PREP.md).
 ## V1.6.0 — SBsxScam MegaSMP Team Dashboard
 
 - **Dedicated fourth team tab:** Open `/team?tab=mega` (or the sidebar's **MegaSMP Team** link) for SBsxScam's dashboard. The linked InPvP team ID is `5638a504-3347-43fc-89d6-424dad53b7f6`.
