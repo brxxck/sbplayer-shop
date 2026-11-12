@@ -41,7 +41,7 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
 }
 export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activeCount=0,ownerCount=0}={}){
  const name=greeting(ctx.user);
- const items=tickets.slice(0,35);
+ const items=tickets; // Scrollable live list of all active tickets returned by the staff queue.
  return shell(ctx,'Staff Home',`<div class="dash-home">
    <section class="dash-welcome staff-hero">
      <div><span class="eyebrow">SB'S & CAM'S STORE · STAFF WORKSPACE</span>
