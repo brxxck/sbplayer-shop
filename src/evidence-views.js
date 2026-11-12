@@ -33,3 +33,24 @@ export function evidenceGallery(attachments=[],base='/tickets/attachments',compa
         '" aria-label="Download '+filename+'" title="Download '+filename+'">'+icon('download',{size:18})+'</a></div></article>';
     }).join('')+'</div>';
 }
+
+/** One native dialog per page; accessible controls and original download option. */
+export function evidenceViewerDialog(){
+  return '<dialog class="evidence-dialog" aria-label="Evidence viewer" data-evidence-dialog>'+
+    '<div class="evidence-viewer">'+
+    '<header class="evidence-viewer-header"><div class="evidence-viewer-heading"><b data-evidence-title>Evidence</b>'+
+    '<small data-evidence-index></small></div>'+
+    '<button class="evidence-viewer-icon" type="button" data-evidence-close aria-label="Close evidence viewer">'+icon('x',{size:23})+'</button></header>'+
+    '<div class="evidence-viewer-stage">'+
+    '<button class="evidence-viewer-icon evidence-gallery-arrow" type="button" data-evidence-prev aria-label="Previous attachment">'+icon('chevron-left',{size:27})+'</button>'+
+    '<div class="evidence-viewer-media" data-evidence-media></div>'+
+    '<button class="evidence-viewer-icon evidence-gallery-arrow" type="button" data-evidence-next aria-label="Next attachment">'+icon('chevron-right',{size:27})+'</button></div>'+
+    '<footer class="evidence-viewer-footer"><div class="evidence-zoom-tools">'+
+    '<button class="evidence-viewer-icon" type="button" data-evidence-zoom-out aria-label="Zoom out">'+icon('zoom-out',{size:20})+'</button>'+
+    '<span data-evidence-zoom-level aria-live="polite">100%</span>'+
+    '<button class="evidence-viewer-icon" type="button" data-evidence-zoom-in aria-label="Zoom in">'+icon('zoom-in',{size:20})+'</button>'+
+    '<button class="evidence-viewer-icon" type="button" data-evidence-reset aria-label="Reset zoom">'+icon('rotate-ccw',{size:18})+'</button></div>'+
+    '<a class="btn btn-primary btn-sm evidence-viewer-download" data-evidence-download href="#">'+icon('download',{size:18})+' Download</a></footer>'+
+    '<p class="evidence-viewer-help">Use ← → to browse, + / − to zoom, and Esc to close.</p>'+
+    '</div></dialog>';
+}
