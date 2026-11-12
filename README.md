@@ -1,7 +1,15 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.5.0
+# SB's & Cam's Store — Community Portal V1.5.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.5.1 — Genuine Lucide icon refresh and profile picture dropdown
+
+- Replace placeholder Unicode icons in the navigation, top-right profile menu, Main Feed, ticket picker, dashboard actions, social activity and promotion controls with **genuine Lucide SVG outlines**, using semantic choices (for example, ticket-plus for new tickets, bell for alerts and bookmark for saved posts).
+- Bundle curated Lucide SVG geometry in `src/lucide-paths-*.js` with the shared `src/icons.js` renderer. Icons load **locally**, without third-party fonts, icon services or runtime CDN calls. Retain the Lucide ISC attribution in [LUCIDE_LICENSE.md](LUCIDE_LICENSE.md).
+- Show a **56px uploaded website profile picture** inside the account dropdown, with the Discord avatar as fallback. Apply the custom avatar to the top-bar account photo too. Preserve name, Discord username, and profile controls.
+- Keep existing roles, application approvals, private tickets, audit logging, database and uploads intact. Post like/bookmark/share actions preserve their SVG icons when updated in place.
+- Verify the responsive dropdown, keyboard and click-away interactions, post actions and role-based pages before deploying. Deploy from tested GitHub `main` through the existing Railway service and preserve the persistent `/app/data` volume. `/health` reports `1.5.1`.
 
 ## V1.5.0 — Social Hub and top-right account controls
 
