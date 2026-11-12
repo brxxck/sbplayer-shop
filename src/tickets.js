@@ -5,17 +5,21 @@ import {isFinal} from './logic.js';
 import {config} from './config.js';
 
 // Keep conversations and owner decisions in additive tables. Existing application records are never rebuilt.
+export const applicationAttachments=appId=>all('SELECT * FROM application_ticket_attachments WHERE application_id=? ORDER BY id ASC',appId);
 export const ticketMessages=appId=>all(`SELECT * FROM (
   SELECT t.*,u.username,u.display_name,u.avatar FROM ticket_messages t
   JOIN users u ON u.id=t.author_id WHERE t.application_id=? ORDER BY t.id DESC LIMIT 250
 ) ORDER BY id ASC`,appId);
 
-export function writeTicketReply({appId,userId,role,body,ip}) {
+export function writeTicketReply({appId,userId,role,body,ip,attachments=[]}) {
   return transaction(()=>{
     const a=one('SELECT id FROM applications WHERE id=?',appId);
     if(!a)throw new Error('Application not found');
     const stamp=Date.now();
     const result=run('INSERT INTO ticket_messages(application_id,author_id,author_role,body,created_at) VALUES(?,?,?,?,?)',appId,userId,role,body,stamp);
+    for(const file of attachments)run(
+      'INSERT INTO application_ticket_attachments(application_id,message_id,original_name,stored_path,mime_type,file_size,created_at) VALUES(?,?,?,?,?,?,?)',
+      appId,Number(result.lastInsertRowid),file.name,file.path,file.mime,file.size,stamp);
     appendAudit(db,{actor:userId,role,action:'application.reply',target:'application:'+appId,details:{messageId:Number(result.lastInsertRowid),length:body.length},ip});
     return {id:Number(result.lastInsertRowid),at:stamp};
   });
