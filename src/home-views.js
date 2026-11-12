@@ -19,7 +19,7 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
      <img class="dash-brand-mark" src="/static/sb-logo.png" alt="SB Store" width="112" height="112">
    </section>
    <div class="dash-summary-row">
-     <a href="/tickets/mine" class="dash-summary-card"><span>MY OPEN TICKETS</span><strong>${active}</strong><small>${unread?$String(unread)+' unread replies':'View your support requests'} →</small></a>
+     <a href="/tickets/mine" class="dash-summary-card"><span>MY OPEN TICKETS</span><strong>${active}</strong><small>${unread?String(unread)+' unread replies':'View your support requests'} →</small></a>
      <a href="/dashboard" class="dash-summary-card"><span>STAFF APPLICATIONS</span><strong>${pending}</strong><small>Track application progress →</small></a>
      <a href="/profile/edit" class="dash-summary-card"><span>MY PROFILE</span><strong>✎</strong><small>Customize your public profile →</small></a>
    </div>
