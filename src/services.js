@@ -3,6 +3,7 @@ import {db,all,one,run,getSetting,transaction} from './db.js';
 import {appendAudit} from './audit.js';
 import {manageableRoles,protectedRole,consensus,isFinal} from './logic.js';
 import {config} from './config.js';
+import {TEMP_MOD_ROLE_ID} from './team-categories.js';
 export const application=(id)=>one('SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?',id);
 export const ownApplications=id=>all(`SELECT a.*,
   (SELECT COUNT(*) FROM ticket_messages m WHERE m.application_id=a.id AND m.author_id!=a.user_id AND m.created_at>a.applicant_seen_at) AS unread_replies
@@ -93,8 +94,14 @@ export async function deliverAcceptedRole({appId,actorId,role,ip,discord}){
     const botMember=await discord.getGuildMember(botIdentity.id);
     if(!botMember)throw new Error('Bot is not a verified server member');
     const manageable=manageableRoles(roles,botMember,config);
-    const targetRole=roleMapping(a.position,roles,manageable);
-    if(!targetRole)throw new Error('No safe assignable Discord role is mapped to the position '+a.position);
+    // V1.4: every accepted staff applicant starts as Mod - temp regardless of applied position.
+    const configured=config.promotionTempRoleId||TEMP_MOD_ROLE_ID;
+    let targetRole=manageable.find(r=>r.id===configured);
+    if(!targetRole && !config.promotionTempRoleId){
+      const matches=manageable.filter(r=>['tempmod','modtemp'].includes(String(r.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')));
+      if(matches.length===1)targetRole=matches[0];
+    }
+    if(!targetRole)throw new Error('No safe assignable Mod - temp role was found; configure PROMOTION_TEMP_ROLE_ID);
     if(!target.roles.includes(targetRole.id))await discord.addRole(a.user_id,targetRole.id,`SB Store accepted application #${appId}`);
     transaction(()=>{
       run("UPDATE applications SET role_sync_status='assigned',role_sync_error='',role_sync_role=?,updated_at=? WHERE id=?",targetRole.id,Date.now(),appId);
