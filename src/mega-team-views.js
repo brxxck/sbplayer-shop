@@ -98,7 +98,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
   summaryCard('balance','Reported team bank',data.bank?.balance??null,'From '+esc(sourceLabel(data.bank?.source)),'wallet')+
   summaryCard('deposits','Known deposits',data.totals.deposited,'Partial if some players lack records','arrow-down-to-line')+
   summaryCard('withdrawals','Known withdrawals',data.totals.withdrawn,'Partial if some players lack records','arrow-up-from-line')+
-  summaryCard('net','Net recorded contributions',data.totals.net,'Deposits minus withdrawals','chart-no-axes-combined')+
+  summaryCard('net','Net recorded contributions',data.totals.net,'Shown when every recorded player has both totals','chart-no-axes-combined')+
   '</section>';
  const rows=data.members.length?data.members.map(memberRow).join(''):'<tr><td colspan="4">No in-game roster imported yet. Team admins can add Gamertags or import an authorized snapshot.</td></tr>';
  const history=data.transactions.map(t=>'<tr><td>'+date(t.occurred_at)+'</td><td>'+esc(t.gamertag)+'</td>'+
