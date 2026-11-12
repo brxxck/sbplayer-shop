@@ -17,6 +17,7 @@ import * as homeView from './home-views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
 import {createProfileRoleLookup} from './profile-roles.js';
+import {SBS_TEAM_LEADER_ROLE_ID,SBS_TEAM_MEMBER_ROLE_ID,sbsTeamMembership} from './sbs-team.js';
 import {ticketMessages,applicationAttachments,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
@@ -127,7 +128,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.5'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.6'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -651,26 +652,31 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         }
         teamCache={at:now(),list,partial};
       }
-      // Store team roles stay in Meet the Team. External Mega SMP and Prison roles
-      // appear in Known Members, with dedicated tabs for each community.
+      // Our Staff and the SBs x Scam Team Members are separate directories.
+      // External Mega SMP/Prison roles remain under Known Members.
       const knownRoleKind=name=>{
         const key=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
         return key==='megasmpstaff'?'mega':key==='prisonstaff'?'prison':null;
       };
       const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name)||knownRoleKind(r.name));
       const byId=new Map(roles.map(r=>[r.id,r]));
-      const categorized=new Map(),knownMembers=new Map([['mega',[]],['prison',[]]]);const seen=new Set();
+      const categorized=new Map(),knownMembers=new Map([['mega',[]],['prison',[]]]);
+      const sbsLeaders=[],sbsMembers=[];const seen=new Set();
       for(const m of list){
         const id=m.user?.id;if(!id||m.user.bot||seen.has(id))continue;
         seen.add(id);const memberRoles=(m.roles||[]).map(x=>byId.get(x)).filter(Boolean);
         const match=memberRoles.filter(r=>staffRoles.some(s=>s.id===r.id));
         const external=memberRoles.filter(r=>knownRoleKind(r.name));
-        const storeRoles=match.filter(r=>!knownRoleKind(r.name));
-        if(!storeRoles.length&&!external.length&&id!==ctx.guild.owner_id)continue;
+        const sbs=sbsTeamMembership(m.roles);
+        const storeRoles=match.filter(r=>!knownRoleKind(r.name)&&r.id!==SBS_TEAM_LEADER_ROLE_ID&&r.id!==SBS_TEAM_MEMBER_ROLE_ID);
+        if(!storeRoles.length&&!external.length&&!sbs.leader&&!sbs.member&&id!==ctx.guild.owner_id)continue;
         storeRoles.sort((a,b)=>b.position-a.position);
         upsertUser(m);ensureProfile(id);
         const profile=one('SELECT nickname,avatar_path,public FROM profiles WHERE user_id=?',id)||{};
-        const info={...m.user,display_name:m.nick||m.user.global_name||m.user.username,nickname:profile.public?profile.nickname:'',avatar_path:profile.public?profile.avatar_path:''};
+        const info={...m.user,display_name:m.nick||m.user.global_name||m.user.username,nickname:profile.public?profile.nickname:'',avatar_path:profile.public?profile.avatar_path:'',sbsMember:sbs.member};
+        // Show dual-role leaders once, within the leaders group, not twice in Team Members.
+        if(sbs.leader)sbsLeaders.push({...info,staffTitle:'SBs Team Leader'});
+        else if(sbs.member)sbsMembers.push({...info,staffTitle:'SBs Team Member'});
         // Members holding both communities' roles appear in each relevant Known Members tab.
         // An actual SB Store staff member also retains their primary internal team listing.
         for(const externalRole of external){
@@ -693,9 +699,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         {key:'mega',title:'Mega SMP Staff',members:knownMembers.get('mega')},
         {key:'prison',title:'Prison Staff',members:knownMembers.get('prison')}
       ].map(g=>({...g,members:g.members.sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))}));
-      const selected=url.searchParams.get('tab')==='known'?'known':'team';
+      const sortByName=(a,b)=>String(a.nickname||a.display_name).localeCompare(String(b.nickname||b.display_name));
+      const sbsGroups=[{title:'SBs Team Leaders',members:sbsLeaders.sort(sortByName)},{title:'SBs Team Members',members:sbsMembers.sort(sortByName)}].filter(g=>g.members.length);
+      const selected=['team','sbs','known'].includes(url.searchParams.get('tab'))?url.searchParams.get('tab'):'team';
       const knownTab=url.searchParams.get('known')==='prison'?'prison':'mega';
-      return html(view.team(ctx,{groups,knownGroups,tab:selected,knownTab,partial,rolesCount:roles.length}));
+      return html(view.team(ctx,{groups,knownGroups,sbsGroups,tab:selected,knownTab,partial,rolesCount:roles.length}));
     }
     let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
     if(userMatch && req.method==='GET'){
@@ -715,7 +723,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Never request or render Discord roles for somebody else's private profile.
       const discordRoles=privateProfile?{state:'hidden',roles:[]}:
         await getProfileRoles(id,self?ctx.member:null);
-      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles}));
+      const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
+      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(follow|comment)$/.exec(pathname);
     if(userMatch&&req.method==='POST'){
@@ -988,5 +997,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.5 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.6 running at ${config.baseUrl}`));
 }
