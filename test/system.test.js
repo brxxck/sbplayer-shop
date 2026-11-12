@@ -395,7 +395,8 @@ test('captured event history and verified owner Discord matching are permission-
  assert.ok(first.includes('Page 1 of 3'));
  assert.ok(first.includes('PARTIAL / UNVERIFIED HISTORY'));
  assert.ok(first.includes('Captured0000'));
- assert.ok(!first.includes('Captured0122'));
+ assert.ok(!megaCapturedBankHistory({season,page:1}).rows.some(entry=>entry.gamertag==='Captured0122'),
+  'only 50 stored entries are rendered per page; filter dropdown may list all players');
  assert.equal((await get('/team/mega/history?season='+encodeURIComponent(season)+'&page=3','member')).status,200);
  const playerPage=await (await get('/team/mega/history?season='+encodeURIComponent(season)+'&player=Captured0001','member')).text();
  assert.ok(playerPage.includes('Captured0001'));
