@@ -175,7 +175,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.3'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.4'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -691,6 +691,16 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         if(exists)run('DELETE FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
         else run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.like',`post:${id}`,{before:!!exists,after:!exists});
+        // JavaScript-enhanced likes update in place so scrolling the feed never opens Post Details.
+        if(String(req.headers.accept||'').includes('application/json')){
+          const count=one('SELECT COUNT(*) AS count FROM post_likes WHERE post_id=?',id)?.count||0;
+          return respond(res,200,JSON.stringify({post_id:id,liked:!exists,like_count:count}),'application/json; charset=utf-8');
+        }
+        // Without JavaScript, return to the feed and this post rather than opening its detail page.
+        if(Object.prototype.hasOwnProperty.call(fields,'feed_page')){
+          const page=pageNumber(fields.feed_page);
+          return redirect(res,(page?'/feed?page='+page:'/feed')+'#post-'+id);
+        }
         return redirect(res,`/post/${id}`);
       }
       if(action==='repost'){
@@ -1150,5 +1160,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4.3 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4.4 running at ${config.baseUrl}`));
 }

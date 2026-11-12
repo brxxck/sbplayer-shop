@@ -1,7 +1,13 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.4.3
+# SB's & Cam's Store — Community Portal V1.4.4
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.4.4 — Like feed posts without leaving the feed
+
+- Like and unlike posts with a same-origin authenticated JSON request. The heart icon, state and like count update immediately on the current page, without reloading or changing the feed scroll position.
+- If JavaScript is disabled, a feed Like form redirects back to the same feed page and post anchor. Liking a post from its detail page retains the existing detail-page fallback. Comments and the explicit Open link still open Post Details.
+- Keep CSRF validation, per-user rate limiting, owner audit behavior and the existing SQLite data intact. Automated tests cover JSON like/unlike, non-JavaScript fallbacks and the client update logic. Deploy from tested GitHub main on the existing Railway service and persistent /app/data volume.
 
 ## V1.4.3 — Promotion navigation for all SB Store staff ranks
 
