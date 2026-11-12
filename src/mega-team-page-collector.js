@@ -98,6 +98,91 @@ export async function openBankTab(page){
     '). Check loading state, sign-in and blocking overlays.');
   return false;
 }
+// Open the parent Event Log view before looking for its Bank sub-tab.
+// The website may render neither child control until this view is selected.
+export async function openEventLogSection(page){
+ const groups=[
+  page.getByRole('tab',{name:/\bEvent Log\b/i}),
+  page.getByRole('button',{name:/\bEvent Log\b/i}),
+  page.getByRole('link',{name:/\bEvent Log\b/i}),
+  page.getByText('Event Log',{exact:true})
+ ];
+ for(const group of groups){
+  const count=Math.min(await group.count(),5);
+  for(let i=0;i<count;i++){
+   const target=typeof group.nth==='function'?group.nth(i):group.first();
+   if(!await target.isVisible().catch(()=>false))continue;
+   if(typeof target.getAttribute==='function'){
+    const selected=await target.getAttribute('aria-selected').catch(()=>null);
+    const state=await target.getAttribute('data-state').catch(()=>null);
+    if(selected==='true'||state==='active')return true;
+   }
+   if(typeof target.isEnabled==='function'&&!await target.isEnabled().catch(()=>false))continue;
+   try{
+    await target.click({timeout:6000});
+    await delay(WAIT_MS);
+    return true;
+   }catch{
+    if(await page.getByText(/verify you are human|captcha|security challenge/i).count())
+     throw new Error('Event Log requires human verification; collector did not bypass it.');
+    if(typeof target.press==='function'){
+     try{await target.press('Enter',{timeout:3000});await delay(WAIT_MS);return true;}
+     catch{/* Try the next visible Event Log control. */}
+    }
+   }
+  }
+ }
+ return false;
+}
+
+async function alreadyShowingBankRows(page,selector){
+ try{
+  const rows=await extractBankRows(page,{selector,maxRows:2});
+  return Array.isArray(rows)&&rows.length>0;
+ }catch{return false;}
+}
+
+// Only expose allowlisted booleans in errors; no page contents, cookies or user data.
+async function teamPageSignals(page){
+ try{
+  return await page.evaluate(()=>{
+   const main=document.querySelector('main')||document.body;
+   const text=String(main?.innerText||'').slice(0,30000);
+   return {
+    team:text.includes('SBsxScam'),
+    events:/\bEvent Log\b/i.test(text),
+    bank:/\bBank\b/i.test(text),
+    signin:/sign in (?:with microsoft|to (?:view|see|access))|login required/i.test(text),
+    directory:/browse the top teams/i.test(text)
+   };
+  });
+ }catch{return {team:false,events:false,bank:false,signin:false,directory:false};}
+}
+
+// SPA hydration can delay both parent and child controls. Bound the retries and
+// distinguish a missing team detail view from an interactive tab failure.
+export async function selectBankEventLog(page,{selector=''}={}){
+ const waits=[0,600,1000,1500,1900];
+ let eventLogOpened=false;
+ for(let step=0;step<waits.length;step++){
+  if(waits[step])await delay(waits[step]);
+  if(await openBankTab(page))return true;
+  if(!eventLogOpened&&(step===0||step===2)){
+   eventLogOpened=await openEventLogSection(page);
+   if(eventLogOpened){
+    await delay(650);
+    if(await openBankTab(page))return true;
+   }
+  }
+  if(await alreadyShowingBankRows(page,selector))return true;
+ }
+ const flags=await teamPageSignals(page);
+ if(flags.signin)throw new Error('InPvP team Event Log requires sign-in; authenticate the collector browser profile.');
+ if(flags.directory&&!flags.events)throw new Error('Team detail view unavailable: directory loaded without Event Log. Check session/team URL.');
+ throw new Error('Bank tab missing after Event Log navigation (team:'+!!flags.team+
+  ',events:'+!!flags.events+',bank:'+!!flags.bank+'). Check session/page layout.');
+}
+
 async function scrollEventLog(page){
   return page.evaluate(()=>{
     const candidates=[...document.querySelectorAll('*')].filter(el=>{
@@ -171,9 +256,15 @@ export async function captureTeamBankPage(page,{
     throw new Error('Team page redirected to an unexpected destination or a login page.');
   if(await page.getByText(/challenge|verify you are human|captcha/i).count())
     throw new Error('Browser challenge requires normal user action; collector will not bypass it.');
-  const overview=await extractTeamOverview(page);
-  const bankSelected=await openBankTab(page);
-  if(!bankSelected)throw new Error('Bank tab was not found. Site layout needs calibration.');
+  // Preserve roster and balance seen in either view; SPA hydration and
+  // switching to Bank can hide information from the overview screen.
+  const before=await extractTeamOverview(page);
+  await selectBankEventLog(page,{selector});
+  const after=await extractTeamOverview(page);
+  const overview={
+    roster:before?.roster?.length?before.roster:(after?.roster||[]),
+    bankBalance:after?.bankBalance??before?.bankBalance??null
+  };
   const afterBank=new URL(page.url());
   if(afterBank.hostname!=='inpvp.net'||afterBank.searchParams.get('id')!==MEGA_TEAM_ID)
     throw new Error('Bank tab navigation left the approved team page; capture rejected.');
