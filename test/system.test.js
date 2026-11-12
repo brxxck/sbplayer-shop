@@ -258,6 +258,123 @@ test('Our Staff, Team Members, Known Members render in requested order with exac
   assert.ok(invalid.includes('>Our Staff</span>'),'unexpected tab defaults to Our Staff');
 });
 
+
+test('MegaSMP dashboard preserves rosters, manually recorded money, source provenance and season history',async()=>{
+ const {megaDashboard}=await import('../src/mega-team-data.js');
+ const {activeMegaSeason,MEGA_TEAM_ID}=await import('../src/mega-team.js');
+ const season=activeMegaSeason();
+ const initial=await (await get('/team?tab=mega','member')).text();
+ assert.match(initial,/>MegaSMP Team<\/span>/,'fourth team directory tab is visible');
+ assert.ok(initial.includes('SBsxScam'));
+ assert.ok(initial.includes('No in-game roster imported yet'),'unverified Discord team roles are not presented as a verified game roster');
+ assert.ok(initial.includes('Discord team roster'),'Discord fallback is clearly labelled');
+ assert.ok(initial.includes('No authorized live feed configured'));
+ const blank=await (await get('/team/mega/data','member')).json();
+ assert.equal(blank.teamId,MEGA_TEAM_ID);
+ assert.equal(blank.totals.deposited,null,'unknown totals must not silently display zero');
+ assert.equal(blank.totals.withdrawn,null);
+ assert.equal(blank.bank,null);
+ assert.equal((await get('/mega-team','member')).headers.get('location'),'/team?tab=mega');
+ assert.equal((await post('/team/mega/roster','member',{season,gamertags:'UnauthorizedPlayer'})).status,403);
+ assert.equal((await post('/team/mega/season','adminA',{label:'Not an owner'})).status,403);
+ const roster=await post('/team/mega/roster','adminA',{season,
+  gamertags:'TestZulu 123\nTestAlpha\nTESTALPHA',role:'Leader'});
+ assert.equal(roster.status,303);
+ const id=one('SELECT id FROM mega_team_members WHERE season=? AND gamertag=? COLLATE NOCASE',season,'TestAlpha').id;
+ const populated=await (await get('/team/mega/data','member')).json();
+ assert.equal(populated.totals.activeMembers,2,'case-insensitive duplicates are suppressed');
+ assert.equal(populated.totals.deposited,null,'roster-only members have no financial history');
+ const invalid=await post('/team/mega/transaction','adminA',{season,member_id:String(id),kind:'deposit',amount:'1e6'});
+ assert.equal(invalid.status,400,'currency must be a safe whole number, never exponential input');
+ assert.equal((await post('/team/mega/transaction','member',{season,member_id:String(id),kind:'deposit',amount:'500000'})).status,403);
+ assert.equal((await post('/team/mega/transaction','adminA',{season,member_id:String(id),kind:'deposit',amount:'500000',notes:'manual deposit'})).status,303);
+ assert.equal((await post('/team/mega/transaction','adminA',{season,member_id:String(id),kind:'withdrawal',amount:'100000'})).status,303);
+ assert.equal((await post('/team/mega/bank','adminA',{season,balance:'10000000'})).status,303);
+ const recorded=megaDashboard(season);
+ assert.equal(recorded.bank.balance,10000000);
+ const alpha=recorded.members.find(m=>m.id===id);
+ assert.equal(alpha.deposits,500000);
+ assert.equal(alpha.withdrawals,100000);
+ assert.equal(alpha.net,400000);
+ assert.equal(alpha.source,'manual');
+ assert.equal(recorded.totals.missing,1,'partial roster coverage is identified');
+ assert.equal(recorded.totals.deposited,500000,'known subtotal is not described as a complete team total');
+ assert.equal(recorded.totals.withdrawn,100000);
+ const snapshot={team_id:MEGA_TEAM_ID,season,updated_at:Date.now(),complete_roster:true,bank_balance:15000000,
+   members:[{gamertag:'TestAlpha',role:'Leader',active:true,deposits:800000,withdrawals:150000},
+     {gamertag:'TestZulu 123',role:'Member',active:true,deposits:null,withdrawals:null}]};
+ const importResult=await post('/team/mega/import','adminA',{season,snapshot:JSON.stringify(snapshot)});
+ assert.equal(importResult.status,303);
+ const imported=megaDashboard(season),latest=imported.members.find(m=>m.id===id);
+ assert.equal(latest.deposits,800000,'cumulative snapshot replaces rather than adds to manual entries');
+ assert.equal(latest.withdrawals,150000);
+ assert.equal(latest.net,650000);
+ assert.equal(latest.source,'manual_import');
+ assert.equal(imported.bank.balance,15000000);
+ assert.equal(imported.transactions.filter(t=>t.member_id===id).length,0,'manual ledger is not overwritten by imports');
+ assert.equal(imported.transactions.length,2);
+ assert.equal(imported.totals.missing,1,'missing imported values stay missing');
+ assert.equal((await post('/team/mega/member-status','adminA',{season,member_id:String(id),status:'former'})).status,303);
+ assert.equal(megaDashboard(season).totals.activeMembers,1);
+ assert.equal((await post('/team/mega/member-status','adminA',{season,member_id:String(id),status:'active'})).status,303);
+ const secret=await fetch(base+'/team/mega/bank',{method:'POST',
+  headers:{cookie:sessions.get('adminA').cookie,'content-type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({season,balance:'1'}),redirect:'manual'});
+ assert.equal(secret.status,403,'CSRF protection applies to team finance edits');
+ assert.equal(one("SELECT COUNT(*) n FROM owner_audit_log WHERE action LIKE 'mega.team.%'").n>=5,true,'owner audit captures all edits');
+ const newer=await post('/team/mega/season','owner',{label:'Season 99 - Test Reset'});
+ assert.equal(newer.status,303);
+ assert.notEqual(activeMegaSeason(),season);
+ assert.equal(megaDashboard().members.length,0,'new seasons start with a fresh roster and zero fabricated statistics');
+ assert.equal(megaDashboard(season).bank.balance,15000000,'historic balances stay available');
+ assert.equal((await get('/team?tab=mega&season='+encodeURIComponent(season),'member')).status,200);
+ assert.equal((await post('/team/mega/bank','adminA',{season,balance:'1'})).status,400,'past seasons cannot be silently edited');
+});
+
+test('authorized structured team feeds sync every five minutes without scraping InPvP',async()=>{
+ const {createMegaTeamSync,approvedMegaFeedUrl}=await import('../src/mega-team-sync.js');
+ const {activeMegaSeason,MEGA_TEAM_ID}=await import('../src/mega-team.js');
+ const {megaDashboard,importMegaSnapshot}=await import('../src/mega-team-data.js');
+ assert.equal(approvedMegaFeedUrl('http://localhost/teams'),null,'SSRF/private hosts must be rejected');
+ assert.equal(approvedMegaFeedUrl('https://127.0.0.1/teams'),null);
+ assert.equal(approvedMegaFeedUrl('https://inpvp.net/megasmp/teams'),null,'automating InPvP requires permission');
+ assert.ok(approvedMegaFeedUrl('https://inpvp.net/megasmp/teams',{inpvpPermission:true}));
+ const disabled=createMegaTeamSync({feedUrl:'https://trusted.example.com/team.json',authorized:false,
+  request:()=>{throw new Error('Not supposed to run');}});
+ assert.equal(disabled.enabled,false);
+ assert.deepEqual(await disabled.poll(),{ok:false,status:'unconfigured'});
+ const season=activeMegaSeason();
+ const payload={team_id:MEGA_TEAM_ID,season,updated_at:Date.now(),complete_roster:true,bank_balance:23000000,
+   members:[{gamertag:'FeedPlayer',role:'Officer',active:true,deposits:12345678,withdrawals:null}]};
+ let requests=0;
+ const feed=createMegaTeamSync({feedUrl:'https://trusted.example.com/team.json',authorized:true,
+  request:async(uri,options)=>{
+   requests++;
+   assert.equal(uri,'https://trusted.example.com/team.json');
+   assert.equal(options.redirect,'error');
+   assert.equal(options.method,'GET');
+   return {ok:true,headers:{get:()=> 'application/json'},text:async()=>JSON.stringify(payload)};
+  }});
+ assert.equal(feed.enabled,true);
+ assert.equal((await feed.poll()).ok,true);
+ assert.equal(requests,1);
+ const after=megaDashboard(season);
+ assert.equal(after.bank.balance,23000000);
+ const player=after.members.find(m=>m.gamertag==='FeedPlayer');
+ assert.equal(player.deposits,12345678);
+ assert.equal(player.withdrawals,null);
+ assert.equal(player.net,null,'a missing withdrawal total must never be treated as zero');
+ assert.equal(player.source,'authorized_feed');
+ assert.ok(after.sync.last_success>0);
+ assert.equal((await feed.poll()).status,'cooldown','upstream polling must be rate-limited');
+ assert.equal(requests,1);
+ assert.throws(()=>importMegaSnapshot({...payload,team_id:'wrong'}, {source:'manual_import'}),/identifier/);
+ assert.throws(()=>importMegaSnapshot({...payload,members:[
+   {gamertag:'DUP',deposits:1,withdrawals:1},
+   {gamertag:'dup',deposits:2,withdrawals:2}
+ ]},{source:'manual_import'}),/Duplicate/);
+});
+
 test('SBs Member tag follows names on profiles but leader-only and private profiles are not mislabeled',async()=>{
   const profile=await (await get('/u/'+ids.member2,'member')).text();
   assert.match(profile,/<h1>member2<span class="sbs-member-tag"[^>]*>\[SBs\]<\/span><\/h1>/);
