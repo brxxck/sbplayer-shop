@@ -437,3 +437,53 @@
   .topbar .mobile-brand span{display:none}
   .top-account{max-width:70%}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.5.1 complete Lucide UI: consistent detailed vector icons and custom-avatar dropdown. */
+.lucide-icon{display:inline-block;vertical-align:middle;flex:none;overflow:visible;stroke:currentColor;fill:none;shape-rendering:geometricPrecision}
+.nav-icon{display:inline-flex;align-items:center;justify-content:center}
+.nav-icon .lucide-icon{width:19px;height:19px}
+.top-social-symbol{display:inline-flex;align-items:center;justify-content:center}
+.top-social-symbol .lucide-icon{width:19px;height:19px}
+.top-account-dropdown>summary .lucide-icon{transition:transform .18s ease}
+.top-account-dropdown[open]>summary .lucide-icon{transform:rotate(180deg)}
+.top-account-menu-head{display:flex;flex-direction:row;align-items:center;gap:13px;padding:15px 12px 16px}
+.top-account-menu-avatar{display:block;flex:none;border-radius:50%;line-height:0;box-shadow:0 0 0 3px #2c5e94,0 0 18px rgba(60,136,228,.16)}
+.top-account-menu-avatar:hover{box-shadow:0 0 0 3px #65b7ff,0 0 18px rgba(60,136,228,.3)}
+.top-account-menu-head .avatar.menu{width:56px;height:56px;min-width:56px;max-width:56px;max-height:56px;object-fit:cover;border:2px solid #4b9bf2}
+.top-account-menu-identity{display:flex;min-width:0;flex:1;flex-direction:column;align-items:flex-start;gap:5px}
+.top-account-menu-identity b{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px}
+.top-account-menu-identity small{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.top-account-menu-linked{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#79baec}
+.top-account-menu-linked .lucide-icon{width:14px;height:14px}
+.top-account-menu>a .menu-action-icon{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;flex:none;color:#79b7ff}
+.top-account-menu>a .menu-action-icon .lucide-icon{width:19px;height:19px}
+.top-account-menu>a:hover .menu-action-icon{color:#f3faff}
+.top-account-menu-signout .account-menu-logout .lucide-icon{width:18px;height:18px}
+.top-account-menu-signout .account-menu-logout{gap:12px}
+.action-btn,.upload-label,.vote-tile span,.profile-actions .btn,.btn:has(.lucide-icon){display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.post-actions .lucide-icon{width:18px;height:18px;transition:fill .15s,stroke .15s}
+.post-actions .action-btn.activated[aria-pressed="true"] [data-like-heart] .lucide-icon{fill:currentColor}
+.post-actions form[data-post-bookmark] .action-btn.activated .lucide-icon{fill:currentColor}
+.post-actions .action-btn:hover .lucide-icon{stroke-width:2.2}
+.post-actions .action-btn .lucide-icon{pointer-events:none}
+.support-choice-icon .lucide-icon{width:22px;height:22px}
+.support-chevron{display:inline-flex;align-items:center}
+.support-chevron .lucide-icon{width:20px;height:20px}
+.support-upload .lucide-icon,.ticket-file .lucide-icon,.verified-discord .lucide-icon{margin-right:5px}
+.dash-action-icon .lucide-icon{width:21px;height:21px}
+.dash-chevron{display:flex;align-items:center;justify-content:center}
+.dash-chevron .lucide-icon{width:18px;height:18px}
+.dash-summary-card strong .lucide-icon{width:30px;height:30px}
+.tile-icon .lucide-icon{width:28px;height:28px}
+.feature-grid .tile-icon{display:inline-flex;align-items:center;justify-content:center}
+.vote-totals .lucide-icon,.pill .lucide-icon,.profile-status .lucide-icon,.eyebrow .lucide-icon{vertical-align:-3px}
+.vote-tile .lucide-icon{margin-right:4px}
+.icon-btn:has(.lucide-icon){display:inline-grid;place-items:center}
+.icon-btn .lucide-icon{width:18px;height:18px}
+.top-account-menu-signout button:focus-visible,.top-account-menu>a:focus-visible,.top-account-menu-avatar:focus-visible{outline:2px solid #87c5ff;outline-offset:3px}
+@media(max-width:610px){
+ .top-account-menu{width:min(308px,calc(100vw - 20px))}
+ .top-account-menu-head{gap:11px}
+ .top-account-menu-head .avatar.menu{width:52px;height:52px;min-width:52px;max-width:52px;max-height:52px}
+}
