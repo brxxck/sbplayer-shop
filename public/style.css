@@ -308,3 +308,29 @@
   .profile-page .profile-roles-list{gap:7px}
   .profile-page .profile-role-badge{font-size:10.5px;padding:6px 9px}
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.3.6: Our Staff / Team Members / Known Members and red SBs team tag. */
+.team-directory-tab{flex:1 1 170px}
+.sbs-team-section>.section-heading{align-items:flex-start}
+.sbs-team-section>.section-heading p{margin:6px 0 0}
+.sbs-team-section>.team-section{margin-top:22px}
+.sbs-team-section .section-heading h3{font-size:16px;line-height:1.4;margin:0}
+.sbs-member-tag{
+  display:inline-flex;align-items:center;vertical-align:middle;margin-left:8px;
+  font-family:inherit;font-size:.63em;line-height:1.2;letter-spacing:.02em;
+  color:#ff4444;font-weight:850;white-space:nowrap;text-shadow:0 0 1px #a12020;
+}
+.team-card h3 .sbs-member-tag{font-size:10px;margin-left:5px;vertical-align:baseline}
+.profile-page .profile-identity h1 .sbs-member-tag{font-size:13px;vertical-align:middle}
+@media(max-width:680px){
+  .team-directory-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .team-directory-tab{min-width:0;padding:10px 8px;flex:1}
+  .team-directory-tab span{font-size:12px}
+  .team-directory-tab small{font-size:10px}
+}
+@media(max-width:430px){
+  .team-directory-tabs{grid-template-columns:1fr}
+  .team-directory-tab{padding:10px 12px}
+}
