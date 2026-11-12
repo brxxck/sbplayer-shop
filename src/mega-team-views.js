@@ -7,7 +7,7 @@ import {icon} from './icons.js';
 const fmtMoney=v=>v===null||v===undefined?'—':'$'+Number(v).toLocaleString('en-US');
 const fmtShort=v=>v===null||v===undefined?'—':'$'+new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(v);
 const date=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not available';
-const sourceLabel=key=>key==='authorized_feed'?'Authorized feed':key==='manual_import'?'Submitted snapshot':key==='manual'?'Recorded manually':'Not recorded';
+const sourceLabel=key=>key==='authorized_feed'?'Authorized feed':key==='manual_import'?'Submitted snapshot':key==='manual'?'Recorded manually':key==='browser_capture'?'InPvP observed':key==='captured_events'?'Observed activity':key==='browser_roster'?'Observed roster':'Not recorded';
 const moneyCell=v=>v===null?'<span class="mega-unknown">Not recorded</span>':fmtMoney(v);
 const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat panel">'+
  '<div class="mega-stat-label">'+icon(iconName,{size:20})+' '+label+'</div>'+
@@ -15,19 +15,19 @@ const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat pan
  '<small>'+detail+'</small></div>';
 function memberRow(m,linked){
  return '<tr><td><span class="mega-player">'+icon(m.role==='Leader'?'crown':'user-round',{size:17})+
-  '<b>'+esc(m.gamertag)+'</b>'+(m.status==='former'?'<span class="mega-former">Former</span>':'')+
+  '<b>'+esc(m.gamertag)+'</b>'+(m.status==='former'?'<span class="mega-former">Former</span>':m.status==='observed'?'<span class="mega-former">Observed (not verified roster)</span>':'')+
   '</span><small>'+esc(m.role)+' · '+esc(sourceLabel(m.source))+'</small>'+
  (linked?'<small><a class="mega-matched-discord" href="/u/'+attr(linked.discordId)+'">'+
   icon('user-round-check',{size:15})+' @'+esc(linked.username||linked.displayName||linked.discordId)+'</a></small>':'')+'</td>'+
- '<td class="mega-number">'+moneyCell(m.deposits)+'</td>'+
- '<td class="mega-number">'+moneyCell(m.withdrawals)+'</td>'+
- '<td class="mega-number">'+moneyCell(m.net)+'</td></tr>';
+ '<td class="mega-number">'+moneyCell(m.deposits??m.observedDeposits)+(m.deposits===null&&m.observedDeposits!=null?' <small>Captured only</small>':'')+'</td>'+
+ '<td class="mega-number">'+moneyCell(m.withdrawals??m.observedWithdrawals)+'</td>'+
+ '<td class="mega-number">'+moneyCell(m.net??m.observedNet)+'</td></tr>';
 }
 const leaderboard=(members,field='deposits')=>members.filter(m=>m.status==='active').sort((a,b)=>{
- const x=b[field]??-1,y=a[field]??-1;
+ const x=b[field]??b.observedDeposits??-1,y=a[field]??a.observedDeposits??-1;
  return x-y||a.gamertag.localeCompare(b.gamertag);
 }).map((m,i)=>'<tr><td class="mega-rank">#'+(i+1)+'</td><td>'+esc(m.gamertag)+'</td>'+
- '<td class="mega-number">'+moneyCell(m[field])+'</td></tr>').join('');
+ '<td class="mega-number">'+moneyCell(m[field]??m.observedDeposits)+'</td></tr>').join('');
 function discordRoster(groups,restricted){
  const seen=new Set(),members=groups.flatMap(g=>g.members).filter(m=>{
   if(!m.id||seen.has(m.id))return false;seen.add(m.id);return true;
@@ -90,6 +90,12 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
  const full=data.members.filter(m=>m.status==='active');
  const sourceUpdated=data.sync.last_source_at||0;
  const stale=syncEnabled&&sourceUpdated&&(Date.now()-sourceUpdated>15*60000);
+ const captureStatus=data.captured?.status||null;
+ const captureEnabled=process.env.MEGA_TEAM_BROWSER_AUTO_START==='true'&&process.env.MEGA_TEAM_BROWSER_AUTOMATION_ALLOWED==='true';
+ const captureLast=captureStatus?.last_success||0;
+ const captureText=captureLast?(Date.now()-captureLast>15*60000?'Browser capture stale: ':'Browser captured: ')+date(captureLast):
+  captureEnabled?'Browser collector enabled; awaiting first successful capture':
+  'Browser collector not configured';
  const syncLabel=!syncEnabled?'No authorized live feed configured':!data.sync.last_success?'Awaiting first authorized sync':
    stale?'Source outdated — showing last saved values':'Authorized feed last synced '+date(data.sync.last_success);
  const coverage=data.totals.withBoth+'/'+data.totals.recordedMembers+' recorded members have both totals';
@@ -115,9 +121,9 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<p>Track the game roster, recorded contributions, withdrawals and season history.</p></div>'+
   '<a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="'+attr(data.teamUrl)+'">'+
   icon('external-link',{size:17})+' Official InPvP team page</a></div>'+
-  '<div class="mega-status-line"><span data-mega-syncstatus>'+esc(syncLabel)+'</span>'+
+  '<div class="mega-status-line"><span data-mega-syncstatus>'+esc(syncLabel)+'</span><span data-mega-capturestatus>'+esc(captureText)+'</span>'+
   '<span data-mega-updated>Latest known source: '+date(sourceUpdated||data.bank?.as_of)+'</span></div>'+
-  '<p class="mega-disclaimer">Financial figures are recorded or imported values, not independently verified live transactions. Missing values remain unreported. Refreshing this page does not scrape InPvP.</p>'+
+  '<p class="mega-disclaimer">Recorded and observed figures remain separate. Observed bank activity may be partial, and a captured player is not proof of current membership. Refresh displays stored records; browser collection requires a separately configured worker.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
   '</section>'+
   '<div class="mega-toolbar"><form method="get" action="/team" class="mega-season-select">'+
   '<input type="hidden" name="tab" value="mega"><label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View season</button></form>'+
@@ -127,7 +133,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<nav class="mega-section-links" aria-label="MegaSMP dashboard sections"><a href="#mega-members">Members</a>'+
   '<a href="#mega-leaderboard">Leaderboard</a><a href="#mega-bank-history">Bank activity</a>'+
   '<a href="/team/mega/history?season='+encodeURIComponent(data.season.season)+'">Full bank history</a>'+
-  '<a href="#mega-discord-roster">Discord members</a>'+
+  '<a href="#mega-observed">Captured bank events</a><a href="#mega-discord-roster">Discord members</a>'+
   (ctx.role==='owner'?'<a href="/team/mega/matches?season='+encodeURIComponent(data.season.season)+'">Match Discord accounts</a>':'')+'</nav>'+
   '<section class="mega-section" id="mega-members"><div class="mega-section-head"><div><h3>In-game team roster</h3>'+
   '<p>Player Gamertags from recorded or imported data. Discord role holders are listed separately.</p></div>'+
@@ -142,5 +148,14 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<p>Owner-entered transaction records (not a complete InPvP transaction history).</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>DATE</th><th>PLAYER</th><th>TYPE</th><th>AMOUNT</th></tr></thead>'+
   '<tbody data-mega-history>'+history+'</tbody></table></div></section>'+
+  '<section class="mega-section" id="mega-observed"><div class="mega-section-head"><div><h3>Captured bank activity</h3>'+
+  '<p>Read-only InPvP observations; not added to manual or authorized cumulative totals. History may be incomplete.</p></div>'+
+  '<span class="mega-source-badge">'+Number(data.captured?.totalEvents||0)+' saved events</span></div>'+
+  '<div class="mega-stats">'+
+  summaryCard('captured-deposits','Observed deposits',data.captured?.deposited??null,'Captured events only','arrow-down-to-line')+
+  summaryCard('captured-withdrawals','Observed withdrawals',data.captured?.withdrawn??null,'Captured events only','arrow-up-from-line')+
+  '</div><div class="table-wrap panel"><table class="mega-table"><thead><tr><th>DISPLAYED TIME</th><th>PLAYER</th><th>TYPE</th><th>AMOUNT</th></tr></thead>'+
+  '<tbody data-mega-observed>'+((data.capturedTransactions||[]).map(t=>'<tr><td>'+esc(t.time||'Not available')+'</td><td>'+esc(t.gamertag)+'</td><td>'+esc(t.kind)+'</td><td class="mega-number">$'+esc(t.amount)+'</td></tr>').join('')||
+  '<tr><td colspan="4">No browser-captured bank events yet.</td></tr>')+'</tbody></table></div></section>'+
   discordRoster(discordGroups,restricted)+(admin&&data.season.season===data.activeSeason?manager(ctx,data):'')+'</div>';
 }

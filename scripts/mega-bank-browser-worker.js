@@ -8,7 +8,8 @@ import {homedir} from 'node:os';
 import {createInterface} from 'node:readline/promises';
 import {MEGA_TEAM_URL,activeMegaSeason,TEAM_REFRESH_MS} from '../src/mega-team.js';
 import {captureTeamBankPage} from '../src/mega-team-page-collector.js';
-import {saveMegaCapture,noteMegaCaptureFailure} from '../src/mega-team-bank-event-store.js';
+import {noteMegaCaptureFailure} from '../src/mega-team-bank-event-store.js';
+import {saveMegaBrowserCapture} from '../src/mega-team-browser-snapshot.js';
 
 const args=new Set(process.argv.slice(2));
 const allowed=process.env.MEGA_TEAM_BROWSER_AUTOMATION_ALLOWED==='true';
@@ -41,12 +42,11 @@ if(!allowed){
           selector:process.env.MEGA_TEAM_BANK_ROW_SELECTOR||''
         });
         // Running a browser does not imply complete historic coverage.
-        const result=saveMegaCapture(capture.rows,{
-          season:activeMegaSeason(),expectedCount:capture.reportedCount,
-          historyComplete:false
+        const result=saveMegaBrowserCapture(capture,{
+          season:activeMegaSeason()
         });
         console.log('[Mega bank] captured '+result.seen+' rows, '+result.inserted+
-          ' new, '+result.duplicates+' already known; history completeness unverified.');
+          ' new, '+result.duplicates+' already known; '+result.rosterSeen+' roster observations; bank '+(result.bankSeen?'observed':'unavailable')+'. History completeness unverified.');
       }catch(error){
         const message=String(error.message||'Capture failed').slice(0,160);
         noteMegaCaptureFailure(activeMegaSeason(),message);

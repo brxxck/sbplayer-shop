@@ -1,7 +1,26 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.0
+# SB's & Cam's Store — Community Portal V1.7.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.1 — opt-in live bank capture and connected dashboard
+
+- Fixed the missing worker startup path: the website can start an independent Playwright worker when `MEGA_TEAM_BROWSER_AUTO_START=true` and `MEGA_TEAM_BROWSER_AUTOMATION_ALLOWED=true`. The worker shares the existing `DB_PATH` (Railway's existing `/app/data` volume), restarts after a failure, and never blocks the website.
+- Fixed the missing financial integration: captured bank events now appear in a dedicated **Captured bank activity** section and provide per-player **observed** deposit/withdrawal totals. These amounts are **not added** to manual ledger totals or imported cumulative totals, to avoid double counting.
+- Browser-collected roster entries and bank balance are stored separately, with source labels and freshness; the browser roster is only an observation, not a guaranteed complete current in-game roster. A bank balance is only shown when the page exposes a recognisable labelled amount.
+- The dashboard displays the last successful browser capture and the most recent collector error (if any). `/health` reports version 1.7.1 and whether the browser collector is configured, not whether a live capture succeeded.
+- Added automated checks for event deduplication, display separation, cents, and disabled startup. The Bank tab's actual live DOM and complete membership information still require an authorized end-to-end test.
+
+**Deployment prerequisites (required for actual live data):**
+
+1. In an isolated test, confirm the approved InPvP team page's Bank tab, event rows, pagination, login session, roster, balance, and completeness boundaries. The collector is read-only; do not bypass sign-in or bot challenges.
+2. Use Node.js 22+ with Playwright and Chromium installed, or opt into the included `Dockerfile.mega` via the Railway service Dockerfile setting. The existing npm install without this builder does not install a browser.
+3. Preserve Railway's existing persistent volume `/app/data`. Set `DB_PATH=/app/data/app.sqlite` **only if that is the existing database path**. Do not create a new empty database or move the volume.
+4. If the page requires a login, the worker needs a persistent authenticated Chromium profile. Store `MEGA_TEAM_BROWSER_PROFILE_DIR` on the same private persistent volume; create/login locally in a private test environment before production. Never commit cookies or upload a browser profile to GitHub.
+5. After calibrating actual live selectors, set `MEGA_TEAM_BROWSER_AUTOMATION_ALLOWED=true` and `MEGA_TEAM_BROWSER_AUTO_START=true`. Leave both off until tested. If needed, set `MEGA_TEAM_BANK_ROW_SELECTOR` to the verified CSS row selector.
+6. Verify `/health`, the dashboard's browser-capture timestamp and errors, and a single small known bank event before treating the connection as operational. Cached events are partial history, not guaranteed lifetime values.
+
+**Important:** Deploying this version alone does not make InPvP live data appear. The browser runtime, accessible page/session, verified selectors, and two opt-in flags are mandatory. Unavailable values remain unknown rather than being filled with guesses.
 
 ## V1.7.0 — Captured Bank History and Owner-only Minecraft/Discord Matching
 

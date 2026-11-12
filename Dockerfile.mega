@@ -1,0 +1,11 @@
+# // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+# Optional Railway builder: only use after verifying the private collector against
+# the real InPvP Bank tab. Keep existing Railway /app/data volume mounted.
+FROM mcr.microsoft.com/playwright:v1.56.1-noble
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm install --no-save --package-lock=false playwright@1.56.1
+COPY . .
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["npm","start"]
