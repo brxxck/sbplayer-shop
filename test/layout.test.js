@@ -94,6 +94,9 @@ test('MegaSMP team dashboard offers a separate real-roster tab and local five-mi
  assert.match(html,/action="\/team\/mega\/roster"/,'admin management controls are role-scoped');
  assert.match(html,/action="\/team\/mega\/season"/,'owner controls can change the season');
  assert.doesNotMatch(megaTeamPanel({...signed,role:'member'},{data:dashboard,discordGroups:[],syncEnabled:false}),/action="\/team\/mega\/bank"/);
+ const nonMember=megaTeamPanel({...signed,role:'appeal-only'},{data:dashboard,discordGroups:[],syncEnabled:false});
+ assert.ok(nonMember.includes('verified Discord server members'));
+ assert.doesNotMatch(nonMember,/data-mega-value="balance"|action="\/team\/mega\/bank"/);
  const script=readFileSync(new URL('../public/mega-team.js',import.meta.url),'utf8');
  assert.ok(script.includes("fetch('/team/mega/data?season='"));
  assert.match(script,/setInterval\(/);
