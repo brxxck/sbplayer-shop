@@ -1,6 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // Team financial reports distinguish confirmed source totals from manually entered records.
-import {esc,attr,avatar,token} from './views.js';
+import {esc,avatar,token} from './views.js';
+const attr=esc; // Escape every attribute value before it enters markup.
 import {icon} from './icons.js';
 
 const fmtMoney=v=>v===null||v===undefined?'—':'$'+Number(v).toLocaleString('en-US');
