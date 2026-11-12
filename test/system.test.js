@@ -316,6 +316,7 @@ test('MegaSMP dashboard preserves rosters, manually recorded money, source prove
  assert.equal(imported.totals.missing,1,'missing imported values stay missing');
  assert.equal((await post('/team/mega/member-status','adminA',{season,member_id:String(id),status:'former'})).status,303);
  assert.equal(megaDashboard(season).totals.activeMembers,1);
+ assert.equal(megaDashboard(season).totals.deposited,800000,'former players retain their historical season contribution');
  assert.equal((await post('/team/mega/member-status','adminA',{season,member_id:String(id),status:'active'})).status,303);
  const secret=await fetch(base+'/team/mega/bank',{method:'POST',
   headers:{cookie:sessions.get('adminA').cookie,'content-type':'application/x-www-form-urlencoded'},
