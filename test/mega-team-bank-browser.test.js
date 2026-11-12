@@ -58,7 +58,10 @@ test('event store is duplicate-safe, preserves previous totals, and rejects conf
  const first=saveMegaCapture(sample,{expectedCount:4,historyComplete:true});
  assert.equal(first.inserted,4);
  assert.equal(first.partialHistory,true,'no stable event IDs means lifetime completion cannot be verified');
- assert.equal(saveMegaCapture(sample,{expectedCount:4}).inserted,0);
+ const partial=saveMegaCapture(sample,{expectedCount:142});
+ assert.equal(partial.inserted,0,'re-checks must not double-count the same visible rows');
+ assert.equal(partial.reportedCount,142);
+ assert.equal(partial.partialHistory,true,'partial visible rows must be saved but not claimed as lifetime-complete');
  let summary=megaCapturedBankSummary();
  assert.equal(summary.totalEvents,4);
  assert.equal(summary.deposited,'30800000.67');
