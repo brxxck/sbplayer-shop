@@ -377,6 +377,64 @@ test('authorized structured team feeds sync every five minutes without scraping 
  ]},{source:'manual_import'}),/Duplicate/);
 });
 
+test('captured event history and verified owner Discord matching are permission-safe',async()=>{
+ const {saveMegaCapture}=await import('../src/mega-team-bank-event-store.js');
+ const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
+ const {megaDiscordMatches}=await import('../src/mega-team-discord-matches.js');
+ const {activeMegaSeason}=await import('../src/mega-team.js');
+ const season=activeMegaSeason();
+ const captured=Array.from({length:123},(_,i)=>({
+   eventId:'http-history-'+String(i).padStart(4,'0'),
+   text:'Nov 9 11:17 PM Captured'+String(i).padStart(4,'0')+' '+(i%3===0?'Withdrew':'Deposited')+' '+(100+i)
+ }));
+ assert.equal(saveMegaCapture(captured,{season,expectedCount:150}).inserted,123);
+ assert.equal(megaCapturedBankHistory({season}).total,123);
+ assert.equal(megaCapturedBankHistory({season,page:3}).rows.length,23);
+ const first=await (await get('/team/mega/history?season='+encodeURIComponent(season),'member')).text();
+ assert.ok(first.includes('Captured bank events'));
+ assert.ok(first.includes('Page 1 of 3'));
+ assert.ok(first.includes('PARTIAL / UNVERIFIED HISTORY'));
+ assert.ok(first.includes('Captured0000'));
+ assert.ok(!megaCapturedBankHistory({season,page:1}).rows.some(entry=>entry.gamertag==='Captured0122'),
+  'only 50 stored entries are rendered per page; filter dropdown may list all players');
+ assert.equal((await get('/team/mega/history?season='+encodeURIComponent(season)+'&page=3','member')).status,200);
+ const playerPage=await (await get('/team/mega/history?season='+encodeURIComponent(season)+'&player=Captured0001','member')).text();
+ assert.ok(playerPage.includes('Captured0001'));
+ assert.equal(megaCapturedBankHistory({season,gamertag:'Captured0001'}).rows.some(row=>row.gamertag==='Captured0002'),false,
+  'player filtering excludes other transactions even though the selector still lists all Gamertags');
+ assert.ok(playerPage.includes('1 matching events'));
+ const search=await (await get('/team/mega/matches?season='+encodeURIComponent(season)+'&q=member2&gamertag=Captured0001','owner')).text();
+ assert.ok(search.includes('Link a Minecraft'));
+ assert.ok(search.includes('value="'+ids.member2+'"'));
+ assert.equal((await get('/team/mega/matches','adminA')).status,403);
+ assert.equal((await get('/team/mega/matches','member')).status,403);
+ assert.equal((await post('/team/mega/match','adminA',{season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.member2})).status,403);
+ assert.equal((await post('/team/mega/match','member',{season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.member2})).status,403);
+ assert.equal((await post('/team/mega/match','owner',{season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.bot})).status,400);
+ assert.equal((await post('/team/mega/match','owner',{season,mode:'link',gamertag:'AbsentGamer',discord_user_id:ids.member2})).status,400);
+ const noCsrf=await fetch(base+'/team/mega/match',{method:'POST',
+  headers:{cookie:sessions.get('owner').cookie,'content-type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.member2}),redirect:'manual'});
+ assert.equal(noCsrf.status,403);
+ assert.equal((await post('/team/mega/match','owner',{season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.member2})).status,303);
+ assert.equal(megaDiscordMatches(season).find(x=>x.gamertag==='Captured0001').discordId,ids.member2);
+ const linkedPage=await (await get('/team/mega/history?season='+encodeURIComponent(season)+'&player=Captured0001','member')).text();
+ assert.ok(linkedPage.includes('/u/'+ids.member2));
+ assert.ok(linkedPage.includes('@member2'));
+ assert.equal((await post('/team/mega/roster','adminA',{season,gamertags:'Captured0001',role:'Member'})).status,303);
+ const team=await (await get('/team?tab=mega&season='+encodeURIComponent(season),'member')).text();
+ assert.ok(team.includes('/u/'+ids.member2));
+ const data=await (await get('/team/mega/data?season='+encodeURIComponent(season),'member')).json();
+ assert.equal(data.members.find(x=>x.gamertag==='Captured0001').linkedDiscord.id,ids.member2);
+ assert.equal((await post('/team/mega/match','owner',{season,mode:'link',gamertag:'Captured0001',discord_user_id:ids.member3})).status,303);
+ assert.equal(megaDiscordMatches(season).find(x=>x.gamertag==='Captured0001').discordId,ids.member3);
+ assert.equal((await post('/team/mega/match','owner',{season,mode:'unlink',gamertag:'Captured0001'})).status,303);
+ assert.equal(megaDiscordMatches(season).some(x=>x.gamertag==='Captured0001'),false);
+ assert.ok(one("SELECT COUNT(*) n FROM owner_audit_log WHERE action='mega.team.discord.link'").n>=2);
+ assert.ok(one("SELECT COUNT(*) n FROM owner_audit_log WHERE action='mega.team.discord.unlink'").n>=1);
+ assert.equal(verifyAudit(db).ok,true);
+});
+
 test('SBs Member tag follows names on profiles but leader-only and private profiles are not mislabeled',async()=>{
   const profile=await (await get('/u/'+ids.member2,'member')).text();
   assert.match(profile,/<h1>member2<span class="sbs-member-tag"[^>]*>\[SBs\]<\/span><\/h1>/);

@@ -13,10 +13,12 @@ const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat pan
  '<div class="mega-stat-label">'+icon(iconName,{size:20})+' '+label+'</div>'+
  '<strong data-mega-value="'+key+'">'+fmtShort(amount)+'</strong>'+
  '<small>'+detail+'</small></div>';
-function memberRow(m){
+function memberRow(m,linked){
  return '<tr><td><span class="mega-player">'+icon(m.role==='Leader'?'crown':'user-round',{size:17})+
   '<b>'+esc(m.gamertag)+'</b>'+(m.status==='former'?'<span class="mega-former">Former</span>':'')+
-  '</span><small>'+esc(m.role)+' · '+esc(sourceLabel(m.source))+'</small></td>'+
+  '</span><small>'+esc(m.role)+' · '+esc(sourceLabel(m.source))+'</small>'+
+ (linked?'<small><a class="mega-matched-discord" href="/u/'+attr(linked.discordId)+'">'+
+  icon('user-round-check',{size:15})+' @'+esc(linked.username||linked.displayName||linked.discordId)+'</a></small>':'')+'</td>'+
  '<td class="mega-number">'+moneyCell(m.deposits)+'</td>'+
  '<td class="mega-number">'+moneyCell(m.withdrawals)+'</td>'+
  '<td class="mega-number">'+moneyCell(m.net)+'</td></tr>';
@@ -79,7 +81,7 @@ function manager(ctx,data){
   '<button class="btn btn-outline" type="submit">'+icon('upload',{size:17})+' Import snapshot</button></form></details>';
  return edit+owner+importForm+'</section>';
 }
-export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
+export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncEnabled=false}){
  const admin=['owner','admin'].includes(ctx.role),restricted=ctx.role==='appeal-only';
  if(restricted)return '<div class="mega-dashboard"><section class="mega-hero panel"><h2>SBsxScam MegaSMP Team</h2>'+
   '<p>Team bank records and individual contributions are available to verified Discord server members.</p>'+
@@ -94,13 +96,14 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
  const stateLabel=data.totals.missing?'Partial totals · '+coverage:'Complete recorded roster coverage · '+coverage;
  const seasons=data.seasons.map(s=>'<option value="'+attr(s.season)+'" '+(s.season===data.season.season?'selected':'')+'>'+esc(s.label)+'</option>').join('');
  const rank=leaderboard(data.members);
+ const linkedByGamertag=new Map(discordMatches.map(link=>[link.gamertag.toLowerCase(),link]));
  const summary='<section class="mega-stats" aria-label="MegaSMP financial summary">'+
   summaryCard('balance','Reported team bank',data.bank?.balance??null,'From '+esc(sourceLabel(data.bank?.source)),'wallet')+
   summaryCard('deposits','Known deposits',data.totals.deposited,'Partial if some players lack records','arrow-down-to-line')+
   summaryCard('withdrawals','Known withdrawals',data.totals.withdrawn,'Partial if some players lack records','arrow-up-from-line')+
   summaryCard('net','Net recorded contributions',data.totals.net,'Shown when every recorded player has both totals','chart-no-axes-combined')+
   '</section>';
- const rows=data.members.length?data.members.map(memberRow).join(''):'<tr><td colspan="4">No in-game roster imported yet. Team admins can add Gamertags or import an authorized snapshot.</td></tr>';
+ const rows=data.members.length?data.members.map(m=>memberRow(m,linkedByGamertag.get(m.gamertag.toLowerCase()))).join(''):'<tr><td colspan="4">No in-game roster imported yet. Team admins can add Gamertags or import an authorized snapshot.</td></tr>';
  const history=data.transactions.map(t=>'<tr><td>'+date(t.occurred_at)+'</td><td>'+esc(t.gamertag)+'</td>'+
   '<td><span class="mega-'+t.kind+'">'+(t.kind==='deposit'?'Deposit':'Withdrawal')+'</span></td>'+
   '<td class="mega-number">'+fmtMoney(t.amount)+'</td></tr>').join('')||
@@ -123,7 +126,9 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
   '<nav class="mega-section-links" aria-label="MegaSMP dashboard sections"><a href="#mega-members">Members</a>'+
   '<a href="#mega-leaderboard">Leaderboard</a><a href="#mega-bank-history">Bank activity</a>'+
-  '<a href="#mega-discord-roster">Discord members</a></nav>'+
+  '<a href="/team/mega/history?season='+encodeURIComponent(data.season.season)+'">Full bank history</a>'+
+  '<a href="#mega-discord-roster">Discord members</a>'+
+  (ctx.role==='owner'?'<a href="/team/mega/matches?season='+encodeURIComponent(data.season.season)+'">Match Discord accounts</a>':'')+'</nav>'+
   '<section class="mega-section" id="mega-members"><div class="mega-section-head"><div><h3>In-game team roster</h3>'+
   '<p>Player Gamertags from recorded or imported data. Discord role holders are listed separately.</p></div>'+
   '<span class="mega-source-badge"><span data-mega-count>'+full.length+'</span> recorded</span></div>'+

@@ -22,6 +22,9 @@ import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMe
 import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
 import {createMegaTeamSync} from './mega-team-sync.js';
+import {megaCapturedBankHistory} from './mega-team-bank-history.js';
+import {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount} from './mega-team-discord-matches.js';
+import {megaHistoryPage,megaMatchesPage} from './mega-team-history-views.js';
 import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
@@ -244,7 +247,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.6.0'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.0'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -336,9 +339,83 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     // V1.6: MegaSMP dashboard. No requests to InPvP are made from these routes.
     if(pathname==='/mega-team'&&req.method==='GET')return redirect(res,'/team?tab=mega');
+    // Prepared branch only: all saved bank events remain browsable through pages.
+    // This endpoint does not contact InPvP or modify existing bank totals.
+    if(pathname==='/team/mega/history'&&req.method==='GET'){
+      rate(ctx,'mega.history.read',80,60000);
+      const requested=String(url.searchParams.get('season')||activeMegaSeason());
+      if(!one('SELECT 1 FROM mega_team_seasons WHERE season=?',requested))missing();
+      const history=megaCapturedBankHistory({
+        season:requested,page:url.searchParams.get('page'),
+        kind:url.searchParams.get('kind')||'all',gamertag:url.searchParams.get('player')||''
+      });
+      return html(megaHistoryPage(ctx,{...history,seasons:all('SELECT season,label FROM mega_team_seasons ORDER BY created_at DESC,season DESC')}));
+    }
+    // Owner-verified Minecraft -> Discord associations, never based on role names.
+    if(pathname==='/team/mega/matches'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'mega.match.search',25,60000);
+      const season=String(url.searchParams.get('season')||activeMegaSeason());
+      const foundSeason=one('SELECT label FROM mega_team_seasons WHERE season=?',season);
+      if(!foundSeason)missing();
+      const q=String(url.searchParams.get('q')||'').trim().slice(0,64);
+      let results=[],searchError='';
+      if(q.length>=2){
+        try{
+          if(idOK(q)){
+            const person=await discord.getGuildMember(q);
+            if(person?.user&&!person.user.bot&&!person.pending)results=[person];
+          }else{
+            const matches=await discord.searchMembers(q,25);
+            results=(Array.isArray(matches)?matches:[]).filter(person=>person?.user&&!person.user.bot&&!person.pending);
+          }
+        }catch{searchError='Discord member search is temporarily unavailable. No match was changed.';}
+      }
+      return html(megaMatchesPage(ctx,{
+        season,seasonLabel:foundSeason.label,
+        players:megaDiscordMatchCandidates(season),matches:megaDiscordMatches(season),
+        q,results,preselected:String(url.searchParams.get('gamertag')||''),error:searchError
+      }));
+    }
+    if(pathname==='/team/mega/match'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'mega.match.change',30,3600000);
+      const {fields}=await form();
+      const season=String(fields.season||activeMegaSeason());
+      if(!one('SELECT 1 FROM mega_team_seasons WHERE season=?',season))missing();
+      const name=String(fields.gamertag||'').trim();
+      if(!validGamertag(name))invalid('Invalid Minecraft username.');
+      const back='/team/mega/matches?season='+encodeURIComponent(season)+'&gamertag='+encodeURIComponent(name);
+      if(fields.mode==='unlink'){
+        const removed=unlinkMegaDiscordAccount({season,gamertag:name});
+        if(removed.changed)logAction(ctx,'mega.team.discord.unlink','mega-gamertag:'+name,
+          {season,previousDiscordId:removed.previousId});
+        return success(back,removed.changed?'Discord account unlinked.':'No existing Discord match was found.');
+      }
+      if(fields.mode!=='link')invalid('Select an account-link action.');
+      const discordId=String(fields.discord_user_id||'').trim();
+      if(!idOK(discordId))invalid('Choose a valid Discord user.');
+      let actual;
+      try{actual=await discord.getGuildMember(discordId);}
+      catch{throw new HttpError(503,'Discord membership could not be verified. Please retry.');}
+      if(!actual?.user||actual.user.id!==discordId||actual.pending||actual.user.bot)
+        invalid('The Discord account is not a verified non-bot member of this server.');
+      upsertUser(actual);ensureProfile(discordId);
+      try{
+        const linked=linkMegaDiscordAccount({season,gamertag:name,discordId,actorId:ctx.user.id});
+        if(linked.changed)logAction(ctx,'mega.team.discord.link','mega-gamertag:'+name,
+          {season,discordUserId:discordId,previousDiscordId:linked.previousId});
+        return success(back,'Minecraft username linked to the verified Discord member.');
+      }catch(error){invalid(String(error.message||'Unable to link Minecraft user.').slice(0,170));}
+    }
     if(pathname==='/team/mega/data'&&req.method==='GET'){
       rate(ctx,'mega.team.read',80,60000);
       const data=megaDashboard(url.searchParams.get('season')||undefined);
+      const matches=new Map(megaDiscordMatches(data.season.season).map(m=>[m.gamertag.toLowerCase(),m]));
+      data.members=data.members.map(m=>{
+        const linked=matches.get(m.gamertag.toLowerCase());
+        return {...m,linkedDiscord:linked?{id:linked.discordId,username:linked.username||linked.displayName||'Discord member'}:null};
+      });
       // Readers may view contribution figures, not administrative notes or Discord IDs.
       if(!isAdminRole(ctx.role)){
         data.members=data.members.map(({discordId,...rest})=>rest);
@@ -1010,7 +1087,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const sbsGroups=[{title:'SBs Team Leaders',members:sbsLeaders.sort(sortByName)},{title:'SBs Team Members',members:sbsMembers.sort(sortByName)}].filter(g=>g.members.length);
       const selected=['team','sbs','known','mega'].includes(url.searchParams.get('tab'))?url.searchParams.get('tab'):'team';
       const knownTab=url.searchParams.get('known')==='prison'?'prison':'mega';
-      const megaContent=selected==='mega'?megaTeamPanel(ctx,{data:megaDashboard(url.searchParams.get('season')||undefined),discordGroups:sbsGroups,syncEnabled:megaSync.enabled}):'';
+      const selectedMega=selected==='mega'?megaDashboard(url.searchParams.get('season')||undefined):null;
+      const megaContent=selectedMega?megaTeamPanel(ctx,{data:selectedMega,discordGroups:sbsGroups,
+        discordMatches:megaDiscordMatches(selectedMega.season.season),syncEnabled:megaSync.enabled}):'';
        return html(view.team(ctx,{groups,knownGroups,sbsGroups,tab:selected,knownTab,partial,rolesCount:roles.length,megaContent}));
     }
     let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
@@ -1346,5 +1425,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.6.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.0 running at ${config.baseUrl}`));
 }

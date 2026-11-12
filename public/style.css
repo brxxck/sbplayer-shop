@@ -628,3 +628,46 @@
  .mega-stat{padding:15px}
  .mega-discord-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Unpublished: MegaSMP bank history and owner account matching. */
+.mega-history-container{display:grid;gap:17px;min-width:0;padding-bottom:34px}
+.mega-history-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mega-history-actions .btn{display:inline-flex;align-items:center;gap:7px}
+.mega-history-alert{display:flex;align-items:flex-start;gap:10px;padding:13px 16px;background:#172d4a;border:1px solid #446b95;border-radius:10px;color:#a6d0ff;font-size:12px;line-height:1.6}
+.mega-history-alert .lucide-icon{flex:none;color:#ecbb6f}
+.mega-history-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mega-history-kpi{display:grid;align-content:center;gap:8px;border:1px solid #315376;background:linear-gradient(145deg,#0c2c4e,#0b1c33);padding:17px;border-radius:11px;min-width:0}
+.mega-history-kpi span{color:#a8c3df;font-weight:650;font-size:11px}
+.mega-history-kpi strong{font-size:clamp(17px,2.5vw,26px);font-weight:850;color:#eff6ff;overflow-wrap:anywhere}
+.mega-history-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:end;border:1px solid #2d5075;border-radius:12px;background:#0c223e;padding:14px}
+.mega-history-filters label{display:grid;gap:7px;flex:1 1 160px;font-size:11px;color:#b0cce8;font-weight:700}
+.mega-history-filters label input,.mega-history-filters label select,.mega-match-form select{width:100%;border:1px solid #386287;border-radius:8px;padding:10px;background:#081a30;color:#ecf5ff;font-size:12px}
+.mega-history-filters .btn{display:inline-flex;gap:7px;align-items:center;min-height:38px}
+.mega-history-table{min-width:730px}
+.mega-history-table td{vertical-align:middle}
+.mega-history-table td>strong{font-weight:750}
+.mega-history-table small{display:block;color:#8fa9c6;font-size:10px;margin-top:5px}
+.mega-history-person{display:grid;gap:5px}
+.mega-history-gamertag{font-weight:800;color:#d6eaff}
+.mega-history-gamertag:hover{color:#75bdff;text-decoration:underline}
+.mega-matched-discord{display:inline-flex;align-items:center;gap:5px;font-weight:650;font-size:11px;color:#78bbff}
+.mega-matched-discord:hover{color:white;text-decoration:underline}
+.mega-history-unmatched{color:#7d94b0;font-size:10px}
+.mega-source-label{display:inline-block;color:#96afc9;border-radius:6px;background:#17304f;padding:5px 7px;font-size:10px}
+.mega-history-pages{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:5px 0 10px}
+.mega-history-pages>span{color:#a8c3df;font-size:12px}
+.mega-page-disabled{padding:8px 12px;opacity:.5}
+.mega-match-form{display:grid;gap:12px;max-width:780px}
+.mega-match-form h3{margin:0}
+.mega-match-form label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#b0cce8}
+.mega-match-form .btn{justify-self:start}
+.mega-match-form .btn:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:720px){
+ .mega-history-kpis{grid-template-columns:1fr}
+ .mega-history-filters label{flex-basis:100%}
+ .mega-history-filters .btn{width:100%;justify-content:center}
+ .mega-history-actions .btn{flex:1 1 200px;justify-content:center}
+ .mega-history-pages{justify-content:center}
+ .mega-history-table{min-width:660px}
+}
