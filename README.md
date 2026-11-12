@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.9
+# SB's & Cam's Store — Community Portal V1.4.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.4.0 — Temp Mod onboarding and private promotion tickets
+
+- **Accepted staff applications:** two different admins must still agree, followed by the separate final owner authorization by `FINAL_APPROVER_USER_ID` (unk.sb). Only after the final acceptance does Discord receive the **Mod - temp** role. Newly accepted applicants are not assigned their requested application position directly. Discord assignment is idempotent, errors are audited, and an admin can retry a failed delivery.
+- **Promotion ticket eligibility:** only verified guild members holding **Mod - temp** or **Mod** can create new promotion requests. The eligibility check uses current Discord member roles on the server; hiding the UI is not the security gate. Members retain access to their own historic promotion conversations after a role change, but cannot create a new ticket without eligibility.
+- **Promotion path:** `Mod - temp` → `Mod` → `Staff`. Two *different* admins must vote the same way to accept or deny; each admin can vote only once. Self-approval is blocked. After acceptance, the bot adds the next role, removes the prior rank, and records the result in the owner audit. A partial Discord failure is retryable.
+- **Private experience:** promotion requests appear in the ticket picker and in eligible members' sidebar as **Promotion Tickets**; admins have a private **Promotion Reviews** queue. Requests include a reason, private ticket conversation, decision history, role-sync state and an admin retry control. One open/request-under-delivery promotion is allowed per applicant.
+- **Role mapping:** default Temp Mod ID is `1539085168281919648`. Prefer setting `PROMOTION_TEMP_ROLE_ID`, `PROMOTION_MOD_ROLE_ID`, and `PROMOTION_STAFF_ROLE_ID` to exact Discord IDs in Railway. If a latter two role names are uniquely `Mod`/`Moderator` and `Staff`, the app can resolve them by name, but never guesses when ambiguous. The bot must have Manage Roles and sit above both roles in a promotion.
+- **Safe deployment:** the migration creates new promotion tables/indexes without dropping or rewriting existing data. **Back up the existing Railway volume before upgrading**. Keep the current `sbplayer-shop` service, its volume at `/app/data`, and `DB_PATH=/app/data/app.sqlite`; never recreate the service or volume. Deploy the tested GitHub `main` commit and verify `https://sbstore.info/health` returns `"version":"1.4.0"`. Confirm actual Discord role assignments with a test account; CI uses a mocked Discord API.
 
 ## V1.3.9 — Focused audit, Discord usernames, and restricted access for non-members
 
