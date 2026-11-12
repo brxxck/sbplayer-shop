@@ -152,6 +152,34 @@ test('reviewer staff report is admin-only, becomes permanently owner-only after 
  assert.equal((await get('/staff/tickets/'+t.id,'adminB')).status,404,'owner confidentiality is sticky');
 });
 
+
+test('staff submitting confidential reports cannot see them through staff queues',async()=>{
+ const r=await multipart('/tickets/new/staff_report','reviewer',{
+  staff_username:'admina',description:'I am a staff reviewer reporting an admin to management.'
+ },[fakeImage]);
+ assert.equal(r.status,303);
+ const t=one("SELECT * FROM support_tickets WHERE category='staff_report' AND user_id=? ORDER BY id DESC LIMIT 1",ids.reviewer);
+ assert.ok(t);assert.equal(t.visibility,'owner');
+ const queue=await (await get('/staff/tickets?status=all','reviewer')).text();
+ assert.ok(!queue.includes('/staff/tickets/'+t.id));
+ const home=await (await get('/','reviewer')).text();
+ assert.ok(!home.includes('/staff/tickets/'+t.id));
+ assert.equal((await get('/staff/tickets/'+t.id,'reviewer')).status,404);
+ assert.equal((await get('/tickets/'+t.id,'reviewer')).status,200,'applicant still sees own report');
+ assert.equal((await get('/staff/tickets/'+t.id,'owner')).status,200);
+});
+
+test('owner-only webhook test controls use the designated channel and never @here',async()=>{
+ assert.equal((await post('/admin/settings/webhook/test','adminB',{target:'ownerReport'})).status,403);
+ for(const target of ['default','adminReport','ownerReport']){
+  const r=await post('/admin/settings/webhook/test','owner',{target});
+  assert.equal(r.status,303);
+  assert.equal(notifications.at(-1).target,target);
+  assert.equal(notifications.at(-1).pingHere,false);
+ }
+ assert.equal((await post('/admin/settings/webhook/test','owner',{target:'arbitrary'})).status,400);
+});
+
 test('staff chat is private, stores messages and returns them via the polling endpoint',async()=>{
  assert.equal((await get('/staff/chat/messages?after=0','member')).status,403);
  assert.equal((await post('/staff/chat/send','member',{body:'unauthorized'})).status,403);
