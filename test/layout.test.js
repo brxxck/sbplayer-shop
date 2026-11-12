@@ -22,7 +22,7 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.3\.0-tickets/);
+  assert.match(page,/\/static\/style\.css\?v=1\.3\.1-dashboards/);
   assert.match(page,/\/static\/app\.js\?v=1\.3\.0-tickets/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
@@ -48,7 +48,7 @@ test('static CSS and JS are served no-store even with version query; logo is rec
   server=createServer({discord:{}});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
-  for(const path of ['/static/style.css?v=1.3.0-tickets','/static/app.js?v=1.3.0-tickets']){
+  for(const path of ['/static/style.css?v=1.3.1-dashboards','/static/app.js?v=1.3.0-tickets']){
     const resp=await fetch(base+path);
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/no-store/);
