@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014'};
-const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
+const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
@@ -19,10 +19,19 @@ const fakeRoles=[
   {id:roles.helper,name:'Helper',position:10,permissions:'0',managed:false,color:23376},
   {id:roles.vip,name:'VIP',position:9,permissions:'0',managed:false,color:33299},
   {id:roles.manage,name:'Role Manager',position:8,permissions:String(1n<<28n),managed:false,color:2222222},
-  {id:roles.bot,name:'SB Bot',position:90,permissions:String(1n<<28n),managed:true,color:442211}
+  {id:roles.bot,name:'SB Bot',position:90,permissions:String(1n<<28n),managed:true,color:442211},
+  {id:roles.mega,name:'Mega Smp Staff',position:7,permissions:'0',managed:false,color:112233},
+  {id:roles.prison,name:'Prison Staff',position:6,permissions:'0',managed:false,color:223344},
+  {id:roles.storeStaff,name:'Staff',position:5,permissions:'0',managed:false,color:334455}
 ];
 const memberMap=new Map();
 for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{user:{id,username:key.toLowerCase(),global_name:key,avatar:null,bot:key==='bot'},roles:key.startsWith('admin')?[roles.admin]:key==='reviewer'?[roles.reviewer]:key==='bot'?[roles.bot]:[],pending:false});
+ // Simulate external-community roles, cross-community members and real store staff.
+ memberMap.get(ids.member3).roles.push(roles.mega);
+ memberMap.get(ids.member4).roles.push(roles.prison);
+ memberMap.get(ids.member5).roles.push(roles.mega,roles.prison);
+ memberMap.get(ids.member6).roles.push(roles.storeStaff);
+ memberMap.get(ids.adminA).roles.push(roles.mega);
 let additions=0;let failNextRole=false;const notifications=[];
 const fake={
   getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
@@ -56,6 +65,37 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/admin/roles','adminA')).status,200);
   assert.equal((await get('/team','member')).status,200);
   assert.equal((await get('/members?q=mem','member')).status,200);
+});
+
+test('Meet the Team keeps store staff and Known Members separates Mega SMP / Prison tabs',async()=>{
+  const team=await (await get('/team','member')).text();
+  assert.ok(team.includes('Meet the Team'));
+  assert.ok(team.includes('Known Members'));
+  assert.ok(team.includes('href="/team?tab=known"'));
+  assert.ok(team.includes('Other Staff'));
+  assert.ok(team.includes('member6'),'a store-only Staff role remains on the team');
+  assert.ok(team.includes('adminA'),'administrators remain on the store team');
+  assert.ok(!team.includes('href="/u/'+ids.member3+'"'),'Mega-only staff should leave the store team tab');
+  assert.ok(!team.includes('href="/u/'+ids.member4+'"'),'Prison-only staff should leave the store team tab');
+  const knownMega=await (await get('/team?tab=known&known=mega','member')).text();
+  assert.match(knownMega,/Known Members/);
+  assert.match(knownMega,/Mega SMP Staff/);
+  assert.match(knownMega,/Prison Staff/);
+  assert.ok(knownMega.includes('href="/u/'+ids.member3+'"'));
+  assert.ok(knownMega.includes('href="/u/'+ids.member5+'"'));
+  assert.ok(knownMega.includes('href="/u/'+ids.adminA+'"'),'staff who also hold Mega SMP role can appear in both contexts');
+  assert.ok(!knownMega.includes('href="/u/'+ids.member4+'"'),'Prison-only staff do not appear in Mega tab');
+  assert.ok(knownMega.includes('aria-current="page"'));
+  assert.ok(knownMega.includes('href="/team?tab=known&amp;known=prison"'));
+  const prison=await (await get('/team?tab=known&known=prison','member')).text();
+  assert.ok(prison.includes('href="/u/'+ids.member4+'"'));
+  assert.ok(prison.includes('href="/u/'+ids.member5+'"'),'dual external-role members appear in each category');
+  assert.ok(!prison.includes('href="/u/'+ids.member3+'"'));
+  assert.ok(!prison.includes('href="/u/'+ids.adminA+'"'));
+  const invalid=await (await get('/team?tab=known&known=unexpected','member')).text();
+  assert.ok(invalid.includes('href="/u/'+ids.member3+'"'),'invalid categories safely default to Mega');
+  const unknown=await (await get('/team?tab=unexpected','member')).text();
+  assert.ok(unknown.includes('Other Staff'),'unknown top-level tab safely returns main team');
 });
 
 test('members submit private applications; optional reviewers vote once then ticket disappears',async()=>{
