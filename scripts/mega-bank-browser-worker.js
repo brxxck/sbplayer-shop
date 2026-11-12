@@ -98,8 +98,8 @@ if(!allowed){
         // Collector exceptions can contain page URLs or contents: only use
         // pre-existing sanitized page diagnostics and generic security-safe text.
         const message=String(error?.message||'Capture failed')
-          .replace(/https?:\\/\\/\\S+/gi,'[URL]')
-          .replace(/(?:token|code|session|secret)[=:]\\S+/gi,'[redacted]')
+          .replace(/https?:\/\/\S+/gi,'[URL]')
+          .replace(/(?:token|code|session|secret)[=:]\S+/gi,'[redacted]')
           .slice(0,160);
         noteMegaCaptureFailure(activeMegaSeason(),message);
         console.error('[Mega bank] '+message);
