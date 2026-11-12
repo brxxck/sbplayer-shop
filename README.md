@@ -1,7 +1,13 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.7
+# SB's & Cam's Store — Community Portal V1.7.8
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.8 — Fix collector startup crash (invalid regular expression)
+
+- Fixed the invalid escaped URL/token redaction patterns in `scripts/mega-bank-browser-worker.js` that made Node fail before the Playwright browser could start. A saved encrypted InPvP session alone cannot produce data while the worker is crashing.
+- GitHub Actions now runs `node --check` against **every JavaScript file** in `src`, `scripts`, and `test` before running the test suite so worker syntax failures cannot be missed when the worker is disabled in tests.
+- Does not alter session files, encryption keys, existing Railway volume, team data, or collection cadence. Check Railway logs for a successful collector start and the next capture; page-data issues may remain separately.
 
 ## V1.7.7 — Fix InPvP browser-session pairing
 
