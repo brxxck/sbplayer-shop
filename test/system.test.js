@@ -400,7 +400,8 @@ test('captured event history and verified owner Discord matching are permission-
  assert.equal((await get('/team/mega/history?season='+encodeURIComponent(season)+'&page=3','member')).status,200);
  const playerPage=await (await get('/team/mega/history?season='+encodeURIComponent(season)+'&player=Captured0001','member')).text();
  assert.ok(playerPage.includes('Captured0001'));
- assert.ok(!playerPage.includes('Captured0002'));
+ assert.equal(megaCapturedBankHistory({season,gamertag:'Captured0001'}).rows.some(row=>row.gamertag==='Captured0002'),false,
+  'player filtering excludes other transactions even though the selector still lists all Gamertags');
  assert.ok(playerPage.includes('1 matching events'));
  const search=await (await get('/team/mega/matches?season='+encodeURIComponent(season)+'&q=member2&gamertag=Captured0001','owner')).text();
  assert.ok(search.includes('Link a Minecraft'));
