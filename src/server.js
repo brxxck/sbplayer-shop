@@ -18,6 +18,7 @@ import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMes
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
 import {createProfileRoleLookup} from './profile-roles.js';
 import {SBS_TEAM_LEADER_ROLE_ID,SBS_TEAM_MEMBER_ROLE_ID,sbsTeamMembership} from './sbs-team.js';
+import {STORE_TEAM_GROUP_ORDER,externalStaffKind,storeTeamGroup} from './team-categories.js';
 import {ticketMessages,applicationAttachments,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
@@ -128,7 +129,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.7'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.8'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -652,27 +653,19 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         }
         teamCache={at:now(),list,partial};
       }
-      // Our Staff and the SBs x Scam Team Members are separate directories.
-      // External Mega SMP/Prison roles remain under Known Members.
-      // Keep all Mega SMP / Prison staff variants out of the SB Store staff directory.
-      // Includes e.g. "Mega Smp Staff Trusted", not only the original Staff role.
-      const knownRoleKind=name=>{
-        const key=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-        if((key.startsWith('megasmp')||key.startsWith('megastaff'))&&key.includes('staff'))return 'mega';
-        if(key.startsWith('prison')&&key.includes('staff'))return 'prison';
-        return null;
-      };
-      const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name)||knownRoleKind(r.name));
+      // Only exact internal staff categories enter Our Staff; Mega/Prison staff
+      // and SBs x Scam members keep their own independent directories.
+      const knownRoleKind=externalStaffKind;
       const byId=new Map(roles.map(r=>[r.id,r]));
       const categorized=new Map(),knownMembers=new Map([['mega',[]],['prison',[]]]);
       const sbsLeaders=[],sbsMembers=[];const seen=new Set();
       for(const m of list){
         const id=m.user?.id;if(!id||m.user.bot||seen.has(id))continue;
         seen.add(id);const memberRoles=(m.roles||[]).map(x=>byId.get(x)).filter(Boolean);
-        const match=memberRoles.filter(r=>staffRoles.some(s=>s.id===r.id));
         const external=memberRoles.filter(r=>knownRoleKind(r.name));
         const sbs=sbsTeamMembership(m.roles);
-        const storeRoles=match.filter(r=>!knownRoleKind(r.name)&&r.id!==SBS_TEAM_LEADER_ROLE_ID&&r.id!==SBS_TEAM_MEMBER_ROLE_ID);
+        const storeRoles=memberRoles.map(role=>({...role,group:storeTeamGroup(role,config)}))
+          .filter(role=>role.group&&role.id!==SBS_TEAM_LEADER_ROLE_ID&&role.id!==SBS_TEAM_MEMBER_ROLE_ID);
         if(!storeRoles.length&&!external.length&&!sbs.leader&&!sbs.member&&id!==ctx.guild.owner_id)continue;
         storeRoles.sort((a,b)=>b.position-a.position);
         upsertUser(m);ensureProfile(id);
@@ -689,16 +682,20 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
             knownMembers.get(kind).push({...info,staffTitle:externalRole.name});
         }
         if(storeRoles.length||id===ctx.guild.owner_id){
-          const rank=id===ctx.guild.owner_id?'Ownership':storeRoles.some(r=>config.ownerRoleIds.has(r.id)||/owner/i.test(r.name))?'Ownership':storeRoles.some(r=>config.adminIds.has(r.id)||/admin|management/i.test(r.name))?'Administration':storeRoles.some(r=>/moderat|head.?staff/i.test(r.name))?'Moderation':storeRoles.some(r=>/helper|support/i.test(r.name))?'Helpers':'Other Staff';
+          // One section per member, ordered by internal hierarchy, even with multiple roles.
+          const rank=id===ctx.guild.owner_id?'Ownership':
+            STORE_TEAM_GROUP_ORDER.find(group=>storeRoles.some(role=>role.group===group));
+          const matched=storeRoles.find(role=>role.group===rank);
           if(!categorized.has(rank))categorized.set(rank,[]);
-          categorized.get(rank).push({...info,staffTitle:id===ctx.guild.owner_id?'Server Owner':storeRoles[0]?.name||'Owner'});
+          categorized.get(rank).push({...info,staffTitle:id===ctx.guild.owner_id?'Server Owner':matched?.name||rank});
         }
       }
       // Ensure the real guild owner appears even if outside a paginated member listing.
       if(!seen.has(ctx.guild.owner_id)){
         try{const owner=await discord.getGuildMember(ctx.guild.owner_id);if(owner?.user){upsertUser(owner);ensureProfile(owner.user.id);if(!categorized.has('Ownership'))categorized.set('Ownership',[]);categorized.get('Ownership').unshift({...owner.user,display_name:owner.nick||owner.user.global_name||owner.user.username,staffTitle:'Server Owner'});}}catch{partial=true;}
       }
-      const groups=['Ownership','Administration','Moderation','Helpers','Other Staff'].map(title=>({title,members:(categorized.get(title)||[]).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))})).filter(x=>x.members.length);
+      const groups=STORE_TEAM_GROUP_ORDER.map(title=>({title,members:(categorized.get(title)||[]).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))}))
+        .filter(group=>group.members.length||['Staff','Mod','Temp Mod'].includes(group.title));
       const knownGroups=[
         {key:'mega',title:'Mega SMP Staff',members:knownMembers.get('mega')},
         {key:'prison',title:'Prison Staff',members:knownMembers.get('prison')}
@@ -1001,5 +998,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.7 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.8 running at ${config.baseUrl}`));
 }
