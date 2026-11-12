@@ -167,7 +167,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       const role=actual&&!actual.pending?classify(actual,guild.owner_id,profile.id,config,coowners):'appeal-only';
       if(isStaffRole(role))logAction({...ctx,user:profile,role},'staff.login',profile.id);
-      return redirect(res,role==='appeal-only'?'/tickets/new/ban_appeal':'/');
+      // Never allow off-site OAuth redirects. Return to the original share URL if permitted.
+      const requested=String(saved.next||'');
+      const next=requested.startsWith('/')&&!requested.startsWith('//')&&view.linkPreviewData(requested)?requested:'/';
+      return redirect(res,role==='appeal-only'?'/tickets/new/ban_appeal':next);
     }
     if(testLogin && process.env.NODE_ENV==='test' && pathname.startsWith('/__test/login/') && req.method==='GET'){
       const id=pathname.split('/').pop();if(!idOK(id))invalid();const m=await discord.getGuildMember(id);
