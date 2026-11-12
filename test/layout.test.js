@@ -93,6 +93,10 @@ test('full social toolbar appears beside profile name with desktop icons and mob
   assert.match(css,/\.topbar\{overflow:visible\}/,'topbar must not clip the profile dropdown');
   assert.match(css,/\.top-account-menu\{[^}]*overflow-y:auto/,'long mobile menus must scroll');
   assert.match(css,/@media\(max-width:610px\)/);
+  const script=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+  assert.match(script,/const topAccountMenu=document\.querySelector\('\[data-account-dropdown\]'\)/);
+  assert.match(script,/topAccountMenu\.addEventListener\('keydown'/);
+  assert.match(script,/if\(topAccountMenu\.open&&!topAccountMenu\.contains\(event\.target\)\)/);
 });
 
 test('client handles likes in place without losing feed scroll',()=>{
