@@ -38,7 +38,7 @@ process.env.DB_PATH=file;
 const {db,one,run}=await import('../src/db.js');
 after(()=>{db.close();rmSync(dir,{recursive:true,force:true});});
 
-test('additive V1.3.0 migration keeps legacy users, sessions, votes and application answers',()=>{
+test('additive V1.3.1 migration keeps legacy users, sessions, votes and application answers',()=>{
   assert.equal(one('SELECT username FROM users WHERE id=?','100000000000000002').username,'example');
   assert.equal(one('SELECT csrf FROM sessions WHERE token_hash=?','session-hash').csrf,'csrf-value');
   assert.equal(one('SELECT note FROM admin_decisions WHERE application_id=1').note,'Existing vote');
@@ -49,6 +49,9 @@ test('additive V1.3.0 migration keeps legacy users, sessions, votes and applicat
   assert.equal(app.last_staff_ping_at,0);
   assert.ok(one("SELECT name FROM sqlite_master WHERE type='table' AND name='ticket_messages'"));
   assert.ok(one("SELECT name FROM sqlite_master WHERE type='table' AND name='owner_review_actions'"));
+  for(const tbl of ['application_ticket_attachments','support_tickets','support_ticket_messages','support_ticket_attachments','staff_chat_messages']){
+    assert.ok(one("SELECT name FROM sqlite_master WHERE type='table' AND name=?",tbl),tbl+' should be added without dropping legacy data');
+  }
   run('INSERT INTO ticket_messages(application_id,author_id,author_role,body,created_at) VALUES(1,?,?,?,?)','100000000000000002','member','Test after migration',2000);
   assert.equal(one('SELECT body FROM ticket_messages WHERE application_id=1').body,'Test after migration');
 });
