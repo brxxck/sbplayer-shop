@@ -7,6 +7,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {config,root,validateConfig} from './config.js';
 import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
 import {appendAudit,verifyAudit} from './audit.js';
+import {shouldAuditAction,collectAuditDiscordIds,readableAuditRows,auditDisplayText} from './audit-display.js';
 import {classify,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
 import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
@@ -58,6 +59,7 @@ function csrfForm(form,ctx){if(!ctx.session || !secureEqual(form.fields._csrf,ct
 const formValue=(fields,name,max,min=0)=>{const val=limitText(fields[name],max,min);if(val===null)invalid(`Invalid or missing field: ${name}`);return val;};
 const validVote=choice=>['accept','deny'].includes(choice);
 function logAction(ctx,action,target='',details={},outcome='ok') {
+  if(!shouldAuditAction(action))return;
   transaction(()=>appendAudit(db,{actor:ctx.user?.id||'anonymous',role:ctx.role,action,target,outcome,details,ip:ctx.ip}));
 }
 function loadPosts(viewerId,page=0,userId=null,limit=20){return listPosts(viewerId,{page,userId,limit});}
@@ -86,6 +88,37 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
+  // Resolve historical IDs on read without changing the signed hash-chain records.
+  // Local users are preferred; limited external lookups are cached to protect API quotas.
+  const auditNameCache=new Map();
+  async function auditUsernamesFor(events){
+    const ids=collectAuditDiscordIds(events), labels=new Map();
+    for(let i=0;i<ids.length;i+=150){
+      const batch=ids.slice(i,i+150);
+      if(!batch.length)continue;
+      const found=all('SELECT id,username FROM users WHERE id IN ('+batch.map(()=>'?').join(',')+')',...batch);
+      for(const user of found){
+        if(user.username&&user.username!=='unknown')labels.set(user.id,user.username);
+      }
+    }
+    const stamp=now(),unknown=ids.filter(id=>!labels.has(id));
+    for(const id of unknown){
+      const cached=auditNameCache.get(id);
+      if(cached && cached.expires>stamp && cached.name)labels.set(id,cached.name);
+    }
+    const needLookup=unknown.filter(id=>!labels.has(id)&&!auditNameCache.has(id)).slice(0,6);
+    await Promise.all(needLookup.map(async id=>{
+      let name='';
+      try{
+        const m=await discord.getGuildMember(id);
+        name=String(m?.user?.username||'');
+      }catch{}
+      if(auditNameCache.size>=500)auditNameCache.delete(auditNameCache.keys().next().value);
+      auditNameCache.set(id,{name,expires:stamp+300000});
+      if(name)labels.set(id,name);
+    }));
+    return labels;
+  }
   async function handle(req,res) {
     Object.entries(responseHeaders).forEach(([key,value])=>res.setHeader(key,value));
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
@@ -112,8 +145,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
-      // Owner-only ledger: record every page read and every staff write attempt, even if a later check denies it.
-      if(isStaffRole(ctx.role) && !(pathname==='/staff/chat/messages' && req.method==='GET'))logAction(ctx,req.method==='GET'?'staff.page.read':'staff.request.attempt',pathname,{method:req.method},req.method==='GET'?'ok':'attempt');
+      // Routine browsing, session refreshes and page loads must not fill the audit.
+      // Successful reads of individual private tickets are recorded at their routes.
     }
     async function authorize(level){
       await member();
@@ -129,7 +162,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.8'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.9'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -284,6 +317,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!app || (app.user_id!==ctx.user.id && !isStaffRole(ctx.role)))missing();
       const file=safeTicketFile(att.stored_path);
       if(!file)missing();
+      logAction(ctx,'application.attachment.access','application:'+app.id,{attachmentId:att.id});
       return respond(res,200,readFileSync(file),att.mime_type,{
         'content-disposition':'attachment; filename="application-evidence.'+att.stored_path.split('.').at(-1)+'"',
         'x-content-type-options':'nosniff','cache-control':'no-store'
@@ -296,6 +330,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await requireSupportAccess(t);
       const file=safeTicketFile(att.stored_path);
       if(!file)missing();
+      logAction(ctx,'support_ticket.attachment.access','support_ticket:'+t.id,{attachmentId:att.id});
       return respond(res,200,readFileSync(file),att.mime_type,{
         'content-disposition':'attachment; filename="ticket-evidence.'+att.stored_path.split('.').at(-1)+'"',
         'x-content-type-options':'nosniff','cache-control':'no-store'
@@ -307,6 +342,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
       if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
+      logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:forStaff?'staff':'member'});
       return html(supportView.supportTicketPage(ctx,{
         ticket:t,messages:supportMessages(id),attachments:supportAttachments(id),staff:forStaff
       }));
@@ -388,6 +424,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!ticket)missing();
       const messages=ticketMessages(id);
       run('UPDATE applications SET applicant_seen_at=? WHERE id=?',now(),id);
+      logAction(ctx,'application.access','application:'+id,{access:'applicant'});
       return html(view.ownTicket(ctx,ticket,messages,applicationAttachments(id)));
     }
     // One private reply route for applicants and for staff; never accept a ticket ID as proof of access.
@@ -455,7 +492,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('staff');const id=idFrom(m[1]),a=application(id);if(!a)missing();
       const reviewed=one('SELECT * FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',id,ctx.user.id);
       // Reviewed tickets leave a reviewer's pending queue, but remain available for ticket conversation.
-      logAction(ctx,'application.view','application:'+id);
+      logAction(ctx,'application.access','application:'+id,{access:'staff'});
       const voted=one('SELECT * FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id);
       return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted,messages:ticketMessages(id),attachments:applicationAttachments(id),ownerRecommendation:ownerRecommendation(id)}));
     }
@@ -998,5 +1035,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.8 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.9 running at ${config.baseUrl}`));
 }
