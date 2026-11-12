@@ -1,8 +1,8 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import http from 'node:http';
-import {readFileSync,statSync} from 'node:fs';
+import {readFileSync,statSync,existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {resolve,basename,extname} from 'node:path';
+import {resolve,basename,extname,dirname} from 'node:path';
 import {timingSafeEqual} from 'node:crypto';
 import {config,root,validateConfig} from './config.js';
 import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
@@ -338,6 +338,20 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/saved'&&req.method==='GET'){
       const page=pageNumber(url.searchParams.get('page'));
       return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
+    }
+    // Railway's last failed public InPvP capture is visible only to the
+    // verified website owner. It is never served by /static or /uploads.
+    if(pathname==='/owner/mega/collector-screenshot.png'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'mega.collector.owner-diagnostic',12,60000);
+      const screenshot=resolve(dirname(config.dbPath),'mega-bank-last-failure.png');
+      if(!existsSync(screenshot))missing();
+      const stat=statSync(screenshot);
+      if(!stat.isFile()||stat.size<100||stat.size>8*1024*1024)missing();
+      return respond(res,200,readFileSync(screenshot),'image/png',{
+        'cache-control':'private, no-store',
+        'content-disposition':'inline; filename="mega-bank-private-diagnostic.png"'
+      });
     }
     // V1.6: MegaSMP dashboard. No requests to InPvP are made from these routes.
     if(pathname==='/mega-team'&&req.method==='GET')return redirect(res,'/team?tab=mega');
