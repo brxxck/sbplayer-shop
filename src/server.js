@@ -257,7 +257,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.7',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.8',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -1573,5 +1573,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.5 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.8 running at ${config.baseUrl}`));
 }
