@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - feature/ticket-replies-owner-approval-v130
+      - 'feature/**'
   pull_request:
 jobs:
   test:
