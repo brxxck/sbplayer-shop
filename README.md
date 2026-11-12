@@ -1,7 +1,19 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.2
+# SB's & Cam's Store — Community Portal V1.3.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.3 — Branded Discord link previews
+
+Discord was showing its own homepage on shared \`sbstore.info/team\` links because signed-out web crawlers received a Discord OAuth redirect and the pages lacked Open Graph metadata.
+
+- All site pages now serve **server-rendered Open Graph and Twitter Card tags** with \`SB's & Cam's Store\` branding, the existing public SB logo (\`/static/sb-logo.png\`), an absolute canonical \`BASE_URL\`, and a route-specific safe description for common pages.
+- Signed-out visitors (including Discordbot) can fetch **public login landing pages** for \`/team\`, \`/members\`, \`/feed\`, \`/suggestions\`, \`/apply\`, \`/tickets/new\`, \`/dashboard\`, and common shared ticket/profile links, with the normal **Continue with Discord** action. Actual user/member/staff content still requires authenticated authorization.
+- Shared private ticket and staff-application links show only a **generic Private Ticket preview**. Ticket IDs, replies, staff reports, decisions and attachments are **not** displayed to the crawler.
+- **Safe deployment:** Back up the existing Railway volume, keep \`DB_PATH=/app/data/app.sqlite\`, and redeploy the same service from GitHub \`main\`. There are **no database changes** and no new Railway variables. Ensure \`BASE_URL=https://sbstore.info\` is already set.
+- Check \`/health\` for \`"version":"1.3.3"\`, then paste \`https://sbstore.info/team?preview=133\` into a **new Discord message**. Discord can cache old previews; a new query string prompts a fresh fetch. The card should say **Our Team | SB's & Cam's Store** with the SB logo.
+
+Note: If Chrome or Discord flags the domain as dangerous, that separate domain reputation issue still needs to be resolved. Metadata cannot override security or trust warnings.
 
 ## V1.3.2 — unk.sb may vote and make a separate final approval decision
 
