@@ -2,6 +2,7 @@
 import {shell,esc,token,avatar,tag,titlebar} from './views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,ticketFields} from './support.js';
 import {icon} from './icons.js';
+import {evidenceGallery} from './evidence-views.js';
 
 const types=[
  {id:'bug_report',label:'Bug Report',desc:'Report a website or community bug',icon:'bug',tone:'green'},
@@ -84,8 +85,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  const privateTier=ticket.category==='staff_report'?(ticket.visibility==='owner'?'Owner Confidential':'Admin Confidential'):'';
  const back=staff?'/staff/tickets':'/tickets/mine';
  const submit=staff?'/staff/tickets/'+ticket.id+'/reply':'/tickets/'+ticket.id+'/reply';
- const filesFor=id=>attachments.filter(f=>f.message_id===id).map(f=>
-   `<a class="ticket-message-file" href="/tickets/attachments/${f.id}">↧ ${val(f.original_name)} <small>${Math.ceil(f.file_size/1024)} KB</small></a>`).join('');
+ const filesFor=id=>evidenceGallery(attachments.filter(f=>f.message_id===id),'/tickets/attachments',true);
  const initialFiles=attachments.filter(f=>!f.message_id);
  return shell(ctx,'Ticket #'+ticket.id,`<div class="support-container ticket-view">
  <a class="support-back" href="${back}">← Back to tickets</a>
@@ -97,7 +97,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  <div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)} · Verified via Discord</small></span></div>
  ${fieldList(ticket)}
- ${initialFiles.length?`<h3>Original evidence</h3><div class="ticket-files">${initialFiles.map(f=>`<a class="ticket-file" href="/tickets/attachments/${f.id}">${icon('download',{size:16})} ${val(f.original_name)} <span>${Math.ceil(f.file_size/1024)} KB</span></a>`).join('')}</div>`:'<p class="muted tiny">No original attachments submitted.</p>'}
+ ${initialFiles.length?`<h3>Original evidence</h3>${evidenceGallery(initialFiles)}`:'<p class="muted tiny">No original attachments submitted.</p>'}
  ${staff?`<form class="ticket-status-form" method="post" action="/staff/tickets/${ticket.id}/status">${token(ctx)}
   <label>Ticket status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
   <button class="btn btn-outline">Update status</button></form>
