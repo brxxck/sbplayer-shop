@@ -28,8 +28,16 @@ export function megaDashboard(requestedSeason=activeMegaSeason()){
  });
  // Season contributions include former team members; leaving a team cannot erase history.
  const active=members.filter(m=>m.status==='active'),complete=members.filter(m=>m.deposits!==null&&m.withdrawals!==null);
- const deposits=members.some(m=>m.deposits!==null)?members.reduce((sum,m)=>sum+(m.deposits??0),0):null;
- const withdrawals=members.some(m=>m.withdrawals!==null)?members.reduce((sum,m)=>sum+(m.withdrawals??0),0):null;
+ const safeSubtotal=key=>{
+  let total=0,observed=false;
+  for(const m of members){
+   const amount=m[key];if(amount===null)continue;
+   if(!Number.isSafeInteger(amount)||amount<0||!Number.isSafeInteger(total+amount))return null;
+   total+=amount;observed=true;
+  }
+  return observed?total:null;
+ };
+ const deposits=safeSubtotal('deposits'),withdrawals=safeSubtotal('withdrawals');
  const bank=one('SELECT balance,as_of,source FROM mega_team_bank_snapshots WHERE season=? ORDER BY as_of DESC,id DESC LIMIT 1',season.season);
  const transactions=all("SELECT l.id,l.kind,l.amount,l.occurred_at,l.notes,l.actor_id,m.gamertag "+
    "FROM mega_team_ledger l JOIN mega_team_members m ON m.id=l.member_id "+
@@ -37,7 +45,7 @@ export function megaDashboard(requestedSeason=activeMegaSeason()){
  return {teamName:MEGA_TEAM_NAME,teamId:MEGA_TEAM_ID,teamUrl:MEGA_TEAM_URL,
    season,activeSeason:activeMegaSeason(),seasons:megaSeasons(),members,
    totals:{activeMembers:active.length,recordedMembers:members.length,withBoth:complete.length,missing:members.length-complete.length,
-     deposited:deposits,withdrawn:withdrawals,net:deposits!==null&&withdrawals!==null?deposits-withdrawals:null},
+     deposited:deposits,withdrawn:withdrawals,net:complete.length===members.length&&deposits!==null&&withdrawals!==null?deposits-withdrawals:null},
    bank:bank||null,transactions,sync:one('SELECT * FROM mega_team_sync_state WHERE id=1')};
 }
 
