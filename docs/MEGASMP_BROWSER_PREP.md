@@ -68,3 +68,22 @@ Before enabling unattended collection, confirm actual row markup, availability o
 This preparation records captured browser events separately from the current website's manual ledger and cumulative imports. Do not add the separate event totals to imported totals or existing bank balances (that would double count). A future reviewed integration can select one authoritative source, reconcile seasons, and display observed values with their coverage status.
 
 No site code in published main is modified. No Railway service, environment settings, database, or persistent storage is touched. The collector is NOT a guaranteed live connection until the actual DOM and session behavior have been tested.
+
+
+## Unpublished history browser and Discord account matching
+
+The preparation branch now includes a paginated Full Bank History page:
+
+- /team/mega/history?season=current — shows all captured events in 50-record pages, with Minecraft Gamertag, season and deposit/withdrawal filters.
+- The MegaSMP Team tab links to Full Bank History, with clear captured-only/partial-history labels. The ordinary manual contribution ledger remains separate: the two sources are never added together.
+- Events are read from the persistent database, not a 100-row excerpt. The displayed time is labelled timezone-unverified unless a precise timestamp is available; default ordering uses capture batches rather than unverified exact times.
+- /team/mega/matches?season=current — OWNER-ONLY Minecraft/Discord matching page. The owner searches the live Discord guild, selects a Gamertag from the captured event log or recorded roster, and links it to a verified non-bot server member. All link/unlink actions are CSRF protected and owner-audited.
+- Owners can correct or remove an association, and can match several Minecraft accounts (alts) to one Discord user. Associations are scoped by season. They do not prove ownership of the Minecraft account and cannot grant permissions.
+- Linked Discord profile names appear next to Gamertags in the captured-event history and the team roster. The five-minute on-site refresh keeps the links visible without a reload.
+- The collector supports Next, Next Page, Load more events, Show older events and More events controls, with bounded pagination. It still needs calibration against the actual InPvP page.
+
+Security: Guild membership is required to view the history. Only verified server owners may search and match Discord users. A mere username or role name is not treated as proof.
+
+Completeness: Full History means all successfully captured bank events, NOT guaranteed lifetime history. InPvP may expose fewer than every past bank event, and visible rows without stable event IDs remain provisional.
+
+Release gate: Nothing in this preparation branch is enabled on Railway or merged into main. Before publishing, verify the actual InPvP Bank Event Log selectors, pagination, permissions and event identities; ensure captured sums are not added onto manual or cumulative totals.
