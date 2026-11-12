@@ -459,7 +459,6 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return success('/staff','Your optional vote was recorded and the ticket left your queue.');
       }
       if(action==='decide'){
-        if(config.finalApproverId && ctx.user.id===config.finalApproverId)forbidden('unk.sb is the final approver and cannot also cast an admin recommendation vote.');
         const choice=fields.choice;if(!validVote(choice))invalid('Invalid decision');
         const note=formValue(fields,'note',1500,0);
         if(one('SELECT 1 FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id))return warn(pathname.replace(/\/decide$/,''),'You have already submitted an admin decision.');
