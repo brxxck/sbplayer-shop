@@ -41,6 +41,27 @@ test('only actual HTTPS InPvP storage is allowed to cross the pairing boundary',
   ]}));
 });
 
+test('common InPvP storage names are accepted and control characters are rejected',()=>{
+  const common=['user','auth0.state','accessToken','oauth2:client_id','account/123','sessionID','theme'];
+  const example={cookies:[],origins:[{
+    origin:'https://inpvp.net',
+    localStorage:common.map(name=>({name,value:'example-data'}))
+  }]};
+  const parsed=sanitizeInPvPStorageState(example);
+  assert.deepEqual(parsed.origins[0].localStorage.map(row=>row.name),common);
+  for(const name of ['bad\nname','bad\u0000name','bad\u001fname','bad\u007fname']){
+    assert.throws(
+      ()=>sanitizeInPvPStorageState({cookies:[],origins:[{
+        origin:'https://inpvp.net',localStorage:[{name,value:'example-data'}]
+      }]}),
+      /Invalid InPvP storage entry format/
+    );
+  }
+  assert.throws(()=>sanitizeInPvPStorageState({cookies:[],origins:[{
+    origin:'https://inpvp.net',localStorage:[{name:'cache',value:'x'.repeat(65537)}]
+  }]}),/exceeds the 64 KB limit/);
+});
+
 test('session file is encrypted, authenticated, reusable and survives new server instances',()=>{
   const file=join(tmp,'auth-vault.enc.json');
   const vault=createMegaSessionVault({key,file});
