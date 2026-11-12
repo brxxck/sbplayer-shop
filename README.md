@@ -1,7 +1,12 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.4.0
+# SB's & Cam's Store — Community Portal V1.4.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.4.1 — Admin and owner sidebar cleanup
+
+- Hide **My Tickets**, **My Applications** and **Apply for Staff** from the desktop and mobile navigation for admins and owners. Keep these links for ordinary members and reviewers. The underlying pages and data remain intact; this is a navigation-only permission-aware change.
+- Safe Railway update: deploy tested GitHub `main` without replacing the existing service or `/app/data` volume. Verify `/health` reports `1.4.1`.
 
 ## V1.4.0 — Temp Mod onboarding and private promotion tickets
 

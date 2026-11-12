@@ -37,6 +37,26 @@ test('signed-in avatars specify safe dimensions and mobile header remains CSS-co
   assert.match(avatar(signed.user,'xxl'),/width="106" height="106"/);
   assert.match(avatar(signed.user,'unrecognized'),/width="43" height="43"/);
 });
+
+test('admins and owners do not see member-only ticket/application tabs, while members and reviewers do',()=>{
+  const user={id:'100000000000000002',username:'staff-user',display_name:'Staff User'};
+  for(const role of ['member','reviewer','admin','owner']){
+    const page=home({...blank,user,role,csrf:'fixture'});
+    const discover=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
+    const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
+    if(['admin','owner'].includes(role)){
+      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(!discover.includes('href="'+link+'"'),role+' must not see '+link+' in sidebar');
+      for(const link of ['/tickets/mine','/dashboard'])assert.ok(!mobile.includes('href="'+link+'"'),role+' must not see '+link+' in mobile nav');
+      assert.match(discover,/href="\/tickets\/new"/,'admins still have the regular ticket submission shortcut');
+      assert.match(page,/href="\/staff\/tickets"/,'admin/owner keep staff ticket management');
+      assert.match(page,/href="\/staff"/,'admin/owner keep staff application reviews');
+    }else{
+      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(discover.includes('href="'+link+'"'),role+' should keep '+link+' in sidebar');
+      for(const link of ['/tickets/mine','/dashboard'])assert.ok(mobile.includes('href="'+link+'"'),role+' should keep '+link+' in mobile nav');
+    }
+  }
+});
+
 test('stylesheet has responsive image constraints and hides desktop mobile brand',()=>{
   const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
   assert.match(css,/\.topbar \.mobile-brand\s*\{display:none\}/);
