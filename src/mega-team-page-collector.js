@@ -76,17 +76,24 @@ async function scrollEventLog(page){
   });
 }
 async function nextPage(page){
-  const next=page.getByRole('button',{name:/^(Next|Next page)$/i});
-  if(await next.count()&&await next.first().isVisible()&&await next.first().isEnabled()){
-    await next.first().click({timeout:5000});
-    return true;
+  // Read-only pagination controls; no undocumented endpoints or bulk scraping.
+  // Narrow names deliberately avoid unrelated "Show more" account controls.
+  const selectors=[
+    page.getByRole('button',{name:/^(Next|Next page|Load more events|Show older events|More events)$/i}),
+    page.getByRole('link',{name:/^(Next|Next page)$/i})
+  ];
+  for(const next of selectors){
+    if(await next.count()&&await next.first().isVisible()&&await next.first().isEnabled()){
+      await next.first().click({timeout:5000});
+      return true;
+    }
   }
   return false;
 }
 
 export async function captureTeamBankPage(page,{
  url=MEGA_TEAM_URL,selector=process.env.MEGA_TEAM_BANK_ROW_SELECTOR||'',
- maxScrolls=40,maxPages=15
+ maxScrolls=60,maxPages=60
 }={}){
   const dest=new URL(url);
   if(dest.protocol!=='https:'||dest.hostname!=='inpvp.net'||dest.searchParams.get('id')!==MEGA_TEAM_ID||
@@ -129,6 +136,10 @@ export async function captureTeamBankPage(page,{
       await delay(400);
     }
     if(found.size>=MAX_ROWS||!await nextPage(page))break;
+    // Ensure page navigation stays on the explicitly selected team.
+    const afterPage=new URL(page.url());
+    if(afterPage.hostname!=='inpvp.net'||afterPage.searchParams.get('id')!==MEGA_TEAM_ID)
+      throw new Error('Event pagination navigated away from the approved team page.');
     await delay(600);
   }
   const rows=[...found.values()];
