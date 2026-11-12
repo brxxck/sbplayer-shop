@@ -23,8 +23,9 @@ export function saveMegaCapture(rows,{
   throw new Error('Invalid event-count metadata.');
  // A failed parse never causes the team financial ledger to be wiped.
  if(prepared.errors.length)throw new Error('Event capture was incomplete: '+prepared.errors.length+' unrecognized rows.');
- if(expectedCount!==null&&expectedCount>rows.length)
-  throw new Error('Event capture returned fewer rows than the page reports.');
+ // A public log can show fewer bank rows than the all-category event counter.
+ // Still import newly observed bank events, but never call this lifetime-complete.
+ const incompleteCount=expectedCount!==null&&expectedCount>rows.length;
  if(rows.length>0&&!prepared.events.length)throw new Error('No bank events parsed.');
  const stamp=Date.now();
  return transaction(()=>{
@@ -52,7 +53,8 @@ export function saveMegaCapture(rows,{
       'ON CONFLICT(season) DO UPDATE SET last_attempt=excluded.last_attempt,last_success=excluded.last_success,last_error=excluded.last_error,last_source_count=excluded.last_source_count,last_inserted=excluded.last_inserted,last_parse_errors=excluded.last_parse_errors,has_provider_ids=excluded.has_provider_ids,history_complete=MAX(mega_team_capture_status.history_complete,excluded.history_complete)',
       season,stamp,stamp,'',rows.length,inserted,0,prepared.identityCaveat?0:1,confirmed?1:0);
   return {ok:true,season,seen:rows.length,inserted,duplicates,totalEvents:one('SELECT COUNT(*) n FROM mega_team_captured_bank_events WHERE season=?',season).n,
-    partialHistory:!confirmed,provisionalIds:prepared.identityCaveat};
+    partialHistory:!confirmed||incompleteCount,reportedCount:expectedCount,
+    provisionalIds:prepared.identityCaveat};
  });
 }
 export function noteMegaCaptureFailure(season=activeMegaSeason(),message='Capture temporarily unavailable'){
