@@ -311,6 +311,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(action==='decide'){
         if(!['accept','deny'].includes(fields.choice))invalid('Invalid decision.');
         if(ticket.user_id===ctx.user.id)forbidden('You cannot decide your own promotion.');
+        if(one('SELECT 1 FROM promotion_decisions WHERE ticket_id=? AND admin_id=?',id,ctx.user.id))return warn('/staff/promotions/'+id,'You have already voted on this promotion.');
         if(!['open','reviewing'].includes(ticket.status))return warn('/staff/promotions/'+id,'Already finalized.');
         const note=formValue(fields,'note',1500,0);
         const outcome=decidePromotion({ticketId:id,adminId:ctx.user.id,choice:fields.choice,note,role:ctx.role,ip:ctx.ip});
