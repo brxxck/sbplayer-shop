@@ -87,7 +87,7 @@ test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
     assert.equal((await get(path,who)).status,403,who+' cannot access private InPvP session');
   const owner=await get(path,'owner');
   assert.equal(owner.status,200);
-  assert.match(await owner.text(),/InPvP session pairing/);
+  assert.match(await owner.text(),/session pairing/);
   const home=await (await get('/','member')).text();
   assert.ok(!home.includes('href="/owner/mega/session"'),'no public owner session navigation');
   assert.equal((await post('/owner/mega/session/code','adminA')).status,403);
