@@ -98,6 +98,43 @@ test('Meet the Team keeps store staff and Known Members separates Mega SMP / Pri
   assert.ok(unknown.includes('Other Staff'),'unknown top-level tab safely returns main team');
 });
 
+
+test('profile shows every assigned Discord role, correct colours and highest-first order',async()=>{
+ const page=await (await get('/u/'+ids.member5,'member')).text();
+ assert.match(page,/class="profile-discord-roles"/);
+ assert.match(page,/Discord Roles/);
+ assert.match(page,/2 roles/);
+ assert.ok(page.includes('Mega Smp Staff'));
+ assert.ok(page.includes('Prison Staff'));
+ assert.ok(page.indexOf('Mega Smp Staff')<page.indexOf('Prison Staff'),'higher-ranked Mega role appears first');
+ assert.match(page,/--role-accent:#01b669/);
+ assert.match(page,/--role-accent:#036870/);
+ assert.ok(!page.includes('>\\@everyone<'),'universal guild role must not appear');
+ const admin=await (await get('/u/'+ids.adminA,'member')).text();
+ assert.ok(admin.includes('Administrator'));
+ assert.ok(admin.includes('Mega Smp Staff'));
+ assert.ok(admin.indexOf('Administrator')<admin.indexOf('Mega Smp Staff'));
+ assert.match(admin,/--role-accent:#ff0000/);
+ const noRoles=await (await get('/u/'+ids.member,'member')).text();
+ assert.match(noRoles,/No Discord roles assigned/);
+});
+
+test('private profiles do not expose role badges to other members, but owners see their own',async()=>{
+ const id=ids.member4;
+ run('UPDATE profiles SET public=0 WHERE user_id=?',id);
+ try {
+   const other=await (await get('/u/'+id,'member')).text();
+   assert.doesNotMatch(other,/class="profile-discord-roles"/);
+   assert.doesNotMatch(other,/Prison Staff/);
+   assert.match(other,/This member has made their profile private/);
+   const self=await (await get('/u/'+id,'member4')).text();
+   assert.match(self,/class="profile-discord-roles"/);
+   assert.match(self,/Prison Staff/);
+ }finally{
+   run('UPDATE profiles SET public=1 WHERE user_id=?',id);
+ }
+});
+
 test('members submit private applications; optional reviewers vote once then ticket disappears',async()=>{
   let r=await post('/apply','member',answers);assert.equal(r.status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);assert.equal(a.status,'pending');
