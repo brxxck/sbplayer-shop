@@ -256,9 +256,15 @@ export async function captureTeamBankPage(page,{
     throw new Error('Team page redirected to an unexpected destination or a login page.');
   if(await page.getByText(/challenge|verify you are human|captcha/i).count())
     throw new Error('Browser challenge requires normal user action; collector will not bypass it.');
-  // Allow client-side team details to hydrate; then open Event Log -> Bank.
-  const overview=await extractTeamOverview(page);
+  // Preserve roster and balance seen in either view; SPA hydration and
+  // switching to Bank can hide information from the overview screen.
+  const before=await extractTeamOverview(page);
   await selectBankEventLog(page,{selector});
+  const after=await extractTeamOverview(page);
+  const overview={
+    roster:before?.roster?.length?before.roster:(after?.roster||[]),
+    bankBalance:after?.bankBalance??before?.bankBalance??null
+  };
   const afterBank=new URL(page.url());
   if(afterBank.hostname!=='inpvp.net'||afterBank.searchParams.get('id')!==MEGA_TEAM_ID)
     throw new Error('Bank tab navigation left the approved team page; capture rejected.');
