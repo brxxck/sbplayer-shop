@@ -101,7 +101,7 @@ export async function deliverAcceptedRole({appId,actorId,role,ip,discord}){
       const matches=manageable.filter(r=>['tempmod','modtemp'].includes(String(r.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')));
       if(matches.length===1)targetRole=matches[0];
     }
-    if(!targetRole)throw new Error('No safe assignable Mod - temp role was found; configure PROMOTION_TEMP_ROLE_ID);
+    if(!targetRole)throw new Error('No safe assignable Mod - temp role was found; configure PROMOTION_TEMP_ROLE_ID');
     if(!target.roles.includes(targetRole.id))await discord.addRole(a.user_id,targetRole.id,`SB Store accepted application #${appId}`);
     transaction(()=>{
       run("UPDATE applications SET role_sync_status='assigned',role_sync_error='',role_sync_role=?,updated_at=? WHERE id=?",targetRole.id,Date.now(),appId);
