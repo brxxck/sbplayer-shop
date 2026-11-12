@@ -1,7 +1,38 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.5.3
+# SB's & Cam's Store — Community Portal V1.6.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.6.0 — SBsxScam MegaSMP Team Dashboard
+
+- **Dedicated fourth team tab:** Open \`/team?tab=mega\` (or the sidebar's **MegaSMP Team** link) for SBsxScam's dashboard. The linked InPvP team ID is \`5638a504-3347-43fc-89d6-424dad53b7f6\`.
+- **Separate roster sources:** The current Discord Team Members directory still shows members with the two existing SBs roles; those accounts are explicitly **not assumed** to be Minecraft team members. The new in-game roster starts empty until admins add Gamertags or a permitted structured feed supplies them. No fake financial numbers are seeded.
+- **Stats and leaderboard:** Per-player deposits, withdrawals, net contributions, contribution leaderboard, reported bank balance, recorded transaction list, and source labels. Unknown values display as **Not recorded**, never zero. Cumulative authorized-feed totals *replace* manual totals for that member instead of being added to them, preventing double counting. Team KPIs reflect **known/recorded amounts only** when coverage is incomplete.
+- **Season history:** Only the verified server owner can create a new season; previous rosters, bank values and ledger records remain readable. Owners and admins may add/bulk-add Gamertags, update active/former status, enter deposit/withdrawal entries, record an independent bank balance, and import structured snapshots for the active season. All changes require CSRF and are logged in the owner-only audit.
+- **Five-minute refresh:** The browser re-reads the website's own authenticated JSON endpoint without reloading or losing scroll. If an **explicitly authorized JSON feed** is configured, a server-side worker polls it every five minutes and stores successful snapshots in the existing SQLite volume. Failures retain cached data with source timestamps and stale warnings. No external polling occurs by default.
+- **InPvP limitation:** Their public teams directory shows *Team data sync in progress*. Individual deposits/withdrawals and full in-game member details have not been verified as available. InPvP's [Terms](https://inpvp.net/terms) restrict automated scripts/bots unless explicitly permitted. **Do not enable InPvP polling without written or otherwise explicit permission.** The ordinary public team-page link does not constitute an API.
+- **No new credentials required for manual mode.** Trusted-feed configuration is optional and disabled by default:
+
+  - \`MEGA_TEAM_SYNC_URL=https://trusted.example.net/approved-team-snapshot.json\` — operator-provided, authorized HTTPS JSON feed (not the InPvP HTML page).
+  - \`MEGA_TEAM_SYNC_AUTHORIZED=true\` — administrator attests they have permission to automate the configured provider.
+  - \`MEGA_TEAM_SYNC_TOKEN=...\` — optional private bearer token; never render it in HTML or logs.
+  - \`MEGA_TEAM_INPVP_AUTOMATION_APPROVED=true\` — only if InPvP has specifically approved an automated interface; otherwise \`inpvp.net\` hosts remain blocked.
+
+- **Permitted-feed JSON schema** (the same structure can be pasted into the admin import form):
+  \`\`\`json
+  {
+    "team_id": "5638a504-3347-43fc-89d6-424dad53b7f6",
+    "season": "current",
+    "updated_at": "2026-11-12T21:00:00Z",
+    "complete_roster": true,
+    "bank_balance": null,
+    "members": [
+      {"gamertag":"ExamplePlayer","role":"Member","active":true,"deposits":null,"withdrawals":null}
+    ]
+  }
+  \`\`\`
+  Use numbers for known integer amounts; use \`null\` for unavailable amounts. Season keys must match the website's current season. Changes are validated and committed atomically; previously saved figures are retained when the provider is unavailable.
+- **Deployment:** Leave the existing Railway project, SQLite database and persistent \`/app/data\` volume untouched. Deploy only after the full test suite passes. Confirm \`/health\` returns \`1.6.0\`, then visit **Team Members → MegaSMP Team** and add/import real member data.
 
 ## V1.5.3 — Private inline Evidence Viewer
 
