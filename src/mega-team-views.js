@@ -7,7 +7,7 @@ import {icon} from './icons.js';
 const fmtMoney=v=>v===null||v===undefined?'—':'$'+Number(v).toLocaleString('en-US');
 const fmtShort=v=>v===null||v===undefined?'—':'$'+new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(v);
 const date=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not available';
-const sourceLabel=key=>key==='authorized_feed'?'Authorized feed':key==='manual_import'?'Submitted snapshot':key==='manual'?'Recorded manually':key==='browser_capture'?'InPvP observed':key==='captured_events'?'Observed activity':key==='browser_roster'?'Observed roster':'Not recorded';
+const sourceLabel=key=>key==='authorized_feed'?'Authorized feed':key==='manual_import'?'Submitted snapshot':key==='manual'?'Recorded manually':key==='browser_capture'?'InPvP observed':key==='browser_capture_approx'?'Approximate InPvP display':key==='captured_events'?'Observed activity':key==='browser_roster'?'Observed roster':'Not recorded';
 const moneyCell=v=>v===null?'<span class="mega-unknown">Not recorded</span>':fmtMoney(v);
 const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat panel">'+
  '<div class="mega-stat-label">'+icon(iconName,{size:20})+' '+label+'</div>'+
