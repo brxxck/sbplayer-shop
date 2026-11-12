@@ -2,6 +2,7 @@
 import {discordAvatar} from './discord.js';
 import {safeHttpUrl} from './logic.js';
 import {icon,navigationIcon} from './icons.js';
+import {evidenceGallery} from './evidence-views.js';
 export const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attr=esc;
 const lines=v=>esc(v).replace(/\n/g,'<br>');
@@ -185,8 +186,7 @@ ${!final?`<form method="post" action="/staff/applications/${app.id}/interview">$
 // Message bodies are escaped; the role label is derived from the server session.
 export function ticketThread(ctx,app,messages=[],forStaff=false,attachments=[]){
   const action=(forStaff?'/staff':'/dashboard')+'/applications/'+app.id+'/reply';
-  const fileHtml=messageId=>attachments.filter(a=>a.message_id===messageId).map(a=>
-    `<a class="ticket-message-file" href="/applications/attachments/${a.id}">${icon('download',{size:16})} ${esc(a.original_name)} <small>${Math.ceil(a.file_size/1024)} KB</small></a>`).join('');
+  const fileHtml=messageId=>evidenceGallery(attachments.filter(a=>a.message_id===messageId),'/applications/attachments',true);
   return `<section class="panel padded ticket-conversation chat-ticket">
     <div class="panel-heading ticket-heading"><div><h2>Ticket conversation</h2><p class="muted tiny">Private chat between the applicant and authorized staff</p></div>
       <span class="pill pill-accepted">${messages.length} messages</span></div>
