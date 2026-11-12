@@ -1,6 +1,6 @@
 {
   "name": "sbs-cams-community",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "private": true,
   "type": "module",
   "description": "SB's & Cam's Store Discord staff applications and community portal",
