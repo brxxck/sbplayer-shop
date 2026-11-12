@@ -16,6 +16,7 @@ import * as supportView from './support-views.js';
 import * as homeView from './home-views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
+import {createProfileRoleLookup} from './profile-roles.js';
 import {ticketMessages,applicationAttachments,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
@@ -82,6 +83,7 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
+  const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
   async function handle(req,res) {
     Object.entries(responseHeaders).forEach(([key,value])=>res.setHeader(key,value));
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
@@ -125,7 +127,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.4'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.5'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -710,7 +712,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const pinnedPost=!privateProfile&&profile?.pinned_post_id?postDetails(profile.pinned_post_id,ctx.user.id):null;
       const sections=privateProfile?[]:profileSections(id);
       const comments=privateProfile||!profile?.allow_comments?[]:listComments('profile',id);
-      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile}));
+      // Never request or render Discord roles for somebody else's private profile.
+      const discordRoles=privateProfile?{state:'hidden',roles:[]}:
+        await getProfileRoles(id,self?ctx.member:null);
+      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(follow|comment)$/.exec(pathname);
     if(userMatch&&req.method==='POST'){
@@ -983,5 +988,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.4 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.5 running at ${config.baseUrl}`));
 }
