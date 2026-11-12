@@ -96,7 +96,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
  const captureText=captureLast?(Date.now()-captureLast>15*60000?'Browser capture stale: ':'Browser captured: ')+date(captureLast):
   captureEnabled?'Browser collector enabled; awaiting first successful capture':
   'Browser collector not configured';
- const syncLabel=!syncEnabled?'No authorized JSON feed configured':!data.sync.last_success?'Awaiting first authorized sync':
+ const syncLabel=!syncEnabled?'No authorized live feed configured':!data.sync.last_success?'Awaiting first authorized sync':
    stale?'Source outdated — showing last saved values':'Authorized feed last synced '+date(data.sync.last_success);
  const coverage=data.totals.withBoth+'/'+data.totals.recordedMembers+' recorded members have both totals';
  const stateLabel=data.totals.missing?'Partial totals · '+coverage:'Complete recorded roster coverage · '+coverage;
