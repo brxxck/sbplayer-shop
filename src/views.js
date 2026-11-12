@@ -7,7 +7,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.3.1-dashboards';
+const assetVersion = '1.3.2-owner-vote';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -30,7 +30,7 @@ ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tick
 </div><div class="side-bottom">${user?`<a class="side-profile" href="/u/${attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.1</span></footer></div></div></body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.2</span></footer></div></div></body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
