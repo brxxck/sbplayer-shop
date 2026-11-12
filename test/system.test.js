@@ -477,6 +477,96 @@ test('liking a feed post stays on the feed, preserves page, and supports in-plac
   assert.equal(normal.headers.get('location'),'/post/'+id,'ordinary detail-page forms retain their fallback');
 });
 
+test('V1.5 social hub offers real profile, saved posts, follow feed, activity and privacy controls',async()=>{
+  const owner=ids.member,author=ids.member2,other=ids.member3;
+  assert.equal((await get('/profile','member')).status,303);
+  assert.equal((await get('/profile','member')).headers.get('location'),'/u/'+owner);
+  const header=await (await get('/','member')).text();
+  assert.match(header,/class="top-social-shortcuts"/);
+  assert.match(header,/class="top-account-dropdown"/);
+  assert.ok(header.includes('href="/profile"'));
+  assert.ok(header.includes('href="/saved"'));
+  assert.ok(header.includes('href="/notifications"'));
+  assert.equal((await get('/saved','member')).status,200);
+  assert.equal((await get('/notifications','member')).status,200);
+
+  const message='V1.5 SOCIAL AUTHOR POST unique for following feed and saved posts';
+  const otherMessage='V1.5 UNFOLLOWED POST unique for verifying feed filters';
+  assert.equal((await post('/feed/create','member2',{body:message})).status,303);
+  const id=one('SELECT id FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 1',author).id;
+  assert.equal((await post('/feed/create','member3',{body:otherMessage})).status,303);
+  run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',owner,author);
+  run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',owner,other);
+  const followingBefore=await (await get('/feed?tab=following','member')).text();
+  assert.ok(!followingBefore.includes(message),'following feed excludes unfollowed users');
+  assert.equal((await post('/u/'+author+'/follow','member',{})).status,303);
+  const followingAfter=await (await get('/feed?tab=following','member')).text();
+  assert.ok(followingAfter.includes(message),'followed user content appears');
+  assert.ok(!followingAfter.includes(otherMessage),'unfollowed content stays out');
+  assert.match(followingAfter,/name="feed_tab" value="following"/);
+  const list=await (await get('/u/'+owner+'/following','member')).text();
+  assert.ok(list.includes('@member2'));
+  const followers=await (await get('/u/'+author+'/followers','member')).text();
+  assert.ok(followers.includes('@member'));
+
+  const formSession=sessions.get('member');
+  async function ajaxAction(action){
+    return fetch(base+'/post/'+id+'/'+action,{
+      method:'POST',
+      headers:{cookie:formSession.cookie,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
+      body:new URLSearchParams({_csrf:formSession.csrf,feed_page:'0',feed_tab:'following'}),
+      redirect:'manual'
+    });
+  }
+  const saved=await ajaxAction('bookmark');
+  assert.equal(saved.status,200);
+  assert.deepEqual(await saved.json(),{post_id:id,saved:true});
+  assert.ok((await (await get('/saved','member')).text()).includes(message));
+  assert.ok(!(await (await get('/saved','member3')).text()).includes(message),'saved posts are private');
+  const removed=await ajaxAction('bookmark');
+  assert.deepEqual(await removed.json(),{post_id:id,saved:false});
+  assert.ok(!(await (await get('/saved','member')).text()).includes(message),'unsaving removes the post');
+  const noJs=await post('/post/'+id+'/bookmark','member',{feed_page:'2',feed_tab:'following'});
+  assert.equal(noJs.status,303);
+  assert.equal(noJs.headers.get('location'),'/feed?tab=following&page=2#post-'+id);
+
+  const repost=await ajaxAction('repost');
+  assert.equal(repost.status,200);
+  const repostState=await repost.json();
+  assert.equal(repostState.reposted,true);
+  assert.ok(repostState.repost_count>=1);
+  const undone=await ajaxAction('repost');
+  assert.equal(undone.status,200);
+  assert.equal((await undone.json()).reposted,false);
+
+  const like=await ajaxAction('like');
+  assert.equal(like.status,200);
+  assert.equal((await like.json()).liked,true);
+  const ownProfile=await (await get('/u/'+owner+'?tab=likes','member')).text();
+  assert.ok(ownProfile.includes(message),'my likes tab shows my liked posts');
+  assert.equal((await get('/u/'+owner+'?tab=likes','member2')).status,404,'other members cannot inspect private likes');
+  const mine=await (await get('/u/'+owner,'member')).text();
+  assert.ok(mine.includes('My Profile')||mine.includes('Edit profile'));
+  assert.ok(mine.includes('Followers')&&mine.includes('Following'));
+  assert.equal((await get('/u/'+owner+'?tab=replies','member')).status,200);
+  assert.equal((await get('/u/'+owner+'?tab=media','member')).status,200);
+
+  const unread=one('SELECT COUNT(*) n FROM social_notifications WHERE recipient_id=? AND read_at=0 AND actor_id=?',author,owner).n;
+  assert.ok(unread>=1,'follow/like creates a notification for original author');
+  const inbox=await (await get('/notifications','member2')).text();
+  assert.ok(inbox.includes('started following you')||inbox.includes('liked your post'));
+  assert.match(inbox,/class="top-social-badge"/,'unread count appears beside the username');
+  assert.equal((await post('/notifications/read','member2',{})).status,303);
+  assert.equal(one('SELECT COUNT(*) n FROM social_notifications WHERE recipient_id=? AND read_at=0',author).n,0);
+
+  const wasPublic=one('SELECT public FROM profiles WHERE user_id=?',author).public;
+  try{
+    run('UPDATE profiles SET public=0 WHERE user_id=?',author);
+    assert.equal((await get('/u/'+author+'/followers','member')).status,404,'private profile hides relationships');
+    assert.equal((await get('/u/'+author+'/followers','member2')).status,200,'owner keeps access');
+  }finally{run('UPDATE profiles SET public=? WHERE user_id=?',wasPublic,author);}
+});
+
 test('posts, comments, profile custom settings, sections and privacy work',async()=>{
   assert.equal((await post('/feed/create','member',{body:'Hello from the community feed!'})).status,303);
   const p=one('SELECT * FROM posts ORDER BY id DESC LIMIT 1');

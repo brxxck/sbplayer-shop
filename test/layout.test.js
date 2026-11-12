@@ -22,8 +22,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.4\.4-feed-likes/);
-  assert.match(page,/\/static\/app\.js\?v=1\.4\.4-feed-likes/);
+  assert.match(page,/\/static\/style\.css\?v=1\.5\.0-social-hub/);
+  assert.match(page,/\/static\/app\.js\?v=1\.5\.0-social-hub/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -65,6 +65,34 @@ test('staff, mods and temp mods use promotion navigation; ordinary members keep 
       assert.ok(!discover.includes('href="/promotions"'),v.kind+' must not see the promotion shortcut');
     }
   }
+});
+
+
+test('full social toolbar appears beside profile name with desktop icons and mobile account menu',()=>{
+  const member={...signed,role:'member',notificationCount:7};
+  const page=home(member);
+  assert.match(page,/class="top-account">[\s\S]*class="top-social-shortcuts"/);
+  assert.match(page,/class="top-social-link top-social-feed" href="\/feed"/);
+  assert.match(page,/class="top-social-link top-social-members" href="\/members"/);
+  assert.match(page,/class="top-social-link top-social-notifications" href="\/notifications"/);
+  assert.match(page,/class="top-social-badge">7<\/span>/);
+  assert.match(page,/class="top-social-link top-social-saved" href="\/saved"/);
+  assert.match(page,/class="account-profile-link" href="\/profile"/);
+  assert.match(page,/class="top-account-dropdown"/);
+  assert.match(page,/href="\/profile\/edit">/);
+  for(const tab of ['posts','replies','media','likes'])
+    assert.ok(page.includes('href="/u/'+member.user.id+'?tab='+tab+'"'),tab+' available in menu');
+  for(const name of ['Followers','Following','Following Feed','Find Members','Saved Posts','Notifications'])
+    assert.ok(page.includes(name),name+' appears in social menus');
+  assert.match(page,/class="top-account-menu-signout">[\s\S]*action="\/auth\/logout"/);
+  assert.match(page,/class="mobile-nav">[\s\S]*href="\/profile">My Profile<\/a>/);
+  assert.match(page,/class="mobile-nav">[\s\S]*href="\/notifications">Notifications<\/a>/);
+  assert.ok(!home(blank).includes('top-account-dropdown'),'signed-out home must not expose a social menu');
+  assert.ok(!home({...signed,role:'appeal-only'}).includes('top-account-dropdown'),'appeal-only accounts must not see member social options');
+  const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
+  assert.match(css,/\.topbar\{overflow:visible\}/,'topbar must not clip the profile dropdown');
+  assert.match(css,/\.top-account-menu\{[^}]*overflow-y:auto/,'long mobile menus must scroll');
+  assert.match(css,/@media\(max-width:610px\)/);
 });
 
 test('client handles likes in place without losing feed scroll',()=>{
