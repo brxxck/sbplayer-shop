@@ -411,6 +411,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/team/mega/data'&&req.method==='GET'){
       rate(ctx,'mega.team.read',80,60000);
       const data=megaDashboard(url.searchParams.get('season')||undefined);
+      const matches=new Map(megaDiscordMatches(data.season.season).map(m=>[m.gamertag.toLowerCase(),m]));
+      data.members=data.members.map(m=>{
+        const linked=matches.get(m.gamertag.toLowerCase());
+        return {...m,linkedDiscord:linked?{id:linked.discordId,username:linked.username||linked.displayName||'Discord member'}:null};
+      });
       // Readers may view contribution figures, not administrative notes or Discord IDs.
       if(!isAdminRole(ctx.role)){
         data.members=data.members.map(({discordId,...rest})=>rest);
@@ -1082,7 +1087,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const sbsGroups=[{title:'SBs Team Leaders',members:sbsLeaders.sort(sortByName)},{title:'SBs Team Members',members:sbsMembers.sort(sortByName)}].filter(g=>g.members.length);
       const selected=['team','sbs','known','mega'].includes(url.searchParams.get('tab'))?url.searchParams.get('tab'):'team';
       const knownTab=url.searchParams.get('known')==='prison'?'prison':'mega';
-      const megaContent=selected==='mega'?megaTeamPanel(ctx,{data:megaDashboard(url.searchParams.get('season')||undefined),discordGroups:sbsGroups,syncEnabled:megaSync.enabled}):'';
+      const selectedMega=selected==='mega'?megaDashboard(url.searchParams.get('season')||undefined):null;
+      const megaContent=selectedMega?megaTeamPanel(ctx,{data:selectedMega,discordGroups:sbsGroups,
+        discordMatches:megaDiscordMatches(selectedMega.season.season),syncEnabled:megaSync.enabled}):'';
        return html(view.team(ctx,{groups,knownGroups,sbsGroups,tab:selected,knownTab,partial,rolesCount:roles.length,megaContent}));
     }
     let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
