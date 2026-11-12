@@ -67,7 +67,7 @@ export function signedOutPreview(ctx){
  if(!p)throw Error('Page is not publicly previewable');
  return shell(ctx,p[0],'<div class="hero"><div><div class="eyebrow">SB&#39;S &amp; CAM&#39;S STORE</div>'+
    '<h2>'+esc(p[0])+'</h2><p>'+esc(p[1])+'</p>'+
-   '<div class="actions"><a class="btn btn-primary" href="/auth/login">Continue with Discord →</a>'+
+   '<div class="actions"><a class="btn btn-primary" href="/auth/login?next='+encodeURIComponent(ctx.pathname)+'">Continue with Discord →</a>'+
    '<a class="btn btn-outline" href="/">Visit homepage</a></div></div>'+
    '<div class="hero-logo"><img src="/static/sb-logo.png" width="148" height="148" alt="SB Store logo" style="width:148px;height:148px;object-fit:cover"></div></div>');
 }
