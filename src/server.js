@@ -125,7 +125,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.3'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.4'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -649,26 +649,51 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         }
         teamCache={at:now(),list,partial};
       }
-      const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name));
+      // Store team roles stay in Meet the Team. External Mega SMP and Prison roles
+      // appear in Known Members, with dedicated tabs for each community.
+      const knownRoleKind=name=>{
+        const key=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+        return key==='megasmpstaff'?'mega':key==='prisonstaff'?'prison':null;
+      };
+      const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name)||knownRoleKind(r.name));
       const byId=new Map(roles.map(r=>[r.id,r]));
-      const categorized=new Map();const seen=new Set();
+      const categorized=new Map(),knownMembers=new Map([['mega',[]],['prison',[]]]);const seen=new Set();
       for(const m of list){
         const id=m.user?.id;if(!id||m.user.bot||seen.has(id))continue;
-        seen.add(id);const match=(m.roles||[]).map(x=>byId.get(x)).filter(Boolean).filter(r=>staffRoles.some(s=>s.id===r.id));
-        if(!match.length&&id!==ctx.guild.owner_id)continue;
-        match.sort((a,b)=>b.position-a.position);
-        const rank=id===ctx.guild.owner_id?'Ownership':match.some(r=>config.ownerRoleIds.has(r.id)||/owner/i.test(r.name))?'Ownership':match.some(r=>config.adminIds.has(r.id)||/admin|management/i.test(r.name))?'Administration':match.some(r=>/moderat|head.?staff/i.test(r.name))?'Moderation':match.some(r=>/helper|support/i.test(r.name))?'Helpers':'Other Staff';
+        seen.add(id);const memberRoles=(m.roles||[]).map(x=>byId.get(x)).filter(Boolean);
+        const match=memberRoles.filter(r=>staffRoles.some(s=>s.id===r.id));
+        const external=memberRoles.filter(r=>knownRoleKind(r.name));
+        const storeRoles=match.filter(r=>!knownRoleKind(r.name));
+        if(!storeRoles.length&&!external.length&&id!==ctx.guild.owner_id)continue;
+        storeRoles.sort((a,b)=>b.position-a.position);
         upsertUser(m);ensureProfile(id);
         const profile=one('SELECT nickname,avatar_path,public FROM profiles WHERE user_id=?',id)||{};
-        const info={...m.user,display_name:m.nick||m.user.global_name||m.user.username,nickname:profile.public?profile.nickname:'',avatar_path:profile.public?profile.avatar_path:'',staffTitle:id===ctx.guild.owner_id?'Server Owner':match[0]?.name||'Owner'};
-        if(!categorized.has(rank))categorized.set(rank,[]);categorized.get(rank).push(info);
+        const info={...m.user,display_name:m.nick||m.user.global_name||m.user.username,nickname:profile.public?profile.nickname:'',avatar_path:profile.public?profile.avatar_path:''};
+        // Members holding both communities' roles appear in each relevant Known Members tab.
+        // An actual SB Store staff member also retains their primary internal team listing.
+        for(const externalRole of external){
+          const kind=knownRoleKind(externalRole.name);
+          if(kind&&!knownMembers.get(kind).some(existing=>existing.id===id))
+            knownMembers.get(kind).push({...info,staffTitle:externalRole.name});
+        }
+        if(storeRoles.length||id===ctx.guild.owner_id){
+          const rank=id===ctx.guild.owner_id?'Ownership':storeRoles.some(r=>config.ownerRoleIds.has(r.id)||/owner/i.test(r.name))?'Ownership':storeRoles.some(r=>config.adminIds.has(r.id)||/admin|management/i.test(r.name))?'Administration':storeRoles.some(r=>/moderat|head.?staff/i.test(r.name))?'Moderation':storeRoles.some(r=>/helper|support/i.test(r.name))?'Helpers':'Other Staff';
+          if(!categorized.has(rank))categorized.set(rank,[]);
+          categorized.get(rank).push({...info,staffTitle:id===ctx.guild.owner_id?'Server Owner':storeRoles[0]?.name||'Owner'});
+        }
       }
       // Ensure the real guild owner appears even if outside a paginated member listing.
       if(!seen.has(ctx.guild.owner_id)){
         try{const owner=await discord.getGuildMember(ctx.guild.owner_id);if(owner?.user){upsertUser(owner);ensureProfile(owner.user.id);if(!categorized.has('Ownership'))categorized.set('Ownership',[]);categorized.get('Ownership').unshift({...owner.user,display_name:owner.nick||owner.user.global_name||owner.user.username,staffTitle:'Server Owner'});}}catch{partial=true;}
       }
       const groups=['Ownership','Administration','Moderation','Helpers','Other Staff'].map(title=>({title,members:(categorized.get(title)||[]).sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))})).filter(x=>x.members.length);
-      return html(view.team(ctx,{groups,partial,rolesCount:roles.length}));
+      const knownGroups=[
+        {key:'mega',title:'Mega SMP Staff',members:knownMembers.get('mega')},
+        {key:'prison',title:'Prison Staff',members:knownMembers.get('prison')}
+      ].map(g=>({...g,members:g.members.sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))}));
+      const selected=url.searchParams.get('tab')==='known'?'known':'team';
+      const knownTab=url.searchParams.get('known')==='prison'?'prison':'mega';
+      return html(view.team(ctx,{groups,knownGroups,tab:selected,knownTab,partial,rolesCount:roles.length}));
     }
     let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
     if(userMatch && req.method==='GET'){
@@ -958,5 +983,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.3 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.4 running at ${config.baseUrl}`));
 }
