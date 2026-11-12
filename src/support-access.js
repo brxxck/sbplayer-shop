@@ -29,11 +29,11 @@ export async function resolveStaffReport(discord,search,config,guildOwnerId,coow
  return {visibility:'owner',reportedId:id,reason:'unrecognized staff role'};
 }
 
-export async function accessibleSupportTicket(ctx,t,discord,config){
+export async function accessibleSupportTicket(ctx,t,discord,config,{staffView=false}={}){
  if(!t)return false;
- if(t.category!=='staff_report')return ctx.role==='member'||ctx.role==='appeal-only'?t.user_id===ctx.user?.id:
-   ['reviewer','admin','owner'].includes(ctx.role);
- if(t.user_id===ctx.user?.id)return true; // Applicants can read their own report.
+ if(t.category!=='staff_report')return staffView?['reviewer','admin','owner'].includes(ctx.role):
+   t.user_id===ctx.user?.id||['reviewer','admin','owner'].includes(ctx.role);
+ if(!staffView && t.user_id===ctx.user?.id)return true; // Applicants use their own ticket area, never staff queues.
  if(t.visibility==='owner')return ctx.role==='owner';
  if(!['admin','owner'].includes(ctx.role))return false;
  if(ctx.role==='owner')return true;
@@ -54,7 +54,7 @@ export async function accessibleSupportTicket(ctx,t,discord,config){
 export async function supportQueueVisible(ctx,tickets,discord,config){
  const list=[];
  for(const ticket of tickets){
-   if(await accessibleSupportTicket(ctx,ticket,discord,config))list.push(ticket);
+   if(await accessibleSupportTicket(ctx,ticket,discord,config,{staffView:true}))list.push(ticket);
  }
  return list;
 }
