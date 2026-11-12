@@ -14,7 +14,7 @@ export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
   const px={sm:32,side:40,md:43,menu:56,lg:64,xl:83,xxl:106}[size]||43;
   // Explicit HTML dimensions and inline fallbacks keep images small even if a browser delays loading CSS.
-  return `<img class="avatar ${size}" src="${attr(source)}" alt="Avatar of ${attr(name(u))}" width="${px}" height="${px}" style="width:${px}px;height:${px}px;min-width:${px}px;max-width:${px}px;max-height:${px}px;object-fit:cover;border-radius:50%" loading="lazy" decoding="async">`;
+  return `<img class="avatar ${size}" src="${attr(source)}" alt="Avatar of ${attr(name(u))}" width="${px}" height="${px}" style="width:${px}px;height:${px}px;min-width:${px}px;max-width:${px}px;max-height:${px}px;object-fit:cover;border-radius:50%" loading="${size==='menu'||size==='sm'?'eager':'lazy'}" decoding="async">`;
 }
 export function tag(status) {return `<span class="pill pill-${attr(status||'pending')}">${esc(String(status||'pending').replaceAll('_',' '))}</span>`;}
 export const token=(ctx)=>`<input type="hidden" name="_csrf" value="${attr(ctx.csrf)}">`;
