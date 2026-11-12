@@ -106,7 +106,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const cached=auditNameCache.get(id);
       if(cached && cached.expires>stamp && cached.name)labels.set(id,cached.name);
     }
-    const needLookup=unknown.filter(id=>!labels.has(id)&&!auditNameCache.has(id)).slice(0,6);
+    const needLookup=unknown.filter(id=>!labels.has(id)&&(!auditNameCache.has(id)||auditNameCache.get(id).expires<=stamp)).slice(0,6);
     await Promise.all(needLookup.map(async id=>{
       let name='';
       try{
@@ -986,23 +986,38 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return success('/admin/moderation','Report processed.');
     }
     if(pathname==='/owner/audit'&&req.method==='GET'){
-      await authorize('owner');logAction(ctx,'owner.audit.view','audit');
+      await authorize('owner');
       const filter=text(url.searchParams.get('q'),80),like='%'+filter+'%';
-      const events=filter?all('SELECT * FROM owner_audit_log WHERE actor_id LIKE ? OR action LIKE ? OR target LIKE ? OR outcome LIKE ? ORDER BY id DESC LIMIT 300',like,like,like,like):all('SELECT * FROM owner_audit_log ORDER BY id DESC LIMIT 300');
-      return html(view.audit(ctx,{events,verified:verifyAudit(db),filter}));
+      // Name search is read-only; keep the raw IDs and original hash-chained rows.
+      const events=filter?all(`SELECT a.* FROM owner_audit_log a
+        LEFT JOIN users u ON u.id=a.actor_id
+        WHERE a.actor_id LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?
+          OR a.action LIKE ? OR a.target LIKE ? OR a.details LIKE ? OR a.outcome LIKE ?
+        ORDER BY a.id DESC LIMIT 300`,like,like,like,like,like,like,like):
+        all('SELECT * FROM owner_audit_log ORDER BY id DESC LIMIT 300');
+      const names=await auditUsernamesFor(events);
+      return html(view.audit(ctx,{events:readableAuditRows(events,names),verified:verifyAudit(db),filter}));
     }
     if(pathname==='/owner/audit/export'&&req.method==='GET'){
-      await authorize('owner');logAction(ctx,'owner.audit.export','audit');
+      await authorize('owner');
       const csvValue=value=>{let s=String(value??'');if(/^[=+@\-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
+      // Keep original fields and hashes for forensic verification; add readable columns.
       const keys=['id','at','actor_id','actor_role','action','target','outcome','details','ip','previous_hash','entry_hash'];
+      const names=new Map(all('SELECT id,username FROM users')
+        .filter(user=>user.username&&user.username!=='unknown')
+        .map(user=>[user.id,user.username]));
       res.writeHead(200,{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="sbs-owner-audit.csv"','cache-control':'no-store'});
-      res.write(keys.join(',')+'\r\n');
-      for(const row of db.prepare('SELECT * FROM owner_audit_log ORDER BY id').iterate())res.write(keys.map(k=>csvValue(row[k])).join(',')+'\r\n');
+      res.write([...keys,'actor_username','target_display','details_display'].join(',')+'\r\n');
+      for(const row of db.prepare('SELECT * FROM owner_audit_log ORDER BY id').iterate()){
+        const display=readableAuditRows([row],names)[0];
+        const fields=[...keys.map(k=>row[k]),display.actorDisplay,display.targetDisplay,display.detailsDisplay];
+        res.write(fields.map(csvValue).join(',')+'\r\n');
+      }
       res.end();return;
     }
     if(pathname==='/owner/owners'&&req.method==='GET'){
       await authorize('owner');if(ctx.user.id!==ctx.guild.owner_id)forbidden('Only the verified Discord server owner may change co-owner access.');
-      logAction(ctx,'owner.access.view','coowners');return html(view.owners(ctx,{owners:all('SELECT * FROM owner_allowlist ORDER BY created_at DESC')}));
+      return html(view.owners(ctx,{owners:all('SELECT oa.*,u.username,u.display_name FROM owner_allowlist oa LEFT JOIN users u ON u.id=oa.user_id ORDER BY oa.created_at DESC')}));
     }
     if(pathname==='/owner/owners'&&req.method==='POST'){
       await authorize('owner');if(ctx.user.id!==ctx.guild.owner_id)forbidden('Only the verified Discord server owner can grant owner access.');
