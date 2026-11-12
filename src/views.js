@@ -172,8 +172,11 @@ const ids=new Set(manageable.map(r=>r.id));return shell(ctx,'Admin Settings',`${
 <div class="admin-grid"><section class="panel padded"><h2>Open / close applications</h2><p class="muted">Currently ${open?'open':'closed'} for submissions.</p><form method="post" action="/admin/settings/open">${token(ctx)}<button name="open" value="${open?'false':'true'}" class="btn ${open?'btn-danger':'btn-primary'}">${open?'Close applications':'Open applications'}</button></form></section>
 <section class="panel padded"><h2>Accepted application → Discord role</h2><p class="muted tiny">Choose the role to grant for each position. Only safe assignable roles appear. If not mapped, an exact, case-insensitive role-name match is attempted.</p><form method="post" action="/admin/settings/mapping">${token(ctx)}${ctx.config.applicationRoles.map(position=>`<label>${esc(position)}<select name="map_${attr(position)}"><option value="">Auto-detect by role name</option>${roles.filter(r=>ids.has(r.id)).map(r=>`<option value="${attr(r.id)}" ${roleMap[position]===r.id?'selected':''}>${esc(r.name)} (${r.id})</option>`).join('')}</select></label>`).join('')}<button class="btn btn-primary">Save role mappings</button></form></section></div>
 ${ctx.role==='owner'?`<section class="panel padded owner-settings-box"><h2>Discord staff webhook</h2>
-<p class="muted">Test the staff-only Discord webhook without sending an @here ping. New applications and applicant replies use @here (with cooldown).</p>
-<form method="post" action="/admin/settings/webhook/test">${token(ctx)}<button class="btn btn-outline">Test Webhook →</button></form>
+<p class="muted">Send a no-ping test to each configured Discord channel. The general staff channel uses @here for new tickets; confidential Staff Reports use separate admin or owner channels.</p>
+<form method="post" action="/admin/settings/webhook/test">${token(ctx)}<div class="actions">
+<button class="btn btn-outline btn-sm" name="target" value="default">Test Staff Webhook →</button>
+<button class="btn btn-outline btn-sm" name="target" value="adminReport">Test Admin Reports →</button>
+<button class="btn btn-outline btn-sm" name="target" value="ownerReport">Test Owner Reports →</button></div></form>
 <p class="muted tiny">Designated final approver: ${ctx.config.finalApproverId?esc(ctx.config.finalApproverId):'Not configured (FINAL_APPROVER_USER_ID)'}</p>
 </section>`:''}`);
 }
