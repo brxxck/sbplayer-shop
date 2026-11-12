@@ -520,8 +520,10 @@
 .evidence-viewer-heading b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .evidence-viewer-heading small{font-size:11px;color:#9bb6d5}
 .evidence-viewer-stage{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;min-height:180px;height:min(69dvh,720px);min-width:0;background:#040e1c;align-items:center}
-.evidence-viewer-media{display:flex;align-items:center;justify-content:center;min-width:0;height:100%;width:100%;overflow:auto;overscroll-behavior:contain}
-.evidence-lightbox-item{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;transition:transform .12s ease;transform-origin:center center}
+.evidence-viewer-media{display:block;min-width:0;height:100%;width:100%;overflow:auto;overscroll-behavior:contain}
+.evidence-viewer-media img{display:block;margin-left:auto;margin-right:auto}
+.evidence-viewer-media.is-video{display:flex;align-items:center;justify-content:center}
+.evidence-lightbox-item{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 .evidence-viewer-media video{width:100%;max-width:min(100%,980px);height:auto;max-height:100%;background:#000}
 .evidence-viewer-icon{display:inline-grid;place-items:center;flex:none;width:35px;height:35px;border:1px solid #31547c;background:#163657;color:#b4d5ff;border-radius:9px;cursor:pointer}
 .evidence-viewer-icon:hover:not(:disabled),.evidence-viewer-icon:focus-visible{background:#255b93;color:white;border-color:#69b0ff}
