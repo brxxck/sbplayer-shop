@@ -81,6 +81,10 @@ function manager(ctx,data){
 }
 export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
  const admin=['owner','admin'].includes(ctx.role),restricted=ctx.role==='appeal-only';
+ if(restricted)return '<div class="mega-dashboard"><section class="mega-hero panel"><h2>SBsxScam MegaSMP Team</h2>'+
+  '<p>Team bank records and individual contributions are available to verified Discord server members.</p>'+
+  '<a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="'+attr(data.teamUrl)+'">'+icon('external-link',{size:17})+' View public InPvP team page</a></section>'+
+  discordRoster(discordGroups,true)+'</div>';
  const full=data.members.filter(m=>m.status==='active');
  const sourceUpdated=data.sync.last_source_at||0;
  const stale=syncEnabled&&sourceUpdated&&(Date.now()-sourceUpdated>15*60000);
