@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.5
+# SB's & Cam's Store — Community Portal V1.3.6
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.6 — SBs x Scam Team Members and red [SBs] name tag
+
+- The top navigation on **Team Members** now appears in this exact order: **Our Staff → Team Members → Known Members**. The first keeps the existing store-staff groups, and the third keeps the Mega SMP Staff and Prison Staff subtabs.
+- The new **Team Members** tab is labelled **SBs x Scam** inside the page and finds members from two exact Discord role IDs:
+  - **SBs Team Leader:** \`1557586028729077841\`
+  - **SBs Team Member:** \`1565070132676661439\`
+- Team Members are grouped into **SBs Team Leaders** and **SBs Team Members**. If someone has both roles, they appear once under Team Leaders; if they also genuinely belong to store staff or a Known Members group, they remain visible in those other tabs.
+- **[SBs]** is displayed in **red immediately after the display name** on team directory cards and member profiles for users who **actually have the SBs Team Member role**. A leader who doesn't also hold the member role does not receive the tag. This badge is derived from verified Discord role membership, not editable profile text.
+- A member having only an SBs role is not treated as a store staff member solely because of that role. Badge visibility respects existing private profile permissions.
+- **Safe Railway deployment:** no database migrations, no new variables, no role changes and no volume reset. Keep your existing \`sbplayer-shop\` service, \`/app/data\` volume and \`DB_PATH=/app/data/app.sqlite\`. Back up your volume first, deploy the latest tested GitHub \`main\` commit, then verify \`https://sbstore.info/health\` returns \`"version":"1.3.6"\` and open \`https://sbstore.info/team?tab=sbs\`. The bot needs Guild Members Intent for a complete member list.
 
 ## V1.3.5 — Discord roles on every member profile
 
