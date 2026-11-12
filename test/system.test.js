@@ -7,7 +7,7 @@ import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012'};
 const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
-Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
+Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
 const {config}=await import('../src/config.js');
