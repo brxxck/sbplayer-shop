@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.6
+# SB's & Cam's Store — Community Portal V1.3.7
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.7 — Mega Staff Trusted directory fix and cleaner heading
+
+- **Mega Smp Staff Trusted** (including equivalent Mega SMP / Mega Staff Trusted spellings) is classified as an **external Mega SMP staff role**, not as SB Store staff.
+- Users holding only a Mega SMP Staff / Staff Trusted role (or one plus an SBs Team Member/Leader role) **do not appear under Our Staff**. They appear under **Known Members → Mega SMP Staff** instead.
+- Users with both a legitimate store-staff role and an external Mega SMP Staff Trusted role still appear under **Our Staff** with their actual store-staff title, and in the Mega SMP known-members list.
+- The explanatory text **“Automatically detected from N Discord server roles.”** beneath the **Meet our team** heading has been removed. The directories remain automatically populated from verified Discord member roles.
+- Existing tab order remains **Our Staff → Team Members → Known Members**, with SBs x Scam and Prison Staff grouping unchanged.
+- **Safe Railway deployment:** no database changes, schema updates or new variables. Keep the existing \`sbplayer-shop\` service and \`/app/data\` volume. Back up first, deploy the tested \`main\` branch, then confirm \`https://sbstore.info/health\` reports \`"version":"1.3.7"\`.
 
 ## V1.3.6 — SBs x Scam Team Members and red [SBs] name tag
 
