@@ -75,7 +75,9 @@ export function megaDashboard(requestedSeason=activeMegaSeason()){
  // A captured bank balance is independent of cumulative contributions.
  // Preserve cents from the source and prefer a newer captured observation.
  const capturedBalance=browser.bank&&Number.isSafeInteger(browser.bank.balanceCents)?
-  {balance:browser.bank.balanceCents/100,as_of:browser.bank.observedAt,source:'browser_capture'}:null;
+  {balance:browser.bank.balanceCents/100,as_of:browser.bank.observedAt,
+   source:browser.bank.approximate===1?'browser_capture_approx':'browser_capture',
+   reportedText:browser.bank.reportedText||null}:null;
  const deposits=safeSubtotal('deposits'),withdrawals=safeSubtotal('withdrawals');
  const recordedBank=one('SELECT balance,as_of,source FROM mega_team_bank_snapshots WHERE season=? ORDER BY as_of DESC,id DESC LIMIT 1',season.season);
  const bank=capturedBalance&&(!recordedBank||capturedBalance.as_of>recordedBank.as_of)?capturedBalance:recordedBank;
