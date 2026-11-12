@@ -13,6 +13,8 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as view from './views.js';
+import * as microsoftView from './owner-microsoft-views.js';
+import {createOwnerMicrosoftAuth} from './owner-microsoft.js';
 import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
@@ -153,6 +155,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
   const megaSync=createMegaTeamSync();
   const megaBrowser=createMegaBrowserRunner();
+  const microsoftAuth=createOwnerMicrosoftAuth({baseUrl:config.baseUrl});
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
   // Resolve historical IDs on read without changing the signed hash-chain records.
   // Local users are preferred; limited external lookups are cached to protect API quotas.
@@ -319,6 +322,58 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 
     // All routes below this point are server-member-only.
     await member();
+
+    // Private Microsoft Graph OAuth utility: no public navigation or persistent tokens.
+    // Callback must be processed before the generic server-member routes.
+    if(pathname==='/owner/microsoft/callback'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.callback',15,3600000);
+      const state=String(url.searchParams.get('state')||'');
+      const code=String(url.searchParams.get('code')||'');
+      const error=String(url.searchParams.get('error')||'');
+      const completed=await microsoftAuth.complete({
+        state,code,error,sessionKey:ctx.session.token_hash,userId:ctx.user.id
+      });
+      logAction(ctx,completed.cancelled?'owner.microsoft.cancel':'owner.microsoft.connect',
+        'microsoft-graph',{result:completed.cancelled?'cancelled':'connected'});
+      return redirect(res,urlWithNotice('/owner/microsoft',completed.cancelled?
+        'Microsoft sign-in cancelled.':'Microsoft Graph access token obtained.'));
+    }
+    if(pathname==='/owner/microsoft'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.read',40,60000);
+      return html(microsoftView.ownerMicrosoftPage(ctx,{
+        ...microsoftAuth.status(ctx.session.token_hash,ctx.user.id),
+        redirectUri:microsoftAuth.redirectUri
+      }));
+    }
+    if(pathname==='/owner/microsoft/start'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.start',5,3600000);
+      await form();
+      if(!microsoftAuth.configured)
+        return warn('/owner/microsoft','Microsoft app registration is not configured.');
+      const target=microsoftAuth.begin(ctx.session.token_hash,ctx.user.id);
+      logAction(ctx,'owner.microsoft.start','microsoft-graph');
+      return redirect(res,target);
+    }
+    if(pathname==='/owner/microsoft/reveal'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.reveal',5,3600000);
+      await form();
+      const token=microsoftAuth.reveal(ctx.session.token_hash,ctx.user.id);
+      if(!token)return warn('/owner/microsoft','Token expired or already revealed. Sign in again.');
+      logAction(ctx,'owner.microsoft.reveal','microsoft-graph',{result:'one-time'});
+      return html(microsoftView.ownerMicrosoftTokenPage(ctx,token));
+    }
+    if(pathname==='/owner/microsoft/forget'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'owner.microsoft.forget',12,3600000);
+      await form();
+      microsoftAuth.forget(ctx.session.token_hash,ctx.user.id);
+      logAction(ctx,'owner.microsoft.forget','microsoft-graph');
+      return success('/owner/microsoft','Local Microsoft authorization cleared.');
+    }
 
     // V1.5: an obvious canonical entry to each user's own public or private profile.
     if(pathname==='/profile'&&req.method==='GET')return redirect(res,'/u/'+ctx.user.id);
