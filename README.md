@@ -1,7 +1,17 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.2
+# SB's & Cam's Store — Community Portal V1.7.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.3 — Event Log parent navigation and missing-data diagnostics
+
+- After opening the configured SBsxScam team URL, the collector first checks for Bank, then attempts the **Event Log** parent view (tab, button, link or visible label), then finds the Bank sub-tab. It allows bounded client-side loading delays before deciding the tab is missing.
+- If Bank Event Log rows are already visible, the collector can read them without clicking an unnecessary tab; it does not bypass sign-in, CAPTCHA, consent or site restrictions.
+- A missing tab now produces an actionable, privacy-safe reason distinguishing an unavailable team detail page from a visible but unrecognized Event Log/Bank UI. No page contents, cookies or user credentials are logged.
+- Roster and balance observations from before/after the tab switch are preserved where available; the existing captured transaction ledger and all other website data are unchanged.
+- Added automated tests for parent-to-child navigation, already-selected parent controls and missing detail page diagnostics.
+
+**Operational note:** Actual InPvP Bank Event Log structure and session requirements remain unverified from this environment. If the next Railway log reports that the team detail view is unavailable, the collector cannot create transactions from an empty page; the authenticated browser profile and/or real page markup must be inspected. Existing `MEGA_TEAM_BROWSER_*` and Dockerfile variables remain unchanged.
 
 ## V1.7.2 — Bank tab interaction timeout fix
 
