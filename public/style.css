@@ -549,3 +549,82 @@
 @media(prefers-reduced-motion:reduce){
  .evidence-thumb img,.evidence-lightbox-item{transition:none}
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.6 MegaSMP Team Dashboard: responsive roster, verified data coverage, financial records. */
+.mega-dashboard{display:grid;gap:20px;min-width:0;padding-bottom:45px}
+.mega-hero{padding:25px 27px;border:1px solid #2c5481;background:linear-gradient(115deg,#102f50,#091b34 68%)}
+.mega-hero-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.mega-hero-heading .eyebrow{display:flex;gap:7px;align-items:center;color:#81bdff;font-size:11px}
+.mega-hero h2{font-size:clamp(23px,3.8vw,36px);letter-spacing:-.04em;margin:8px 0}
+.mega-hero h2 span{color:#78b9ff}
+.mega-hero p{margin:0;font-size:12px;color:#acbfd5;max-width:620px;line-height:1.6}
+.mega-hero .btn{white-space:normal;text-align:center}
+.mega-status-line{display:flex;gap:9px 20px;flex-wrap:wrap;padding:14px 0 11px;margin-top:16px;border-top:1px solid #2c4e77;font-size:11px;color:#a8d2ff}
+.mega-hero .mega-disclaimer{font-size:11px;color:#8ca3be}
+.mega-toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;justify-content:space-between}
+.mega-season-select{display:flex;align-items:end;gap:9px}
+.mega-season-select label{display:grid;gap:6px;margin:0;font-size:11px;color:#9fb8d4;font-weight:700}
+.mega-season-select select{max-width:300px;min-width:150px;background:#0d2747;color:#e4f0ff;border:1px solid #356596;padding:10px;border-radius:9px}
+.mega-muted{font-size:11px;color:#87a9cc}
+.mega-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.mega-stat{padding:19px 17px;min-width:0;display:flex;flex-direction:column;gap:10px;background:linear-gradient(145deg,#0f2848,#0b1b33)}
+.mega-stat-label{display:flex;align-items:center;gap:8px;font-size:11px;color:#aac9ef;font-weight:750}
+.mega-stat-label .lucide-icon{color:#66adff}
+.mega-stat strong{font-size:clamp(21px,2.4vw,31px);font-weight:850;letter-spacing:-.04em;color:#eef7ff;overflow-wrap:anywhere}
+.mega-stat small{font-size:10px;color:#82a1c4;line-height:1.5}
+.mega-coverage{display:flex;align-items:center;gap:9px;border:1px solid #31577d;background:#0b2540;border-radius:9px;padding:11px 14px;color:#9cc6f4;font-size:11px}
+.mega-section-links{display:flex;gap:9px;flex-wrap:wrap;padding-bottom:13px;border-bottom:1px solid #244565}
+.mega-section-links a{border:1px solid #36577e;background:#0d2747;border-radius:8px;padding:10px 14px;color:#aed0f2;font-size:12px;font-weight:750}
+.mega-section-links a:hover,.mega-section-links a:focus-visible{background:#174f87;color:#fff}
+.mega-section{display:grid;gap:13px;scroll-margin-top:80px}
+.mega-section-head{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.mega-section-head h3{font-size:19px;margin:0 0 5px;color:#eff7ff}
+.mega-section-head p{font-size:11px;color:#94abc7;line-height:1.5;margin:0}
+.mega-source-badge{font-size:10px;font-weight:750;border:1px solid #3c6d9c;color:#9dcaff;background:#0d2a4d;border-radius:99px;padding:6px 10px}
+.mega-table{width:100%;min-width:590px}
+.mega-table th{white-space:nowrap;font-size:10px}
+.mega-table td{vertical-align:middle;font-size:12px}
+.mega-table td small{display:block;color:#809fbc;font-size:10px;margin-top:4px}
+.mega-table tr:last-child td{border-bottom:0}
+.mega-number{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.mega-player{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap}
+.mega-player .lucide-icon{color:#80b8ff}
+.mega-unknown{color:#7892af;font-size:11px;font-style:italic}
+.mega-former{background:#263243;color:#c1cad4;font-size:9px;padding:3px 6px;border-radius:5px}
+.mega-rank{font-weight:850;color:#6cb5ff}
+.mega-deposit{color:#67dbb5;font-weight:750}
+.mega-withdrawal{color:#ffb881;font-weight:750}
+.mega-discord-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:9px}
+.mega-discord-member{display:flex;align-items:center;gap:10px;min-width:0;padding:12px 14px;background:#0e2742;border:1px solid #305273;border-radius:10px}
+.mega-discord-member:hover{background:#173c63;border-color:#4893de}
+.mega-discord-member span{display:grid;min-width:0;gap:3px}
+.mega-discord-member b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mega-discord-member small{font-size:10px;color:#8daaca}
+.mega-manager{border-top:1px solid #345579;padding-top:20px}
+.mega-manager-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.mega-manager-grid form,.mega-season-form{display:grid;gap:12px;align-content:start}
+.mega-manager-grid form h4,.mega-season-form h4{margin:0 0 4px;font-size:14px}
+.mega-manager-grid form label,.mega-season-form label{display:grid;gap:6px;font-size:11px;color:#bad5ef;font-weight:700}
+.mega-manager-grid input,.mega-manager-grid select,.mega-manager-grid textarea,.mega-season-form input,.mega-import textarea{width:100%;background:#081b31;border:1px solid #365879;border-radius:8px;color:#f1f6ff;padding:10px}
+.mega-manager-grid .btn{align-self:end;justify-self:start}
+.mega-import{margin-top:5px;max-width:960px}
+.mega-import summary{font-size:13px;font-weight:750;color:#a6cdfb;cursor:pointer}
+.mega-import form{display:grid;gap:10px;padding:13px 0 0}
+.mega-import form label{display:grid;gap:5px}
+.mega-import textarea{font-family:ui-monospace,Consolas,monospace;font-size:11px}
+@media(max-width:1150px){
+ .mega-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .mega-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:650px){
+ .mega-hero{padding:18px}
+ .mega-stats,.mega-manager-grid{grid-template-columns:1fr}
+ .mega-toolbar{align-items:stretch}
+ .mega-season-select,.mega-season-select label,.mega-season-select select{width:100%;max-width:none}
+ .mega-section-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .mega-section-links a{padding:9px;text-align:center}
+ .mega-stat{padding:15px}
+ .mega-discord-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
+}
