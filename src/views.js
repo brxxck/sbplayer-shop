@@ -1,6 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {discordAvatar} from './discord.js';
 import {safeHttpUrl} from './logic.js';
+import {icon,navigationIcon} from './icons.js';
 export const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attr=esc;
 const lines=v=>esc(v).replace(/\n/g,'<br>');
@@ -11,13 +12,13 @@ const assetVersion = '1.5.0-social-hub';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
-  const px={sm:32,side:40,md:43,lg:64,xl:83,xxl:106}[size]||43;
+  const px={sm:32,side:40,md:43,menu:56,lg:64,xl:83,xxl:106}[size]||43;
   // Explicit HTML dimensions and inline fallbacks keep images small even if a browser delays loading CSS.
   return `<img class="avatar ${size}" src="${attr(source)}" alt="Avatar of ${attr(name(u))}" width="${px}" height="${px}" style="width:${px}px;height:${px}px;min-width:${px}px;max-width:${px}px;max-height:${px}px;object-fit:cover;border-radius:50%" loading="lazy" decoding="async">`;
 }
 export function tag(status) {return `<span class="pill pill-${attr(status||'pending')}">${esc(String(status||'pending').replaceAll('_',' '))}</span>`;}
 export const token=(ctx)=>`<input type="hidden" name="_csrf" value="${attr(ctx.csrf)}">`;
-const navLink=(link,label,icon,ctx)=>`<a class="nav-link ${ctx.pathname===link||ctx.pathname.startsWith(link+'/')?'active':''}" href="${link}"><span class="nav-icon">${icon}</span><span>${label}</span></a>`;
+const navLink=(link,label,icon,ctx)=>`<a class="nav-link ${ctx.pathname===link||ctx.pathname.startsWith(link+'/')?'active':''}" href="${link}"><span class="nav-icon">${navigationIcon(link)}</span><span>${label}</span></a>`;
 
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // Public, non-sensitive Discord previews. Do not include private ticket details.
@@ -83,46 +84,47 @@ function socialHeaderAccount(ctx){
   const u=ctx.user;
   if(!u)return '<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>';
   const profileUrl=ctx.role==='appeal-only'?'/':'/profile';
-  const identity='<a class="account-profile-link" href="'+profileUrl+'" aria-label="View my profile">'+avatar(u,'sm')+
+  const accountUser={...u,avatar_path:ctx.profileAvatarPath||u.avatar_path||''};
+  const identity='<a class="account-profile-link" href="'+profileUrl+'" aria-label="View my profile">'+avatar(accountUser,'sm',true)+
     '<span class="account-name"><b>'+esc(u.display_name)+'</b><small>@'+esc(u.username)+'</small></span></a>';
   const signOut='<form method="post" action="/auth/logout">'+token(ctx)+
-    '<button type="submit" class="account-menu-logout">↪ Sign out</button></form>';
+    '<button type="submit" class="account-menu-logout">'+icon('log-out',{size:18})+' Sign out</button></form>';
   if(ctx.role==='appeal-only')return identity+'<form method="post" action="/auth/logout">'+token(ctx)+
     '<button class="btn btn-quiet btn-xs" type="submit">Log out</button></form>';
   const unread=Math.max(0,Number(ctx.notificationCount)||0);
   const number=unread>99?'99+':String(unread);
   const quick=[
-    ['feed','/feed','◉','Main Feed'],
-    ['members','/members','♧','Find Members'],
-    ['notifications','/notifications','♢','Notifications'],
-    ['saved','/saved','▤','Saved Posts']
-  ].map(([key,url,icon,label])=>
+    ['feed','/feed','newspaper','Main Feed'],
+    ['members','/members','user-round-search','Find Members'],
+    ['notifications','/notifications','bell','Notifications'],
+    ['saved','/saved','bookmark','Saved Posts']
+  ].map(([key,url,iconName,label])=>
     '<a class="top-social-link top-social-'+key+'" href="'+url+'" aria-label="'+label+
     (key==='notifications'&&unread?' ('+unread+' unread)':'')+'" title="'+label+'">'+
-    '<span class="top-social-symbol" aria-hidden="true">'+icon+'</span>'+
+    '<span class="top-social-symbol" aria-hidden="true">'+icon(iconName,{size:19})+'</span>'+
     (key==='notifications'&&unread?'<span class="top-social-badge">'+number+'</span>':'')+
     '</a>').join('');
   const own='/u/'+attr(u.id);
-  const menuLink=(href,icon,label)=>'<a href="'+href+'"><span aria-hidden="true">'+icon+'</span><span>'+label+'</span></a>';
+  const menuLink=(href,iconName,label)=>'<a href="'+href+'"><span class="menu-action-icon" aria-hidden="true">'+icon(iconName,{size:19})+'</span><span>'+label+'</span></a>';
   const accountMenu='<details class="top-account-dropdown" data-account-dropdown>'+
-    '<summary title="Open your profile menu" aria-label="Open your profile menu">⌄</summary>'+
+    '<summary title="Open your profile menu" aria-label="Open your profile menu">'+icon('chevron-down',{size:19})+'</summary>'+
     '<div class="top-account-menu">'+
-      '<div class="top-account-menu-head"><b>'+esc(u.display_name)+'</b><small>@'+esc(u.username)+'</small></div>'+
+      '<div class="top-account-menu-head"><a class="top-account-menu-avatar" href="/profile" aria-label="View my profile">'+avatar(accountUser,'menu',true)+'</a><div class="top-account-menu-identity"><b>'+esc(u.display_name)+'</b><small>@'+esc(u.username)+'</small><span class="top-account-menu-linked">'+icon('badge-check',{size:14})+' Discord linked</span></div></div>'+
       '<div class="top-account-menu-label">MY PROFILE</div>'+
-      menuLink('/profile','◉','View My Profile')+
-      menuLink('/profile/edit','✎','Edit Profile')+
-      menuLink(own+'?tab=posts','▣','My Posts')+
-      menuLink(own+'?tab=replies','♧','My Replies')+
-      menuLink(own+'?tab=media','▧','My Photos')+
-      menuLink(own+'?tab=likes','♥','Liked Posts')+
-      menuLink(own+'/followers','♧','Followers')+
-      menuLink(own+'/following','◌','Following')+
+      menuLink('/profile','circle-user-round','View My Profile')+
+      menuLink('/profile/edit','user-round-pen','Edit Profile')+
+      menuLink(own+'?tab=posts','file-text','My Posts')+
+      menuLink(own+'?tab=replies','message-circle-reply','My Replies')+
+      menuLink(own+'?tab=media','images','My Photos')+
+      menuLink(own+'?tab=likes','heart','Liked Posts')+
+      menuLink(own+'/followers','users-round','Followers')+
+      menuLink(own+'/following','user-round-check','Following')+
       '<div class="top-account-menu-label">COMMUNITY</div>'+
-      menuLink('/feed','◉','Main Feed')+
-      menuLink('/feed?tab=following','↗','Following Feed')+
-      menuLink('/notifications','♢',unread?'Notifications · '+number+' new':'Notifications')+
-      menuLink('/saved','▤','Saved Posts')+
-      menuLink('/members','♧','Find Members')+
+      menuLink('/feed','newspaper','Main Feed')+
+      menuLink('/feed?tab=following','rss','Following Feed')+
+      menuLink('/notifications','bell',unread?'Notifications · '+number+' new':'Notifications')+
+      menuLink('/saved','bookmark','Saved Posts')+
+      menuLink('/members','user-round-search','Find Members')+
       '<div class="top-account-menu-signout">'+signOut+'</div>'+
     '</div></details>';
   return '<nav class="top-social-shortcuts" aria-label="Social quick links">'+quick+'</nav>'+identity+accountMenu;
