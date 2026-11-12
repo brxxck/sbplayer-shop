@@ -197,11 +197,11 @@ export async function megaCollectorPageDiagnostics(page){
 async function teamPageSignals(page){
  const snapshot=await megaCollectorPageDiagnostics(page);
  return {
-  team:!!snapshot.team,events:!!snapshot.bodyEventLog,
+  team:!!snapshot.team,events:!!(snapshot.bodyEventLog??snapshot.events),
   bank:!!snapshot.bankControls||!!snapshot.balance,
   members:!!snapshot.members,balance:!!snapshot.balance,
   signin:!!snapshot.loginPrompt,verification:!!snapshot.verification,
-  directory:!!snapshot.team||!!snapshot.members
+  directory:!!snapshot.directory||!!snapshot.team||!!snapshot.members
  };
 }
 
