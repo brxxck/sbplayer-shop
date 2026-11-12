@@ -12,7 +12,8 @@ const roles={admin:'260000000000000001',reviewer:'260000000000000002'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(tmp,'new.sqlite'),DISCORD_CLIENT_ID:'160000000000000011',
  DISCORD_CLIENT_SECRET:'fixture',DISCORD_BOT_TOKEN:'fixture',DISCORD_GUILD_ID:ids.guild,
  ADMIN_ROLE_IDS:roles.admin,REVIEWER_ROLE_IDS:roles.reviewer,FINAL_APPROVER_USER_ID:ids.owner,
- APPLICATION_ROLES:'Helper,Moderator'});
+ APPLICATION_ROLES:'Helper,Moderator',DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',
+   DISCORD_ADMIN_REPORT_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',DISCORD_OWNER_REPORT_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef'});
 const {createServer}=await import('../src/server.js');
 const {db,one,all}=await import('../src/db.js');
 const {config}=await import('../src/config.js');
