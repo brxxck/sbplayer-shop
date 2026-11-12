@@ -840,13 +840,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap}));
     }
     if(pathname==='/admin/settings/webhook/test'&&req.method==='POST'){
-      await authorize('owner');rate(ctx,'webhook.test',3,600000);
-      await form();
+      await authorize('owner');rate(ctx,'webhook.test',5,600000);
+      const {fields}=await form();
+      const target=String(fields.target||'default');
+      if(!['default','adminReport','ownerReport'].includes(target))invalid('Unknown webhook destination.');
+      const configured=target==='adminReport'?!!config.adminReportWebhook:target==='ownerReport'?!!config.ownerReportWebhook:!!config.webhook;
+      if(!configured)return warn('/admin/settings','That webhook is not configured in Railway Variables.');
       const delivered=await discord.notify({title:'SB Store Webhook Test',
-        description:'Manual webhook test from the owner settings. No staff ping was sent.',
-        fields:[{name:'Triggered by Discord user ID',value:ctx.user.id},{name:'Website',value:config.baseUrl}]});
-      logAction(ctx,'settings.webhook.test','discord.webhook',{delivered});
-      return delivered?success('/admin/settings','Webhook test delivered to the staff channel.'):warn('/admin/settings','Webhook test failed. Check DISCORD_WEBHOOK_URL and Railway logs.');
+        description:'Manual test of the '+(target==='default'?'staff':target==='adminReport'?'admin report':'owner report')+' channel. No @here ping was sent.',
+        fields:[{name:'Triggered by Discord user ID',value:ctx.user.id},{name:'Website',value:config.baseUrl}],
+        target,pingHere:false});
+      logAction(ctx,'settings.webhook.test','discord.webhook',{target,delivered});
+      return delivered?success('/admin/settings','Webhook test delivered successfully.'):warn('/admin/settings','Webhook test failed. Check the webhook URL and Railway logs.');
     }
     if(pathname==='/admin/settings/open'&&req.method==='POST'){
       await authorize('admin');rate(ctx,'settings',20,3600000);const {fields}=await form();
