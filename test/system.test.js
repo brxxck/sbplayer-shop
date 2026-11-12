@@ -72,9 +72,9 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/members?q=mem','member')).status,200);
 });
 
-test('Meet the Team keeps store staff and Known Members separates Mega SMP / Prison tabs',async()=>{
+test('Our Staff keeps actual store staff and Known Members separates Mega SMP / Prison tabs',async()=>{
   const team=await (await get('/team','member')).text();
-  assert.ok(team.includes('Meet the Team'));
+  assert.ok(team.includes('Our Staff'));
   assert.ok(team.includes('Known Members'));
   assert.ok(team.includes('href="/team?tab=known"'));
   assert.ok(team.includes('Other Staff'));
@@ -142,11 +142,12 @@ test('private profiles do not expose role badges to other members, but owners se
 
 test('Our Staff, Team Members, Known Members render in requested order with exact team-role membership',async()=>{
   const page=await (await get('/team','member')).text();
-  assert.ok(page.includes('>Our Staff</span>'));
-  assert.ok(page.includes('>Team Members</span>'));
-  assert.ok(page.includes('>Known Members</span>'));
-  assert.ok(page.indexOf('>Our Staff</span>')<page.indexOf('>Team Members</span>'));
-  assert.ok(page.indexOf('>Team Members</span>')<page.indexOf('>Known Members</span>'));
+  const nav=page.split('<nav class="team-directory-tabs"')[1]?.split('</nav>')[0]||'';
+  assert.ok(nav.includes('>Our Staff</span>'));
+  assert.ok(nav.includes('>Team Members</span>'));
+  assert.ok(nav.includes('>Known Members</span>'));
+  assert.ok(nav.indexOf('>Our Staff</span>')<nav.indexOf('>Team Members</span>'));
+  assert.ok(nav.indexOf('>Team Members</span>')<nav.indexOf('>Known Members</span>'));
   assert.ok(page.includes('href="/team?tab=sbs"'));
   assert.ok(page.includes('href="/team?tab=known"'));
   assert.ok(!page.includes('href="/u/'+ids.member2+'"'),'SBs-only role does not make a store staff member');
