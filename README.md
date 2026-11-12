@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.3
+# SB's & Cam's Store — Community Portal V1.3.4
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.4 — Known Members tab on Meet the Team
+
+- **Meet the Team** now has two main tabs: **Meet the Team** for SB Store team members and **Known Members** for external-community staff recognised by their Discord roles.
+- **Known Members** contains two category tabs: **Mega SMP Staff** and **Prison Staff**, automatically populated from matching Discord role names (`Mega Smp Staff`, `Mega SMP Staff`, or `Prison Staff`, case and punctuation insensitive).
+- A member whose *only* qualifying staff role is Mega SMP or Prison Staff is **not incorrectly listed as Other Staff** for the store. If someone is also real store staff (admin, moderator, helper, or store-team role), they stay in the core Meet the Team section and also show in the matching Known Members tab.
+- A person holding both external roles appears in both Known Members categories, once per category. Buttons and counts work on mobile and desktop, with active section indicated for keyboard and screen-reader users.
+- The page continues using Discord role membership already queried by the site; **no new environment variables, role IDs, or database schema changes** are needed. The bot still needs **Server Members Intent** to retrieve the full server member list.
+- **Safe deployment:** Keep your existing Railway `sbplayer-shop` service, `/app/data` volume, and `DB_PATH=/app/data/app.sqlite`. Back up the volume before deployment, then deploy the latest GitHub `main` commit. Verify `https://sbstore.info/health` returns `"version":"1.3.4"` and open **Team Members → Known Members → Mega SMP Staff / Prison Staff**.
 
 ## V1.3.3 — Branded Discord link previews
 
