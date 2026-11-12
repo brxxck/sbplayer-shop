@@ -127,7 +127,7 @@ test('admins can open ordinary tickets with Discord Administrator permission eve
  const confidentialId=createSupportTicket({
    userId:ids.member,category:'staff_report',
    fields:{staff_username:'admina',description:'This report remains restricted to the server owner.'},
-   reportedId:ids.adminA,visibility:'owner',role:'member',ip:'127.0.0.1'
+   reportedId:ids.owner,visibility:'owner',role:'member',ip:'127.0.0.1'
  });
  try{
    // A name that looks like "Administrator" is NOT authority for support access.
