@@ -1,13 +1,14 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {shell,esc,token,avatar,tag,titlebar} from './views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,ticketFields} from './support.js';
+import {icon} from './icons.js';
 
 const types=[
- {id:'bug_report',label:'Bug Report',desc:'Report a website or community bug',icon:'◈',tone:'green'},
- {id:'player_report',label:'Player Report',desc:'Report rule-breaking behaviour',icon:'♧',tone:'amber'},
- {id:'reward_claim',label:'Reward Claim',desc:'Claim a prize or reward',icon:'♛',tone:'violet'},
- {id:'staff_report',label:'Staff Report',desc:'Confidential complaint to management',icon:'⬡',tone:'red'},
- {id:'ban_appeal',label:'Ban Appeal',desc:'Appeal a Minecraft ban or mute',icon:'⊘',tone:'red'}
+ {id:'bug_report',label:'Bug Report',desc:'Report a website or community bug',icon:'bug',tone:'green'},
+ {id:'player_report',label:'Player Report',desc:'Report rule-breaking behaviour',icon:'flag',tone:'amber'},
+ {id:'reward_claim',label:'Reward Claim',desc:'Claim a prize or reward',icon:'gift',tone:'violet'},
+ {id:'staff_report',label:'Staff Report',desc:'Confidential complaint to management',icon:'shield-ban',tone:'red'},
+ {id:'ban_appeal',label:'Ban Appeal',desc:'Appeal a Minecraft ban or mute',icon:'scale',tone:'red'}
 ];
 const date=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const val=v=>esc(v??'');
@@ -20,10 +21,10 @@ const field=(name,label,{placeholder='',help='',required=true,multiline=false}={
 export function chooseTicket(ctx){
  return shell(ctx,'Submit a Ticket',`<div class="support-container">
  ${titlebar('CONTACT SUPPORT','How can we <span class="gradient">help?</span>','Select the category that best describes your issue. Your Discord identity is verified automatically.')}
- <div class="support-picker">${ctx.promotionEligible?'<a class="support-choice tone-violet" href="/promotions/new"><span class="support-choice-icon">♛</span><span class="support-choice-content"><b>Promotion Ticket</b><small>Request a staff promotion</small></span><span class="support-chevron">›</span></a>':''}${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${t.icon}</span>
-  <span class="support-choice-content"><b>${t.label}</b><small>${t.desc}</small></span><span class="support-chevron">›</span></a>`).join('')}</div>
- <a class="support-choice support-view-all" href="/tickets/mine"><span class="support-choice-icon">◷</span>
- <span class="support-choice-content"><b>View My Tickets</b><small>Track your open and resolved tickets</small></span><span class="support-chevron">›</span></a>
+ <div class="support-picker">${ctx.promotionEligible?'<a class="support-choice tone-violet" href="/promotions/new"><span class="support-choice-icon">'+icon('award',{size:22})+'</span><span class="support-choice-content"><b>Promotion Ticket</b><small>Request a staff promotion</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>':''}${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${icon(t.icon,{size:22})}</span>
+  <span class="support-choice-content"><b>${t.label}</b><small>${t.desc}</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>`).join('')}</div>
+ <a class="support-choice support-view-all" href="/tickets/mine"><span class="support-choice-icon">${icon('tickets',{size:22})}</span>
+ <span class="support-choice-content"><b>View My Tickets</b><small>Track your open and resolved tickets</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>
  </div>`);
 }
 export function newTicket(ctx,{category}){
@@ -46,7 +47,7 @@ export function newTicket(ctx,{category}){
  <a class="support-back" href="/tickets/new">← Back</a>
  <form class="support-form panel padded" method="post" enctype="multipart/form-data" action="/tickets/new/${val(category)}">
  ${token(ctx)}<div class="support-category">Category: <b>${definition?.label||''}</b></div>
- <label>Discord Username <span class="verified-discord">✓ Verified via Discord</span>
+ <label>Discord Username <span class="verified-discord">${icon('badge-check',{size:16})} Verified via Discord</span>
  <input value="@${val(ctx.user?.username||'Discord member')}" readonly class="discord-identity"></label>
  ${labels[category]||''}
  <label class="support-upload-label">${evidenceText}
@@ -96,12 +97,12 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  <div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)} · Verified via Discord</small></span></div>
  ${fieldList(ticket)}
- ${initialFiles.length?`<h3>Original evidence</h3><div class="ticket-files">${initialFiles.map(f=>`<a class="ticket-file" href="/tickets/attachments/${f.id}">↧ ${val(f.original_name)} <span>${Math.ceil(f.file_size/1024)} KB</span></a>`).join('')}</div>`:'<p class="muted tiny">No original attachments submitted.</p>'}
+ ${initialFiles.length?`<h3>Original evidence</h3><div class="ticket-files">${initialFiles.map(f=>`<a class="ticket-file" href="/tickets/attachments/${f.id}">${icon('download',{size:16})} ${val(f.original_name)} <span>${Math.ceil(f.file_size/1024)} KB</span></a>`).join('')}</div>`:'<p class="muted tiny">No original attachments submitted.</p>'}
  ${staff?`<form class="ticket-status-form" method="post" action="/staff/tickets/${ticket.id}/status">${token(ctx)}
   <label>Ticket status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
   <button class="btn btn-outline">Update status</button></form>
   ${ticket.status!=='resolved'?`<form method="post" action="/staff/tickets/${ticket.id}/status" class="ticket-resolve-form">${token(ctx)}
-  <button class="btn btn-outline btn-sm" name="status" value="resolved">✓ Mark as resolved</button></form>`:''}`:''}
+  <button class="btn btn-outline btn-sm" name="status" value="resolved">${icon('circle-check',{size:17})} Mark as resolved</button></form>`:''}`:''}
  </section>
  <section class="panel padded ticket-conversation chat-ticket"><div class="panel-heading ticket-heading">
    <div><h2>Ticket conversation</h2><p class="muted tiny">Private messages between you and the support team</p></div>
@@ -119,7 +120,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
       <div class="ticket-compose-actions"><label class="btn btn-outline btn-sm ticket-upload-control">📎 Upload video/pictures
          <input type="file" name="evidence" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm">
       </label><small class="muted">Max 5 files · 12 MB each</small>
-      <button class="btn btn-primary btn-sm" type="submit">Send Reply →</button></div>
+      <button class="btn btn-primary btn-sm" type="submit">${icon('send',{size:17})} Send Reply</button></div>
    </form>
  </section></div></div>`);
 }
