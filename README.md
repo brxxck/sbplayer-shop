@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.4.4
+# SB's & Cam's Store — Community Portal V1.5.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.5.0 — Social Hub and top-right account controls
+
+- **Quick social toolbar beside the profile name:** Feed, Find Members, Notifications (with an unread badge), and Saved Posts. The avatar/name opens the user's own profile, and the adjacent native profile menu exposes Edit Profile, My Posts, Replies, Photos, Liked Posts, Followers, Following, Following Feed, the activity inbox, saved posts, member search, and Sign out. Responsive mobile layout keeps the notifications shortcut and full scrollable menu.
+- **My Profile:** clear desktop/sidebar/mobile access, on both member and staff dashboards. Profile activity tabs include Posts, Replies, Photos and private Liked Posts. Followers/Following counts link to accessible relationship lists; self view remains accessible for private profiles.
+- **Main Feed:** community or Following-only timeline, in-place Like/Repost/Save actions and shareable local post/profile URLs, without resetting scroll. Saved posts are private to their owner.
+- **Activity inbox:** private, per-user notifications for follows, likes, replies, reposts and profile-wall comments, with mark-as-read actions. Prevent rapid toggle spam.
+- **Security and data:** Discord-backed login and membership checks, existing CSRF protection and rate limiting, private profile restrictions and additive SQLite social tables. No existing records are deleted. Role/approval/audit policies remain unchanged.
+- **Deployment:** Deploy tested GitHub main through the existing Railway service, preserving the /app/data volume. Verify /health version 1.5.0 and test Discord OAuth, profiles, notifications and social actions on live accounts.
 
 ## V1.4.4 — Like feed posts without leaving the feed
 

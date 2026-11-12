@@ -17,6 +17,8 @@ import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
 import * as homeView from './home-views.js';
+import * as socialView from './social-views.js';
+import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
 import {createProfileRoleLookup} from './profile-roles.js';
@@ -49,6 +51,17 @@ function setCookie(res,name,value,{maxAge=0}={}) {
 }
 const idFrom=(s)=>{const v=Number(s);return Number.isSafeInteger(v)&&v>0?v:null;};
 const pageNumber=v=>Number.isInteger(Number(v))?Math.max(0,Math.min(100,Number(v))):0;
+function socialReturn(fields,id){
+  if(fields.origin==='saved')return '/saved#post-'+id;
+  if(Object.prototype.hasOwnProperty.call(fields,'feed_page')){
+    const page=pageNumber(fields.feed_page),tab=fields.feed_tab==='following'?'following':'all';
+    const params=new URLSearchParams();
+    if(tab==='following')params.set('tab','following');
+    if(page)params.set('page',String(page));
+    return '/feed'+(params.size?'?'+params:'')+'#post-'+id;
+  }
+  return '/post/'+id;
+}
 const isStaffRole=r=>['reviewer','admin','owner'].includes(r);
 const isAdminRole=r=>['admin','owner'].includes(r);
 const appealRoute=p=>p==='/'||p==='/team'||p==='/tickets/new'||p==='/tickets/mine'||/^\/tickets\/(new\/ban_appeal|\d+(?:\/reply)?|attachments\/\d+)$/.test(p);
@@ -126,7 +139,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
     const url=new URL(req.url||'/','http://localhost');
     const pathname=url.pathname;
-    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
+    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,notificationCount:0,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
     const c=cookies(req.headers.cookie);
     if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
     const html=(content,status=200)=>respond(res,status,content);
@@ -158,6 +171,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
            guildRoles.some(r=>owned.has(r.id)&&['Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
        }catch{ctx.promotionEligible=false;}
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
+      ctx.notificationCount=notificationCount(ctx.user.id);
       // Routine browsing, session refreshes and page loads must not fill the audit.
       // Successful reads of individual private tickets are recorded at their routes.
     }
@@ -175,7 +189,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.4'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.0'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -246,6 +260,25 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     // All routes below this point are server-member-only.
     await member();
 
+    // V1.5: an obvious canonical entry to each user's own public or private profile.
+    if(pathname==='/profile'&&req.method==='GET')return redirect(res,'/u/'+ctx.user.id);
+    if(pathname==='/notifications'&&req.method==='GET')
+      return html(socialView.notifications(ctx,{items:notificationsFor(ctx.user.id)}));
+    if(pathname==='/notifications/read'&&req.method==='POST'){
+      rate(ctx,'social.notifications.read',30,60000);await form();
+      markNotificationsRead(ctx.user.id);
+      return redirect(res,'/notifications');
+    }
+    const notificationMatch=/^\/notifications\/(\d+)\/read$/.exec(pathname);
+    if(notificationMatch&&req.method==='POST'){
+      rate(ctx,'social.notifications.read',30,60000);await form();
+      markNotificationsRead(ctx.user.id,idFrom(notificationMatch[1]));
+      return redirect(res,'/notifications');
+    }
+    if(pathname==='/saved'&&req.method==='GET'){
+      const page=pageNumber(url.searchParams.get('page'));
+      return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
+    }
     // V1.3.1 support tickets: one permission check is reused by listing, page and attachment routes.
     function denyAppealOnlyOtherTypes(category) {
       if(ctx.role==='appeal-only'&&category!=='ban_appeal')forbidden('Non-members can submit Ban Appeals only.');
@@ -667,7 +700,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return success('/staff/applications/'+id,'Owner decision saved: '+result.outcome+'.');
     }
     if(pathname==='/feed'&&req.method==='GET'){
-      const page=pageNumber(url.searchParams.get('page'));return html(view.feed(ctx,{posts:loadPosts(ctx.user.id,page),page}));
+      const page=pageNumber(url.searchParams.get('page'));
+      const tab=url.searchParams.get('tab')==='following'?'following':'all';
+      return html(view.feed(ctx,{posts:listPosts(ctx.user.id,{page,following:tab==='following'}),page,tab}));
     }
     if(pathname==='/feed/create'&&req.method==='POST'){
       rate(ctx,'feed.create',8,600000);const {fields,files}=await form();const body=formValue(fields,'body',1500,0);
@@ -682,37 +717,44 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const id=idFrom(m[1]),post=postDetails(id,ctx.user.id);if(!post)missing();
       return html(view.postDetail(ctx,{post,comments:listComments('post',id)}));
     }
-    m=/^\/post\/(\d+)\/(like|repost|comment)$/.exec(pathname);
+    m=/^\/post\/(\d+)\/(like|repost|comment|bookmark)$/.exec(pathname);
     if(m&&req.method==='POST'){
       const id=idFrom(m[1]),action=m[2];rate(ctx,`post.${action}`,action==='comment'?15:90,600000);
       const {fields}=await form(),post=postDetails(id,ctx.user.id);if(!post)missing();
       if(action==='like'){
         const exists=one('SELECT 1 FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
         if(exists)run('DELETE FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
-        else run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
+        else {run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());notifySocial(post.user_id,ctx.user.id,'like',id);}
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.like',`post:${id}`,{before:!!exists,after:!exists});
         // JavaScript-enhanced likes update in place so scrolling the feed never opens Post Details.
         if(String(req.headers.accept||'').includes('application/json')){
           const count=one('SELECT COUNT(*) AS count FROM post_likes WHERE post_id=?',id)?.count||0;
           return respond(res,200,JSON.stringify({post_id:id,liked:!exists,like_count:count}),'application/json; charset=utf-8');
         }
-        // Without JavaScript, return to the feed and this post rather than opening its detail page.
-        if(Object.prototype.hasOwnProperty.call(fields,'feed_page')){
-          const page=pageNumber(fields.feed_page);
-          return redirect(res,(page?'/feed?page='+page:'/feed')+'#post-'+id);
-        }
-        return redirect(res,`/post/${id}`);
+        return redirect(res,socialReturn(fields,id));
       }
       if(action==='repost'){
         if(post.repost_of)invalid('Nested reposts are not supported');
         const existing=one('SELECT id FROM posts WHERE user_id=? AND repost_of=? AND deleted_at IS NULL',ctx.user.id,id);
         if(existing)run('UPDATE posts SET deleted_at=? WHERE id=?',now(),existing.id);
-        else run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());
+        else {run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());notifySocial(post.user_id,ctx.user.id,'repost',id);}
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.repost',`post:${id}`,{before:!!existing,after:!existing});
-        return redirect(res,`/post/${id}`);
+        if(String(req.headers.accept||'').includes('application/json')){
+          const count=one('SELECT COUNT(*) AS count FROM posts WHERE repost_of=? AND deleted_at IS NULL',id)?.count||0;
+          return respond(res,200,JSON.stringify({post_id:id,reposted:!existing,repost_count:count}),'application/json; charset=utf-8');
+        }
+        return redirect(res,socialReturn(fields,id));
+      }
+      if(action==='bookmark'){
+        const old=one('SELECT 1 FROM post_bookmarks WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        if(old)run('DELETE FROM post_bookmarks WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        else run('INSERT INTO post_bookmarks(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
+        if(String(req.headers.accept||'').includes('application/json'))
+          return respond(res,200,JSON.stringify({post_id:id,saved:!old}),'application/json; charset=utf-8');
+        return redirect(res,socialReturn(fields,id));
       }
       if(action==='comment'){
-        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());
+        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());notifySocial(post.user_id,ctx.user.id,'comment',id);
         if(isStaffRole(ctx.role))logAction(ctx,'social.comment.create','post:'+id,{body:body.slice(0,100)});
         return redirect(res,`/post/${id}`);
       }
@@ -857,7 +899,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         following:one('SELECT count(*) c FROM follows WHERE follower_id=?',id).c,
         suggestions:one('SELECT count(*) c FROM suggestions WHERE user_id=? AND deleted_at IS NULL',id).c
       };
-      const related=privateProfile?[]:loadPosts(ctx.user.id,0,id,15);
+      const requestedTab=url.searchParams.get('tab')||'posts';
+      const tab=allowedProfileTabs.has(requestedTab)?requestedTab:'posts';
+      if(tab==='likes'&&!self)missing();
+      const related=privateProfile?[]:tab==='media'?listPosts(ctx.user.id,{userId:id,media:true,limit:20}):
+        tab==='likes'?listPosts(ctx.user.id,{likesFor:id,limit:20}):
+        tab==='posts'?loadPosts(ctx.user.id,0,id,15):[];
+      const activityReplies=privateProfile||tab!=='replies'?[]:repliesFor(id);
       const pinnedPost=!privateProfile&&profile?.pinned_post_id?postDetails(profile.pinned_post_id,ctx.user.id):null;
       const sections=privateProfile?[]:profileSections(id);
       const comments=privateProfile||!profile?.allow_comments?[]:listComments('profile',id);
@@ -865,7 +913,16 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const discordRoles=privateProfile?{state:'hidden',roles:[]}:
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
-      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember}));
+      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies}));
+    }
+    userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
+    if(userMatch&&req.method==='GET'){
+      const id=userMatch[1],which=userMatch[2],person=one('SELECT * FROM users WHERE id=?',id);
+      if(!person)missing();
+      const profile=userProfile(id)||{};
+      const self=id===ctx.user.id;
+      if(!self&&(!profile.public||!profile.show_follows))missing();
+      return html(socialView.connections(ctx,{person,profile,which,items:connectionsFor(id,which,ctx.user.id),self}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(follow|comment)$/.exec(pathname);
     if(userMatch&&req.method==='POST'){
@@ -876,13 +933,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(action==='follow'){
         const already=one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
         if(already)run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
-        else run('INSERT INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)',ctx.user.id,id,now());
+        else {run('INSERT INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)',ctx.user.id,id,now());notifySocial(id,ctx.user.id,'follow',id);}
         if(isStaffRole(ctx.role))logAction(ctx,'profile.follow','profile:'+id,{before:!!already,after:!already});
         return redirect(res,`/u/${id}`);
       }
       if(!profile?.allow_comments)forbidden('Profile comments are disabled.');
       const body=formValue(fields,'body',1000,1);
       run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','profile',id,ctx.user.id,body,now());
+      notifySocial(id,ctx.user.id,'profile_comment',id);
       if(isStaffRole(ctx.role))logAction(ctx,'profile.comment','profile:'+id,{body:body.slice(0,100)});
       return redirect(res,`/u/${id}`);
     }
@@ -1160,5 +1218,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4.4 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.0 running at ${config.baseUrl}`));
 }
