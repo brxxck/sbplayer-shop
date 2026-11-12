@@ -75,6 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_support_messages ON support_ticket_messages(ticke
 CREATE TABLE IF NOT EXISTS support_ticket_attachments (
  id INTEGER PRIMARY KEY AUTOINCREMENT,ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
  original_name TEXT NOT NULL,stored_path TEXT NOT NULL UNIQUE,mime_type TEXT NOT NULL,
+ message_id INTEGER REFERENCES support_ticket_messages(id),
  file_size INTEGER NOT NULL,created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_support_attachments ON support_ticket_attachments(ticket_id);
