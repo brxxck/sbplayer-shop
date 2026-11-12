@@ -8,6 +8,7 @@
 Discord was showing its own homepage on shared \`sbstore.info/team\` links because signed-out web crawlers received a Discord OAuth redirect and the pages lacked Open Graph metadata.
 
 - All site pages now serve **server-rendered Open Graph and Twitter Card tags** with \`SB's & Cam's Store\` branding, the existing public SB logo (\`/static/sb-logo.png\`), an absolute canonical \`BASE_URL\`, and a route-specific safe description for common pages.
+- Clicking **Continue with Discord** on a shared link now carries a verified same-site return path through OAuth, so a member signing in from `/team` returns to `/team` rather than being dumped on Home. Unsafe or external return URLs are rejected.
 - Signed-out visitors (including Discordbot) can fetch **public login landing pages** for \`/team\`, \`/members\`, \`/feed\`, \`/suggestions\`, \`/apply\`, \`/tickets/new\`, \`/dashboard\`, and common shared ticket/profile links, with the normal **Continue with Discord** action. Actual user/member/staff content still requires authenticated authorization.
 - Shared private ticket and staff-application links show only a **generic Private Ticket preview**. Ticket IDs, replies, staff reports, decisions and attachments are **not** displayed to the crawler.
 - **Safe deployment:** Back up the existing Railway volume, keep \`DB_PATH=/app/data/app.sqlite\`, and redeploy the same service from GitHub \`main\`. There are **no database changes** and no new Railway variables. Ensure \`BASE_URL=https://sbstore.info\` is already set.
