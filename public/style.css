@@ -334,3 +334,51 @@
   .team-directory-tabs{grid-template-columns:1fr}
   .team-directory-tab{padding:10px 12px}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.5 social hub: navigable profile, connections, activity, feed tabs and saved posts. */
+.account-profile-link{display:inline-flex;align-items:center;gap:10px;min-width:0;max-width:100%;color:var(--text)}
+.account-profile-link:hover{color:#96ceff}
+.account-profile-link .account-name{min-width:0}
+.social-page{max-width:990px;margin:0 auto;padding-bottom:50px}
+.social-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:9px;border-bottom:1px solid var(--line);padding:0 0 12px;margin:6px 0 20px}
+.social-tab{padding:10px 15px;display:inline-flex;align-items:center;justify-content:center;min-height:40px;background:rgba(21,44,77,.46);border:1px solid #294769;border-radius:10px;color:#b9d2ef;font-size:12px;font-weight:750;transition:background .15s,border-color .15s}
+.social-tab:hover,.social-tab:focus-visible{background:#1b385e;color:#fff}
+.social-tab.active{background:#17477d;border-color:#438fe9;color:#f1f8ff;box-shadow:0 3px 16px rgba(31,121,231,.16)}
+.social-aside-links{display:grid;gap:8px;margin-top:13px}
+.social-aside-links a{display:flex;align-items:center;padding:10px 12px;border-radius:9px;background:#0e2749;border:1px solid #28507b;font-size:12px;font-weight:700;color:#bddeff}
+.social-aside-links a:hover{background:#214574;color:#fff}
+.social-post-list{max-width:770px;display:grid;gap:14px}
+.social-notifications-list,.social-people{display:grid;gap:11px;max-width:860px}
+.social-notification{display:flex;align-items:center;gap:14px;padding:15px 19px;justify-content:space-between;min-width:0}
+.social-notification.unread{border-left:3px solid #4b9bff;background:linear-gradient(120deg,#122b4d,#0b1b31)}
+.social-notification-person{display:flex;gap:12px;align-items:center;min-width:0;flex:1}
+.social-notification-person>span{display:block;min-width:0;font-size:13px;color:#c4d9f2;line-height:1.5}
+.social-notification-person b{color:#f1f7ff}
+.social-notification-person small{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+.social-notification .btn{flex-shrink:0}
+.social-person{display:flex;align-items:center;gap:14px;padding:16px 19px;min-width:0;transition:border-color .15s}
+.social-person:hover{border-color:#4384d9}
+.social-person-main{display:grid;gap:4px;min-width:0;flex:1}
+.social-person-main b{font-size:14px;color:#ecf5ff;overflow-wrap:anywhere}
+.social-person-main small{font-size:12px;color:#8cb4dd}
+.social-person-bio{color:#a9bfd9;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.profile-page .profile-stats a{display:inline-flex;align-items:center;gap:6px;color:#bad8fc;padding:5px 8px;border-radius:8px}
+.profile-page .profile-stats a:hover{color:white;background:#18385e}
+.profile-page .profile-stats a b{color:#eff8ff}
+.profile-page .social-tabs{margin:0 0 16px}
+.profile-page .profile-reply{margin-bottom:12px}
+.profile-page .profile-reply p{margin:9px 0 12px;white-space:pre-wrap;color:#d8e8fa;overflow-wrap:anywhere}
+.profile-page .profile-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.post-actions .action-btn[aria-pressed="true"]{color:#7abaff}
+.post-actions form[data-post-bookmark] .action-btn.activated{color:#f5c778}
+.post-actions form[data-post-repost] .action-btn.activated{color:#5de0b4}
+@media(max-width:680px){
+  .social-page .page-heading{margin-bottom:18px}
+  .social-notification{flex-wrap:wrap;align-items:flex-start;padding:14px}
+  .social-notification-person{width:100%;flex-basis:100%}
+  .social-person{padding:13px}
+  .social-person .table-link{display:none}
+  .social-tab{padding:9px 12px;font-size:11px}
+  .profile-page .profile-actions .btn{min-height:36px;padding:8px 11px}
+}
