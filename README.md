@@ -1,7 +1,14 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.4.2
+# SB's & Cam's Store — Community Portal V1.4.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.4.3 — Promotion navigation for all SB Store staff ranks
+
+- In both desktop and mobile navigation, **Owner**, **Admin**, **Staff/Reviewer**, **Mod** and **Mod - temp** see **Apply for a Promotion** instead of **Apply for Staff**, and **My Tickets** / **My Applications** are hidden from those ranks. The underlying application and ticket pages remain available; this is a navigation change, not data deletion.
+- Determine staff/mod/temp status from the currently verified Discord server member roles. Reuse the existing internal SB Store role classifier; do not incorrectly classify external Mega SMP/Prison staff or SBs team-only members as store staff. Existing owner/admin/reviewer roles remain covered even when a Discord role-list fetch fails.
+- Regular members still see **My Tickets**, **My Applications** and **Apply for Staff**. The promotion route itself continues to allow new promotion submissions **only for Temp Mods and Mods**; Staff with no eligible next step see their promotion history but cannot submit a new request. Hide the old duplicate **Promotion Tickets** link for eligible staff ranks.
+- Deploy tested GitHub `main` to the existing Railway service without resetting the database or volume. Verify `/health` returns `"version":"1.4.3"`.
 
 ## V1.4.2 — Admin and owner promotion link
 

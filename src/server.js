@@ -126,7 +126,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
     const url=new URL(req.url||'/','http://localhost');
     const pathname=url.pathname;
-    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
+    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
     const c=cookies(req.headers.cookie);
     if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
     const html=(content,status=200)=>respond(res,status,content);
@@ -147,8 +147,16 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ctx.member=actual;
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
-       // Sidebar eligibility is verified from Discord, not client-supplied claims.
-       try{ctx.promotionEligible=!!promotionEligibility(actual,await discord.getRoles(),config);}catch{ctx.promotionEligible=false;}
+       // Discord-backed staff rank detection is navigation-only; real permissions stay server-verified.
+       ctx.staffNavigation=isStaffRole(ctx.role);
+       try {
+         const guildRoles=await discord.getRoles();
+         ctx.promotionEligible=!!promotionEligibility(actual,guildRoles,config);
+         const owned=new Set(actual.roles||[]);
+         // Reuse the existing SB Store team classifier: exclude Mega SMP, Prison and SBs-only ranks.
+         ctx.staffNavigation=ctx.staffNavigation||ctx.promotionEligible||
+           guildRoles.some(r=>owned.has(r.id)&&['Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
+       }catch{ctx.promotionEligible=false;}
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       // Routine browsing, session refreshes and page loads must not fill the audit.
       // Successful reads of individual private tickets are recorded at their routes.
@@ -167,7 +175,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.2'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.4.3'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -1142,5 +1150,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.4.3 running at ${config.baseUrl}`));
 }
