@@ -2,7 +2,9 @@
 // Only InPvP's own browser storage is eligible for transfer; Microsoft/Xbox
 // cookies and OAuth tokens from other origins are deliberately excluded.
 const isInPvP=host=>host==='inpvp.net'||/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.inpvp\.net$/.test(host);
-const namePattern=/^[a-zA-Z0-9_.$-]{1,256}$/;
+const cookieName=/^[a-zA-Z0-9_.$-]{1,256}$/;
+const storageKey=name=>typeof name==='string'&&name.length>0&&name.length<=256&&
+  !/[\\u0000-\\u001f\\u007f]/.test(name);
 
 export function sanitizeInPvPStorageState(source){
   if(!source||typeof source!=='object'||Array.isArray(source))
@@ -15,7 +17,7 @@ export function sanitizeInPvPStorageState(source){
     if(!cookie||typeof cookie!=='object')continue;
     const domain=String(cookie.domain||'').toLowerCase();
     if(!isInPvP(domain.replace(/^\./,'')))continue;
-    if(!namePattern.test(cookie.name)||typeof cookie.value!=='string'||
+    if(!cookieName.test(cookie.name)||typeof cookie.value!=='string'||
        cookie.value.length>8192||typeof cookie.path!=='string'||
        !cookie.path.startsWith('/')||cookie.path.length>1024)
       throw new Error('Invalid InPvP cookie.');
@@ -44,7 +46,7 @@ export function sanitizeInPvPStorageState(source){
       throw new Error('Invalid InPvP localStorage.');
     const localStorage=[];
     for(const row of entry.localStorage){
-      if(!row||!namePattern.test(row.name)||typeof row.value!=='string'||
+      if(!row||!storageKey(row.name)||typeof row.value!=='string'||
          row.value.length>65536)throw new Error('Invalid InPvP storage entry.');
       localStorage.push({name:row.name,value:row.value});
     }
