@@ -1,7 +1,14 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.5.1
+# SB's & Cam's Store — Community Portal V1.5.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.5.2 — Admin support-ticket access fix
+
+- Real Discord **Administrator** permission on a bot-verified guild role grants staff/admin access to support-ticket queues and ticket pages, even when that role ID was accidentally omitted from `ADMIN_ROLE_IDS`. No user-supplied role names or usernames grant access.
+- Keep the existing explicitly configured `ADMIN_ROLE_IDS` path and the owner-only authorization separately enforced. Verified Administrator permissions never grant owner status, the private owner audit, or owner-confidential staff reports. The access level is recalculated on each request; losing the permission removes access immediately.
+- The **All Tickets** staff queue also links to **My submitted tickets** so administrators can open their own historic tickets (including their private submissions) without restoring the old sidebar clutter.
+- No schema changes or new environment variables. Preserve the original Railway service, SQLite database and `/app/data` persistent volume. After deploying tested GitHub `main`, verify `/health` returns `"version":"1.5.2"`.
 
 ## V1.5.1 — Genuine Lucide icon refresh and profile picture dropdown
 

@@ -6,6 +6,16 @@ export const idOK = id => typeof id==='string' && /^\d{15,22}$/.test(id);
 export const text = (s,limit=2000) => typeof s==='string' ? s.replace(/\r/g,'').trim().slice(0,limit+1) : '';
 export const limitText=(s,max,min=0)=>{const v=text(s,max); return v.length>=min && v.length<=max?v:null;};
 export const isFinal = status => status === 'accepted' || status === 'denied';
+// A live, bot-verified Discord Administrator permission is equivalent to an explicit
+// configured admin role for site access. Role names alone are never authoritative.
+// Do not use this as an owner grant: owner-only access remains independently verified.
+export function hasVerifiedAdministratorPermission(member,guildRoles=[]){
+  const owned=new Set(member?.roles||[]);
+  return Array.isArray(guildRoles)&&guildRoles.some(role=>{
+    if(!role||!owned.has(role.id))return false;
+    try{return (BigInt(role.permissions||'0')&DISCORD_ADMIN)!==0n;}catch{return false;}
+  });
+}
 export function classify(member, ownerId, userId, cfg, dynamicOwners=new Set()) {
   if (!member || member.pending) return 'none';
   if (userId===ownerId || cfg.ownerIds.has(userId) || dynamicOwners.has(userId)) return 'owner';

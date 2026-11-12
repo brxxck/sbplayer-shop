@@ -8,7 +8,7 @@ const tmp=mkdtempSync(join(tmpdir(),'sbs-v131-'));
 const ids={guild:'160000000000000001',owner:'160000000000000002',adminA:'160000000000000003',
  adminB:'160000000000000004',reviewer:'160000000000000005',member:'160000000000000006',
  other:'160000000000000007',banned:'160000000000000008'};
-const roles={admin:'260000000000000001',reviewer:'260000000000000002'};
+const roles={admin:'260000000000000001',reviewer:'260000000000000002',nativeAdmin:'260000000000000003',nameOnlyAdmin:'260000000000000004'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(tmp,'new.sqlite'),DISCORD_CLIENT_ID:'160000000000000011',
  DISCORD_CLIENT_SECRET:'fixture',DISCORD_BOT_TOKEN:'fixture',DISCORD_GUILD_ID:ids.guild,
  ADMIN_ROLE_IDS:roles.admin,REVIEWER_ROLE_IDS:roles.reviewer,FINAL_APPROVER_USER_ID:ids.owner,
@@ -28,7 +28,7 @@ const discord={
  getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
  getGuildMember:async id=>members.get(id)||null,
  searchMembers:async q=>[...members.values()].filter(m=>m.user.username.startsWith(q.toLowerCase())),
- getRoles:async()=>[{id:ids.guild,name:'@everyone',position:0},{id:roles.admin,name:'Administrator',position:20},{id:roles.reviewer,name:'Staff',position:5}],
+ getRoles:async()=>[{id:ids.guild,name:'@everyone',position:0,permissions:'0'},{id:roles.admin,name:'Administrator',position:20,permissions:'8'},{id:roles.reviewer,name:'Staff',position:5,permissions:'0'},{id:roles.nativeAdmin,name:'Security Team',position:18,permissions:'8'},{id:roles.nameOnlyAdmin,name:'Administrator',position:12,permissions:'0'}],
  listMembers:async()=>[...members.values()],
  notify:async data=>{notifications.push(data);return true;}
 };
@@ -113,6 +113,49 @@ test('bug report with media has private chat and staff replies; member can reope
  assert.ok(html.includes('Thanks, we are looking into it.'));
  assert.equal(one('SELECT COUNT(*) c FROM support_ticket_messages WHERE ticket_id=?',t.id).c,2);
  assert.ok(notifications.some(n=>n.pingHere===true && n.title.includes('Bug Report')));
+});
+
+
+test('admins can open ordinary tickets with Discord Administrator permission even when their role ID is not configured',async()=>{
+ const member=members.get(ids.other),originalRoles=[...member.roles];
+ const {createSupportTicket}=await import('../src/support.js');
+ const ticketId=createSupportTicket({
+   userId:ids.member,category:'bug_report',
+   fields:{description:'Verified administrator must be able to access a community support ticket.'},
+   role:'member',ip:'127.0.0.1'
+ });
+ const confidentialId=createSupportTicket({
+   userId:ids.member,category:'staff_report',
+   fields:{staff_username:'admina',description:'This report remains restricted to the server owner.'},
+   reportedId:ids.owner,visibility:'owner',role:'member',ip:'127.0.0.1'
+ });
+ try{
+   // A name that looks like "Administrator" is NOT authority for support access.
+   member.roles=[roles.nameOnlyAdmin];
+   assert.equal((await get('/staff/tickets','other')).status,403,'role name alone does not grant access');
+   assert.equal((await get('/staff/tickets/'+ticketId,'other')).status,403);
+
+   // Actual Discord Administrator permission grants the same staff ticket access as configured admins.
+   member.roles=[roles.nativeAdmin];
+   const queueResponse=await get('/staff/tickets','other');
+   assert.equal(queueResponse.status,200,'Discord Administrator role can open staff ticket queue');
+   const queue=await queueResponse.text();
+   assert.ok(queue.includes('/staff/tickets/'+ticketId),'regular support ticket is visible in queue');
+   assert.ok(queue.includes('href="/tickets/mine"'),'admins can reach their personal tickets from staff queue');
+   assert.equal((await get('/staff/tickets/'+ticketId,'other')).status,200,'Discord Administrator can open ticket details');
+   assert.equal((await get('/tickets/attachments/999999','other')).status,404,'unknown attachment remains unavailable');
+   assert.equal((await get('/staff/tickets/'+confidentialId,'other')).status,404,'owner-only staff reports remain confidential');
+   assert.equal((await get('/owner/audit','other')).status,403,'Discord Administrator never receives owner audit access');
+   const home=await (await get('/','other')).text();
+   assert.ok(home.includes('href="/staff/tickets"'),'verified administrator gets staff navigation');
+   assert.equal((await get('/tickets/mine','other')).status,200,'admin can still open their personal ticket listing');
+
+   // When permissions disappear, the same account loses privileged access on the next request.
+   member.roles=[];
+   assert.equal((await get('/staff/tickets/'+ticketId,'other')).status,403,'role removal takes effect immediately');
+ }finally{member.roles=originalRoles;}
+ assert.equal((await get('/staff/tickets/'+ticketId,'adminB')).status,200,'explicitly configured admins remain supported');
+ assert.equal((await get('/staff/tickets/'+confidentialId,'owner')).status,200,'owner keeps access to confidential reports');
 });
 
 test('staff reports about admins are owner-confidential in queues, pages and attachments',async()=>{

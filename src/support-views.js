@@ -129,7 +129,8 @@ export function staffTicketQueue(ctx,{tickets=[],status='active'}){
  return shell(ctx,'Support Tickets',`<div class="support-container">
  ${titlebar('STAFF TICKETS','Ticket <span class="gradient">queue.</span>','Only tickets you have permission to view will appear.')}
  <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets">Active</a>
- <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All accessible</a></div>
+ <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All accessible</a>
+ <a class="btn btn-outline" href="/tickets/mine">My submitted tickets</a></div>
  <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} ticket${tickets.length===1?'':'s'}</span></div>
  ${queueRows(tickets)||'<div class="empty">No tickets currently require attention.</div>'}</div></div>`);
 }
