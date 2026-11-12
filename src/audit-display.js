@@ -19,6 +19,8 @@ const changingActions=new Set([
   'suggestion.create','suggestion.vote','suggestion.comment','suggestion.status',
   'profile.follow','profile.comment','profile.edit','profile.image.upload','profile.post.pin',
   'profile.section.create','profile.section.edit','profile.section.move','profile.section.delete',
+   'mega.team.member.upsert','mega.team.member.status','mega.team.transaction.record',
+   'mega.team.bank.snapshot','mega.team.snapshot.import','mega.team.season.create',
   // Ticket reads only. Legacy application.view events were successful ticket reads.
   'application.view','application.access','application.attachment.access',
   'support_ticket.access','support_ticket.attachment.access',
