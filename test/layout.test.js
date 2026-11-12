@@ -22,8 +22,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.5\.0-social-hub/);
-  assert.match(page,/\/static\/app\.js\?v=1\.5\.0-social-hub/);
+  assert.match(page,/\/static\/style\.css\?v=1\.5\.1-lucide-refresh/);
+  assert.match(page,/\/static\/app\.js\?v=1\.5\.1-lucide-refresh/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -97,6 +97,53 @@ test('full social toolbar appears beside profile name with desktop icons and mob
   assert.match(script,/const topAccountMenu=document\.querySelector\('\[data-account-dropdown\]'\)/);
   assert.match(script,/topAccountMenu\.addEventListener\('keydown'/);
   assert.match(script,/if\(topAccountMenu\.open&&!topAccountMenu\.contains\(event\.target\)\)/);
+});
+
+test('curated Lucide SVG icons render in navigation, dropdown, feed and support without missing assets',async()=>{
+  const {icon,AVAILABLE_ICONS,NAV_ICON_NAMES}=await import('../src/icons.js');
+  const {postCard}=await import('../src/views.js');
+  const {chooseTicket}=await import('../src/support-views.js');
+  assert.ok(AVAILABLE_ICONS.length>=70,'sitewide refresh should include broad official icon coverage');
+  for(const [route,name] of Object.entries(NAV_ICON_NAMES)){
+    assert.ok(AVAILABLE_ICONS.includes(name),'missing navigation icon '+route+': '+name);
+  }
+  for(const name of ['circle-user-round','badge-check','heart','bookmark','message-circle',
+    'repeat-2','share-2','award','ticket-plus','bug','gift','shield-ban','scale',
+    'chevron-right','trash','send','log-out']){
+    assert.ok(AVAILABLE_ICONS.includes(name),'missing core icon '+name);
+    const svg=icon(name);
+    assert.match(svg,/^<svg /);
+    assert.match(svg,/role="presentation" aria-hidden="true"/);
+    assert.ok(/<(?:path|circle|rect|line|polyline|polygon|ellipse)\b/.test(svg),name+' should contain genuine SVG geometry');
+    assert.ok(!svg.includes('<script'));
+  }
+  assert.match(icon('bell',{label:'New <notification>'}),/aria-label="New &lt;notification&gt;"/,'label is escaped');
+
+  const custom=home({...signed,profileAvatarPath:'/uploads/avatars/self-picture.png'});
+  assert.match(custom,/class="top-account-menu-head">[\s\S]*class="avatar menu" src="\/uploads\/avatars\/self-picture\.png"/);
+  assert.match(custom,/class="account-profile-link" href="\/profile"[\s\S]*src="\/uploads\/avatars\/self-picture\.png"/);
+  assert.ok(custom.includes('Discord linked'),'dropdown labels verified Discord account');
+  assert.ok(custom.includes('class="menu-action-icon"'),'menu items use consistent icon containers');
+  assert.ok(custom.includes('class="top-social-shortcuts"'),'top toolbar is preserved');
+
+  const fallback=home({...signed,profileAvatarPath:''});
+  assert.match(fallback,/class="avatar menu" src="https:\/\/cdn\.discordapp\.com\//,'Discord avatar fallback is rendered');
+  const ticketPage=chooseTicket({...signed,role:'member',promotionEligible:true});
+  assert.match(ticketPage,/class="support-choice-icon"><svg [^>]*class="lucide-icon/);
+  assert.ok(ticketPage.includes('Promotion Ticket'),'promotion access remains available');
+
+  const example={id:987,user_id:'100000000000000003',username:'tester',display_name:'Test User',
+    body:'Lucide test post',created_at:Date.now(),liked:true,bookmarked:true,like_count:1,
+    comment_count:2,repost_count:0,reposted:false};
+  const card=postCard(signed,example,{feedPage:0});
+  assert.match(card,/data-like-heart aria-hidden="true"><svg /);
+  assert.match(card,/data-bookmark-label>Saved<\/span>/);
+  assert.match(card,/data-repost-count>/);
+  assert.ok(card.includes('aria-label="Share post"'));
+  const script=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+  assert.match(script,/heart\.classList\.toggle\('is-liked',result\.liked\)/,'likes retain SVG icon');
+  assert.match(script,/label\.textContent=enabled\?'Saved':'Save'/,'bookmarks retain SVG icon');
+  assert.match(script,/button\.innerHTML=original/,'share feedback restores original SVG icon');
 });
 
 test('client handles likes in place without losing feed scroll',()=>{
