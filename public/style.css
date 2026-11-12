@@ -251,3 +251,27 @@
  .chat-bubble .avatar{width:27px;height:27px}
  .profile-page .profile-panel{padding:0 16px 20px}
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.3.4: Meet the Team versus Known Members, Mega SMP / Prison tabs. */
+.team-directory-tabs{display:flex;flex-wrap:wrap;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line);margin:10px 0 25px}
+.team-directory-tab{display:flex;flex-direction:column;gap:5px;min-width:165px;padding:14px 19px;border-radius:12px;border:1px solid #2b4667;background:#0c1c31;color:#b6cce5;font-weight:780;font-size:14px}
+.team-directory-tab small{font-weight:550;font-size:11px;color:#7797bc}
+.team-directory-tab:hover{border-color:#4685cf;background:#132a47;color:#fff}
+.team-directory-tab.active{border-color:#4099fa;background:linear-gradient(130deg,#143969,#0e2747);color:#e9f4ff;box-shadow:inset 3px 0 0 #4da6ff}
+.team-directory-tab.active small{color:#91caff}
+.known-member-section .section-heading{align-items:flex-start}
+.known-member-section .section-heading p{margin:6px 0 0}
+.known-member-tabs{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 21px}
+.known-member-tab{display:inline-flex;align-items:center;gap:10px;border:1px solid #305275;background:#0e2440;color:#aacaea;padding:10px 15px;border-radius:10px;font-size:12px;font-weight:750;transition:background .16s,border-color .16s}
+.known-member-tab span{padding:3px 7px;border-radius:999px;background:#0a1930;border:1px solid #294567;color:#a6c8ef;font-size:10px}
+.known-member-tab:hover{background:#14345e;border-color:#4c93df}
+.known-member-tab.active{color:white;background:#1b4e8e;border-color:#4398f3}
+.known-member-section .member-grid{margin-bottom:16px}
+@media(max-width:610px){
+ .team-directory-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .team-directory-tab{min-width:0;padding:12px}
+ .known-member-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ .known-member-tab{justify-content:space-between;padding:10px}
+}
