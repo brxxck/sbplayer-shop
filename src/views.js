@@ -30,10 +30,18 @@ const publicLinkPages=Object.freeze({
  '/apply':["Staff Applications | SB's & Cam's Store","Apply for a staff role and track your application on the official portal."],
  '/tickets/new':["Support Tickets | SB's & Cam's Store","Create a private report, reward claim or ban appeal in our support portal."],
  '/tickets/new/ban_appeal':["Ban Appeals | SB's & Cam's Store","Submit a ban or mute appeal through our Discord-verified support portal."],
- '/dashboard':["My Applications | SB's & Cam's Store","Sign in to follow your staff applications and private messages."]
+ '/dashboard':["My Applications | SB's & Cam's Store","Sign in to follow your staff applications and private messages."],
+ '/tickets/mine':["My Support Tickets | SB's & Cam's Store","Sign in with Discord to access your private ticket history."],
+ '/staff':["Staff Reviews | SB's & Cam's Store","Private staff applications and review tools. Authorized staff sign-in required."],
+ '/staff/tickets':["Staff Support Tickets | SB's & Cam's Store","Private staff support queue. Authorized Discord role required."],
+ '/owner/approvals':["Owner Final Approvals | SB's & Cam's Store","Private staff application decisions for authorized owners."]
 });
 export function linkPreviewData(p='/'){
- return publicLinkPages[p] || (/^\/u\/\d{15,22}$/.test(p)?["Member Profile | SB's & Cam's Store","Discover member profiles on the official community website."]:null);
+ if(Object.prototype.hasOwnProperty.call(publicLinkPages,p))return publicLinkPages[p];
+ if(/^\/u\/\d{15,22}$/.test(p))return ["Member Profile | SB's & Cam's Store","Discover member profiles on the official community website."];
+ if(/^\/(?:tickets\/\d+|dashboard\/applications\/\d+|staff\/(?:tickets|applications)\/\d+)$/.test(p))
+   return ["Private Ticket | SB's & Cam's Store","Sign in with Discord to view this private ticket. Report details and messages are not publicly visible."];
+ return null;
 }
 function socialMetadata(ctx){
  const [title,description]=linkPreviewData(ctx.pathname)||["SB's & Cam's Store","The official community website for SB's & Cam's Store."];
