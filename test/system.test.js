@@ -5,8 +5,8 @@ import {mkdtempSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
-const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014'};
-const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009',megaTrusted:'200000000000000010',megaStaffTrusted:'200000000000000011',sbsLeader:'1557586028729077841',sbsMember:'1565070132676661439'};
+const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014',member7:'100000000000000015',member8:'100000000000000016',member9:'100000000000000017'};
+const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009',megaTrusted:'200000000000000010',megaStaffTrusted:'200000000000000011',mod:'200000000000000012',headMod:'200000000000000013',tempMod:'1539085168281919648',sbsLeader:'1557586028729077841',sbsMember:'1565070132676661439'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
@@ -26,7 +26,10 @@ const fakeRoles=[
   {id:roles.megaTrusted,name:'Mega Smp Staff Trusted',position:13,permissions:'0',managed:false,color:335577},
   {id:roles.megaStaffTrusted,name:'Mega Staff Trusted',position:14,permissions:'0',managed:false,color:445588},
   {id:roles.sbsLeader,name:'SBs Team Leader',position:12,permissions:'0',managed:false,color:0xdb2626},
-  {id:roles.sbsMember,name:'[SBs] SBs Team Member',position:11,permissions:'0',managed:false,color:0xff2525}
+  {id:roles.sbsMember,name:'[SBs] SBs Team Member',position:11,permissions:'0',managed:false,color:0xff2525},
+  {id:roles.mod,name:'Mod',position:15,permissions:'0',managed:false,color:0x4992db},
+  {id:roles.headMod,name:'Head Mod',position:16,permissions:'0',managed:false,color:0x3d9ded},
+  {id:roles.tempMod,name:'Temp Mod',position:4,permissions:'0',managed:false,color:0x63c4e6}
 ];
 const memberMap=new Map();
 for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{user:{id,username:key.toLowerCase(),global_name:key,avatar:null,bot:key==='bot'},roles:key.startsWith('admin')?[roles.admin]:key==='reviewer'?[roles.reviewer]:key==='bot'?[roles.bot]:[],pending:false});
@@ -40,6 +43,9 @@ for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{use
  memberMap.get(ids.member3).roles.push(roles.sbsLeader,roles.megaStaffTrusted);
  memberMap.get(ids.member4).roles.push(roles.sbsLeader,roles.sbsMember);
  memberMap.get(ids.member6).roles.push(roles.megaTrusted);
+ memberMap.get(ids.member7).roles.push(roles.tempMod);
+ memberMap.get(ids.member8).roles.push(roles.mod,roles.headMod);
+ memberMap.get(ids.member9).roles.push(roles.storeStaff,roles.mod,roles.tempMod);
 let additions=0;let failNextRole=false;const notifications=[];
 const fake={
   getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
@@ -80,7 +86,7 @@ test('Our Staff keeps actual store staff and Known Members separates Mega SMP / 
   assert.ok(team.includes('Our Staff'));
   assert.ok(team.includes('Known Members'));
   assert.ok(team.includes('href="/team?tab=known"'));
-  assert.ok(team.includes('Other Staff'));
+  assert.ok(team.includes('<h2>Staff</h2>'));
   assert.ok(team.includes('member6'),'a store-only Staff role remains on the team');
   assert.ok(team.includes('adminA'),'administrators remain on the store team');
   assert.ok(!team.includes('href="/u/'+ids.member3+'"'),'Mega-only staff should leave the store team tab');
@@ -103,10 +109,41 @@ test('Our Staff keeps actual store staff and Known Members separates Mega SMP / 
   const invalid=await (await get('/team?tab=known&known=unexpected','member')).text();
   assert.ok(invalid.includes('href="/u/'+ids.member3+'"'),'invalid categories safely default to Mega');
   const unknown=await (await get('/team?tab=unexpected','member')).text();
-  assert.ok(unknown.includes('Other Staff'),'unknown top-level tab safely returns main team');
+  assert.ok(unknown.includes('<h2>Staff</h2>'),'unknown top-level tab safely returns main team');
 });
 
 
+
+test('Other Staff becomes Staff, Mod and Temp Mod, using the exact temporary moderator role ID',async()=>{
+ const page=await (await get('/team?tab=team','member')).text();
+ const start=page.indexOf('<h2>Staff</h2>');
+ const modStart=page.indexOf('<h2>Mod</h2>');
+ const tempStart=page.indexOf('<h2>Temp Mod</h2>');
+ assert.ok(start>0 && modStart>start && tempStart>modStart,
+   'Our Staff shows Staff then Mod then Temp Mod after ownership and administration');
+ assert.ok(page.indexOf('<h2>Administration</h2>')<start);
+ assert.ok(page.indexOf('<h2>Ownership</h2>')<start);
+ assert.doesNotMatch(page,/<h2>Other Staff<\/h2>/);
+ assert.doesNotMatch(page,/<h2>Moderation<\/h2>/);
+ const staffSection=page.slice(start,modStart),modSection=page.slice(modStart,tempStart),tempSection=page.slice(tempStart);
+ const has=(section,id)=>section.includes('href="/u/'+id+'"');
+ assert.ok(has(staffSection,ids.member6),'Staff role stays in Staff');
+ assert.ok(has(staffSection,ids.member9),'Staff outranks Mod/Temp Mod when a member has multiple roles');
+ assert.ok(!has(staffSection,ids.member7),'Temp Mod is not Staff');
+ assert.ok(!has(staffSection,ids.member8),'Mod is not Staff');
+ assert.ok(has(modSection,ids.member8),'Mod and Head Mod are in Mod');
+ assert.ok(modSection.includes('Head Mod'),'the higher Discord role labels a member with multiple Mod ranks');
+ assert.ok(!has(modSection,ids.member7));
+ assert.ok(!has(modSection,ids.member9),'multi-role users render exactly once in Our Staff');
+ assert.ok(has(tempSection,ids.member7),'exact Temp Mod ID is recognized');
+ assert.ok(tempSection.includes('>Temp Mod<'));
+ assert.equal(page.split('href="/u/'+ids.member9+'"').length-1,1,'each internal team member appears once');
+ assert.ok(!has(tempSection,ids.member9));
+ const known=await (await get('/team?tab=known&known=mega','member')).text();
+ assert.ok(known.includes('href="/u/'+ids.member6+'"'),'existing Mega SMP Staff Trusted handling stays intact');
+ const sbs=await (await get('/team?tab=sbs','member')).text();
+ assert.ok(sbs.includes('SBs Team Members'),'SBs x Scam tab is unchanged');
+});
 test('Mega SMP Staff Trusted stays in Known Members, never becomes store staff on its own',async()=>{
   const store=await (await get('/team?tab=team','member')).text();
   assert.ok(!store.includes('href="/u/'+ids.member2+'"'),'trusted Mega staff role plus SBs team role is not SB Store staff');
