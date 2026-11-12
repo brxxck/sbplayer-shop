@@ -86,7 +86,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
  const stale=syncEnabled&&sourceUpdated&&(Date.now()-sourceUpdated>15*60000);
  const syncLabel=!syncEnabled?'No authorized live feed configured':!data.sync.last_success?'Awaiting first authorized sync':
    stale?'Source outdated — showing last saved values':'Authorized feed last synced '+date(data.sync.last_success);
- const coverage=data.totals.withBoth+'/'+data.totals.activeMembers+' members have both totals';
+ const coverage=data.totals.withBoth+'/'+data.totals.recordedMembers+' recorded members have both totals';
  const stateLabel=data.totals.missing?'Partial totals · '+coverage:'Complete recorded roster coverage · '+coverage;
  const seasons=data.seasons.map(s=>'<option value="'+attr(s.season)+'" '+(s.season===data.season.season?'selected':'')+'>'+esc(s.label)+'</option>').join('');
  const rank=leaderboard(data.members);
