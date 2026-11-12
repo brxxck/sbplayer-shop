@@ -46,6 +46,8 @@ test('admins and owners do not see member-only ticket/application tabs, while me
     const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
     if(['admin','owner'].includes(role)){
       for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(!discover.includes('href="'+link+'"'),role+' must not see '+link+' in sidebar');
+      assert.match(discover, /href="\/promotions"[^>]*>[\\s\\S]*?Apply for a Promotion/, 'admin/owner must have Apply for a Promotion shortcut');
+      assert.ok(mobile.includes('<a href="/promotions">Apply for a Promotion</a>'), 'admin/owner mobile shortcut for promotion');
       for(const link of ['/tickets/mine','/dashboard'])assert.ok(!mobile.includes('href="'+link+'"'),role+' must not see '+link+' in mobile nav');
       assert.match(discover,/href="\/tickets\/new"/,'admins still have the regular ticket submission shortcut');
       assert.match(page,/href="\/staff\/tickets"/,'admin/owner keep staff ticket management');

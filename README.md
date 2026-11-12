@@ -1,7 +1,13 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.4.1
+# SB's & Cam's Store — Community Portal V1.4.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.4.2 — Admin and owner promotion link
+
+- Show **Apply for a Promotion** in admin and owner navigation in place of **Apply for Staff**. Keep **My Tickets** and **My Applications** hidden from those two navigation levels. Ordinary members and reviewers keep their original **Apply for Staff** link.
+- The link opens the promotion-ticket portal, which checks actual current Discord roles before allowing submission; only Temp Mods and Mods can apply, even if an admin or owner can see the navigation shortcut. Eligible admin/owner accounts get one promotion shortcut, not duplicates.
+- The same label appears in desktop and mobile navigation. Existing applications, support tickets, permissions and roles are unchanged.
 
 ## V1.4.1 — Admin and owner sidebar cleanup
 
