@@ -61,12 +61,16 @@ function manager(ctx,data){
    '<form class="panel padded" method="post" action="/team/mega/bank">'+csrf+base+
     '<h4>Reported bank balance</h4><label>Balance<input name="balance" type="number" min="0" max="1000000000000000" step="1" required></label>'+
     '<p class="muted tiny">Bank balance is separate from lifetime deposits and withdrawals.</p>'+
-    '<button class="btn btn-outline" type="submit">'+icon('wallet',{size:17})+' Save balance</button></form></div>';
+    '<button class="btn btn-outline" type="submit">'+icon('wallet',{size:17})+' Save balance</button></form>'+
+   '<form class="panel padded" method="post" action="/team/mega/member-status">'+csrf+base+
+    '<h4>Member status</h4><label>Team member<select name="member_id" required>'+options+'</select></label>'+
+    '<label>Status<select name="status"><option value="former">Former player</option><option value="active">Active player</option></select></label>'+
+    '<button class="btn btn-outline" type="submit" '+(members.length?'':'disabled')+'>'+icon('user-round-check',{size:17})+' Update status</button></form></div>';
  const owner=ctx.role==='owner'?'<form class="panel padded mega-season-form" method="post" action="/team/mega/season">'+csrf+
   '<h4>Start a new season</h4><label>New season name<input name="label" minlength="2" maxlength="45" required placeholder="Season 4 — November 2026"></label>'+
   '<p class="muted tiny">Keeps the previous season and all contributions archived.</p>'+
   '<button class="btn btn-outline" type="submit">'+icon('calendar-days',{size:17})+' Create season</button></form>':'';
- const sample={team_id:data.teamId,season,updated_at:'2026-11-12T20:00:00Z',complete_roster:true,bank_balance:null,
+ const sample={team_id:data.teamId,season,updated_at:new Date().toISOString(),complete_roster:true,bank_balance:null,
     members:[{gamertag:'ExamplePlayer',role:'Member',active:true,deposits:null,withdrawals:null}]};
  const importForm='<details class="panel padded mega-import"><summary>Import a permitted structured data snapshot</summary>'+
   '<p class="muted tiny">This is an owner-supplied import; it is not a live InPvP connection. Existing cumulative totals for those players will be replaced, not added to your manual ledger.</p>'+
@@ -109,7 +113,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],syncEnabled=false}){
   '<p class="mega-disclaimer">Financial figures are recorded or imported values, not independently verified live transactions. Missing values remain unreported. Refreshing this page does not scrape InPvP.</p>'+
   '</section>'+
   '<div class="mega-toolbar"><form method="get" action="/team" class="mega-season-select">'+
-  '<input type="hidden" name="tab" value="mega"><label>Season <select name="season" onchange="this.form.requestSubmit()">'+seasons+'</select></label></form>'+
+  '<input type="hidden" name="tab" value="mega"><label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View season</button></form>'+
   '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh displayed data</button>'+
   '<span class="mega-muted" data-mega-timestamp aria-live="polite"></span></div>'+
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
