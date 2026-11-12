@@ -79,11 +79,11 @@ export function shell(ctx,title,content) {
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script></head>
 <body><div class="shell"><aside class="sidebar"><div class="sidebar-scroll"><a href="/" class="brand"><img class="brand-logo" src="/static/sb-logo.png?v=${assetVersion}" alt="SB logo" width="44" height="44" style="width:44px;height:44px;min-width:44px;max-width:44px;max-height:44px;object-fit:cover"><span><b>SB's & Cam's</b><small>STORE COMMUNITY</small></span></a>
-<div class="sidebar-title">DISCOVER</div><nav>${navLink('/','Home','⌂',ctx)}${user?`${role==='appeal-only'?`${navLink('/tickets/new/ban_appeal','Submit Ban Appeal','✉',ctx)}${navLink('/tickets/mine','My Appeals','◷',ctx)}`:`${navLink('/tickets/new','Submit a Ticket','✉',ctx)}${navLink('/tickets/mine','My Tickets','◷',ctx)}${navLink('/dashboard','My Applications','▣',ctx)}${navLink('/apply','Apply for Staff','✎',ctx)}${navLink('/feed','Main Feed','◉',ctx)}${navLink('/suggestions','Server Suggestions','✧',ctx)}${navLink('/members','Socials & Members','♧',ctx)}${navLink('/team','Team Members','♛',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}`}`:''}</nav>
+<div class="sidebar-title">DISCOVER</div><nav>${navLink('/','Home','⌂',ctx)}${user?`${role==='appeal-only'?`${navLink('/tickets/new/ban_appeal','Submit Ban Appeal','✉',ctx)}${navLink('/tickets/mine','My Appeals','◷',ctx)}${navLink('/team','Meet the Team','♛',ctx)}`:`${navLink('/tickets/new','Submit a Ticket','✉',ctx)}${navLink('/tickets/mine','My Tickets','◷',ctx)}${navLink('/dashboard','My Applications','▣',ctx)}${navLink('/apply','Apply for Staff','✎',ctx)}${navLink('/feed','Main Feed','◉',ctx)}${navLink('/suggestions','Server Suggestions','✧',ctx)}${navLink('/members','Socials & Members','♧',ctx)}${navLink('/team','Team Members','♛',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}`}`:''}</nav>
 ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tickets','All Tickets','▣',ctx)}${navLink('/staff','Application Reviews','▤',ctx)}${admin?`${navLink('/admin/roles','Role Management','⬡',ctx)}${navLink('/admin/settings','Admin Settings','⚙',ctx)}${navLink('/admin/moderation','Moderation','⚑',ctx)}`:''}${role==='owner'?`${navLink('/owner/approvals','Final Approvals','✓',ctx)}${navLink('/owner/audit','Owner Audit Log','☷',ctx)}${navLink('/owner/owners','Owner Access','♜',ctx)}`:''}</nav>`:''}
-</div><div class="side-bottom">${user?`<a class="side-profile" href="/u/${attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
+</div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/u/'+attr(user.id)}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
-${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
+${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a><a href="/team">Meet the Team</a>':'<a href="/tickets/new">Submit Ticket</a><a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a><a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
 <main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.3.9</span></footer></div></div></body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
@@ -197,13 +197,14 @@ export function members(ctx,{found=[],q='',fallback=false}){return shell(ctx,'So
 <form method="get" action="/members" class="panel search-panel"><label class="sr-only" for="member-search">Search members</label><input id="member-search" name="q" value="${attr(q)}" maxlength="80" placeholder="Search by Discord username or user ID..."><button class="btn btn-primary">Search members</button></form>${fallback?'<div class="alert alert-error">Discord member search is unavailable. Showing website members only. Enable Guild Members Intent in the Discord Developer Portal for complete search.</div>':''}<div class="member-grid">${found.map(m=>`<a class="member-card panel" href="/u/${attr(m.id)}">${avatar(m,'lg',true)}<b>${esc(m.nickname||m.display_name)}</b><span>@${esc(m.username)}</span><span class="table-link">View profile →</span></a>`).join('')||'<div class="empty panel">No members found. Try another username.</div>'}</div>`);}
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 const sbsNameTag=member=>member?'<span class="sbs-member-tag" title="SBs Team Member" aria-label="SBs Team Member">[SBs]</span>':'';
-const teamCards=members=>members.map(m=>`<a class="team-card panel" href="/u/${attr(m.id)}"><div class="team-banner"></div>
+const teamCards=(members,restricted=false)=>members.map(m=>`<${restricted?'div':'a'} class="team-card panel"${restricted?'':` href="/u/${attr(m.id)}"`}><div class="team-banner"></div>
  ${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}${sbsNameTag(m.sbsMember)}</h3><p>@${esc(m.username)}</p>
- ${tag(m.staffTitle)}<span class="table-link">View profile →</span></a>`).join('');
+ ${tag(m.staffTitle)}${restricted?'':'<span class="table-link">View profile →</span>'}</${restricted?'div':'a'}>`).join('');
 export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0}){
  const knownTotal=new Set(knownGroups.flatMap(g=>g.members.map(m=>m.id))).size;
  const selected=knownGroups.find(g=>g.key===knownTab)||knownGroups[0]||{key:'mega',title:'Mega SMP Staff',members:[]};
  const sbsTotal=sbsGroups.reduce((sum,g)=>sum+g.members.length,0);
+ const restricted=ctx.role==='appeal-only';
  const tabs=`<nav class="team-directory-tabs" aria-label="Meet the team sections">
  <a class="team-directory-tab ${tab==='team'?'active':''}" href="/team?tab=team" ${tab==='team'?'aria-current="page"':''}>
    <span>Our Staff</span><small>Store staff</small></a>
@@ -218,7 +219,7 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
      ${knownGroups.map(g=>`<a href="/team?tab=known&amp;known=${attr(g.key)}" class="known-member-tab ${selected.key===g.key?'active':''}" ${selected.key===g.key?'aria-current="page"':''}>
         ${esc(g.title)} <span>${g.members.length}</span></a>`).join('')}
    </nav>
-   <div class="member-grid">${teamCards(selected.members)}</div>
+   <div class="member-grid">${teamCards(selected.members,restricted)}</div>
    ${selected.members.length?'':'<div class="empty panel">No '+esc(selected.title)+' members found yet. Check that these Discord roles exist and the bot has member-list access.</div>'}
  </section>`;
  const sbsContent=`<section class="team-section sbs-team-section"><div class="section-heading"><div>
@@ -226,7 +227,7 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
    <span class="muted">${sbsTotal} member${sbsTotal===1?'':'s'}</span></div>
    ${sbsGroups.map(g=>`<section class="team-section">
      <div class="section-heading"><h3>${esc(g.title)}</h3><span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
-     <div class="member-grid">${teamCards(g.members)}</div>
+     <div class="member-grid">${teamCards(g.members,restricted)}</div>
    ${g.members.length?'':'<p class="muted tiny team-empty-group">No members currently assigned.</p>'}
    </section>`).join('')||
        '<div class="empty panel">No SBs x Scam team members found yet. Check the two Discord team roles and Guild Members Intent.</div>'}
@@ -234,7 +235,7 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
  const teamContent=groups.map(g=>`<section class="team-section">
    <div class="section-heading"><h2>${esc(g.title)}</h2>
      <span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
-   <div class="member-grid">${teamCards(g.members)}</div></section>`).join('')||
+   <div class="member-grid">${teamCards(g.members,restricted)}</div></section>`).join('')||
    '<div class="empty panel">No team members detected yet. Check your bot permissions and role configuration.</div>';
  return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>')}
    ${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
