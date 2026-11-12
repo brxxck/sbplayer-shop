@@ -92,7 +92,8 @@ export function staffChatMessage(m){
 export function appealHome(ctx,{tickets=[]}={}){
  return shell(ctx,'Ban Appeal',`<section class="dash-welcome"><div><span class="eyebrow">DISCORD-VERIFIED APPEALS</span>
  <h1>Ban appeal <span class="gradient">portal.</span></h1>
- <p>You are signed in with Discord, but you're not a verified member of this server. You can still submit and follow a ban appeal.</p>
+ <p>You are signed in with Discord, but you're not a verified member of this server. You can submit and follow a Ban Appeal, or explore our staff team.</p>
  <div class="dash-welcome-actions"><a class="btn btn-primary" href="/tickets/new/ban_appeal">Submit Ban Appeal</a>
- <a class="btn btn-outline" href="/tickets/mine">View My Appeals (${tickets.length})</a></div></div></section>`);
+ <a class="btn btn-outline" href="/tickets/mine">View My Appeals (${tickets.length})</a>
+ <a class="btn btn-outline" href="/team">Meet the Team</a></div></div></section>`);
 }
