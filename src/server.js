@@ -49,7 +49,7 @@ const idFrom=(s)=>{const v=Number(s);return Number.isSafeInteger(v)&&v>0?v:null;
 const pageNumber=v=>Number.isInteger(Number(v))?Math.max(0,Math.min(100,Number(v))):0;
 const isStaffRole=r=>['reviewer','admin','owner'].includes(r);
 const isAdminRole=r=>['admin','owner'].includes(r);
-const appealRoute=p=>p==='/'||p==='/tickets/new'||p==='/tickets/mine'||/^\/tickets\/(new\/ban_appeal|\d+(?:\/reply)?|attachments\/\d+)$/.test(p);
+const appealRoute=p=>p==='/'||p==='/team'||p==='/tickets/new'||p==='/tickets/mine'||/^\/tickets\/(new\/ban_appeal|\d+(?:\/reply)?|attachments\/\d+)$/.test(p);
 const ipOf=req=>{
   const remote=String(req.socket.remoteAddress||'').slice(0,90);
   return config.trustProxy?String(req.headers['x-forwarded-for']||remote).split(',')[0].trim().slice(0,90):remote;
@@ -137,8 +137,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!guild)throw new HttpError(503,'Discord server verification is currently unavailable.');
       ctx.guild=guild;
       if(!actual||actual.pending){
-        // Discord OAuth still verifies the account. Non-members may only submit/follow ban appeals.
-        if(!appealRoute(pathname))throw new HttpError(403,'Server membership is required for this feature. Non-members may submit a Ban Appeal.');
+        // Discord OAuth verifies the account, even when the user is not a guild member.
+        // Non-members can submit/track Ban Appeals and browse the staff directory only.
+        if(!appealRoute(pathname))throw new HttpError(403,'Server membership is required for this feature. Non-members may submit Ban Appeals or view Meet the Team.');
         ctx.role='appeal-only';return;
       }
       ctx.member=actual;
@@ -195,7 +196,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const token=await discord.exchangeCode(url.searchParams.get('code'),saved.verifier);
       const [profile,oauthMember,guild]=await Promise.all([discord.getDiscordUser(token.access_token),discord.getOAuthGuildMember(token.access_token),discord.getGuild()]);
       if(!profile||!idOK(profile.id)||profile.bot||!guild)forbidden('A valid personal Discord account is required.');
-      // Non-members can authenticate with Discord solely to submit and track Ban Appeals.
+      // Anyone with a personal Discord account can sign in. Non-members have limited Ban Appeal and team-directory access.
       const actual=await discord.getGuildMember(profile.id);
       upsertUser(profile);ensureProfile(profile.id);
       if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));
