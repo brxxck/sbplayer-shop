@@ -1,7 +1,35 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.0
+# SB's & Cam's Store — Community Portal V1.3.1
 
-**Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This is a runnable starter project, **not a hosted website**.
+**Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.1 — Member/Staff Dashboards and Chat-Style Support Tickets
+
+- **Member Home:** personalized welcome, **Submit a Ticket**, My Tickets counters, live Main Feed preview, and **Customize Profile** shortcut.
+- **Staff Home:** built-in private staff chat (polls new messages every 8 seconds, no Discord @here), all accessible active support/staff-application tickets with **ticket type labels**, shortcut to Customize Profile, and owner Final Approvals shortcut.
+- **Ticket picker:** **Bug Report, Player Report, Reward Claim, Staff Report, Ban Appeal**, plus **View My Tickets**. Each opens its own dedicated form.
+- **Discord-verified identity:** all forms show the logged-in Discord username and **Verified via Discord**; no email-address field.
+- **Exact placeholders:** Player Report username: "Player's username"; Rule Broken and Ban Appeal Reason: "e.g. Hard-R, Spamming, Threats"; Reward Claim: "e.g. Discord Nitro"; Staff Report: "Staff member's username"; Bug Report: "Describe the bug in detail...".
+- **Conversations:** members, reviewers, admins and owners can exchange private replies on the tickets they're authorized to see. The chat view supports **Upload video/pictures** (up to 5 files per message, 12 MB per file, 35 MB combined) and a staff-only **Mark as resolved** control for support tickets. Member replies reopen a resolved support ticket. Existing staff applications keep their separate two-admin + unk.sb final-approval rule.
+- **Report confidentiality:** regular staff can view ordinary support tickets; **Staff Reports** are **admin/owner only**. Staff Reports about an **admin/owner** are **owner-only**, including messages, uploads, counts, search/queues, and direct URLs. Unknown or ambiguously matched staff identities are owner-only until verified. A subject promoted to admin is immediately hidden from admins when the role is rechecked, and remains owner-confidential afterward.
+- **Private Discord notifications:** ordinary new tickets trigger @here in the existing staff-only webhook; applicant replies are limited to one @here per ticket per 5 minutes. Staff Reports never go to that general channel: they use the separately configured admin or owner report webhooks **without @here**. If a private webhook is missing, the confidential notification is suppressed rather than falling back to the general staff channel.
+- **Ban appeals for banned users:** Discord OAuth can authenticate non-guild users for *only* the Ban Appeal form, their own appeals and replies. All other website pages remain blocked until verified guild membership. One unresolved Ban Appeal per account.
+- **Default profile UI:** repairs default typography, headings, empty states, sizing, spacing, mobile layout and avatar/header positioning without resetting custom profile data.
+- **No destructive migrations:** uses additive SQLite tables for support tickets, private attachments and staff-chat messages. Existing applications, votes, member accounts, posts, suggestions, profiles, sessions, logs and image uploads are left intact. Evidence is stored under \`/app/data/ticket-files\` outside public static serving.
+
+### Railway V1.3.1 safe update checklist
+
+1. Go to the existing Railway service \`sbplayer-shop\`. Under **Volumes**, confirm the same persistent volume remains mounted at **\`/app/data\`**. Confirm **\`DB_PATH=/app/data/app.sqlite\`** under Variables. DO NOT delete the volume or create a replacement service.
+2. Under **Backups**, create or verify a volume snapshot *before* deploying. For SQLite in WAL mode, use a SQLite-aware backup or Railway volume snapshot rather than copying only the open \`.sqlite\` file.
+3. Confirm \`BASE_URL=https://sbstore.info\`, \`DISCORD_WEBHOOK_URL\`, \`FINAL_APPROVER_USER_ID\` (unk.sb's **numeric Discord user ID**), \`ADMIN_ROLE_IDS\`, \`REVIEWER_ROLE_IDS\` remain configured.
+4. Add **\`DISCORD_ADMIN_REPORT_WEBHOOK_URL\`** pointing to a **private admin/owner-only Discord channel**. Add **\`DISCORD_OWNER_REPORT_WEBHOOK_URL\`** pointing to a **separate owner-only channel**. Do not reuse the general staff-channel webhook; leave either unset if the corresponding private channel does not exist yet.
+5. Deploy the latest V1.3.1 GitHub \`main\` commit through Railway's existing connected GitHub deployment. If auto-deployment is enabled, inspect the latest deployment rather than clicking a second deploy.
+6. Visit \`https://sbstore.info/health\` and check \`"version":"1.3.1"\`. Sign in: check the Member or Staff homepage appropriate to your Discord role. Test ticket creation and staff chat.
+7. As an owner, visit **Admin Settings → Discord staff webhook**. Use **Test Staff Webhook**, **Test Admin Reports**, or **Test Owner Reports**. All are **no-ping** tests. Confirm the messages arrive in the intended private channels.
+
+Member-uploaded profile images stay in \`/app/data/uploads\`, ticket media in \`/app/data/ticket-files\`, and all new messages and tickets in \`/app/data/app.sqlite\`. Do not change their persistent storage paths. An ordinary code redeploy does not delete correctly mounted volume data.
+
+**Security:** the Chrome Safe Browsing warning previously observed for \`sbstore.info\` is a separate outstanding issue; investigate Google Search Console Security Issues before encouraging public traffic. Rotate leaked Discord bot, OAuth and webhook secrets and remove sensitive database history from public GitHub.
 
 ## V1.3.0: private ticket replies, @here webhook and final owner authorization
 
@@ -86,6 +114,8 @@ The existing V1.1 settings remain supported:
 | `APPLICATION_ROLE_IDS` | Optional mapping `Helper:123...,Moderator:456...`; can also configure in Admin Settings |
 | `APPLICATIONS_OPEN` | Initial state (`true` or `false`), then persisted in database |
 | `DISCORD_WEBHOOK_URL` | Optional staff-channel notifications (private) |
+| `DISCORD_ADMIN_REPORT_WEBHOOK_URL` | Private admin-only Staff Report notification channel (never general staff) |
+| `DISCORD_OWNER_REPORT_WEBHOOK_URL` | Owner-only notification channel for reports about admins and ambiguous cases |
 | `DISCORD_INVITE_URL` | Optional server invite |
 | `DB_PATH` | SQLite path, default `data/app.sqlite` |
 | `TRUST_PROXY` | `0` locally; set only when your trusted deployment proxy requires it |
