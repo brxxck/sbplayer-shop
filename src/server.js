@@ -16,7 +16,7 @@ import * as supportView from './support-views.js';
 import * as homeView from './home-views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
-import {ticketMessages,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
+import {ticketMessages,applicationAttachments,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
 class HttpError extends Error {constructor(status,message){super(message);this.status=status;}}
@@ -359,7 +359,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!ticket)missing();
       const messages=ticketMessages(id);
       run('UPDATE applications SET applicant_seen_at=? WHERE id=?',now(),id);
-      return html(view.ownTicket(ctx,ticket,messages));
+      return html(view.ownTicket(ctx,ticket,messages,applicationAttachments(id)));
     }
     // One private reply route for applicants and for staff; never accept a ticket ID as proof of access.
     const ticketReplyMatch=/^\/(dashboard|staff)\/applications\/(\d+)\/reply$/.exec(pathname);
@@ -370,9 +370,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!a)missing();
       if(!staffReply&&a.user_id!==ctx.user.id)missing();
       rate(ctx,'application.reply',8,600000);
-      const {fields}=await form();
+      const {fields,files}=await form();
       const body=formValue(fields,'body',2000,1);
-      const msg=writeTicketReply({appId:id,userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+      const evidence=Array.isArray(files.evidence)?files.evidence:[];
+      if(evidence.length>5)invalid('Upload at most five files.');
+      const stored=saveTicketEvidence(evidence);
+      let msg;
+      try{msg=writeTicketReply({appId:id,userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip,attachments:stored});}
+      catch(error){deleteTicketEvidence(stored);throw error;}
       if(!staffReply){
         const pingHere=reserveStaffPing(id,300000);
         const delivered=await discord.notify({title:'Applicant Reply — Staff Application #'+id,
@@ -423,7 +428,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Reviewed tickets leave a reviewer's pending queue, but remain available for ticket conversation.
       logAction(ctx,'application.view','application:'+id);
       const voted=one('SELECT * FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id);
-      return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted,messages:ticketMessages(id),ownerRecommendation:ownerRecommendation(id)}));
+      return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted,messages:ticketMessages(id),attachments:applicationAttachments(id),ownerRecommendation:ownerRecommendation(id)}));
     }
     m=/^\/staff\/applications\/(\d+)\/(review|decide|note|interview|sync)$/.exec(pathname);
     if(m&&req.method==='POST'){
