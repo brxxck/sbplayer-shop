@@ -109,7 +109,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       // Owner-only ledger: record every page read and every staff write attempt, even if a later check denies it.
-      if(isStaffRole(ctx.role))logAction(ctx,req.method==='GET'?'staff.page.read':'staff.request.attempt',pathname,{method:req.method},req.method==='GET'?'ok':'attempt');
+      if(isStaffRole(ctx.role) && !(pathname==='/staff/chat/messages' && req.method==='GET'))logAction(ctx,req.method==='GET'?'staff.page.read':'staff.request.attempt',pathname,{method:req.method},req.method==='GET'?'ok':'attempt');
     }
     async function authorize(level){
       await member();
