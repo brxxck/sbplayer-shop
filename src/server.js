@@ -10,8 +10,12 @@ import {appendAudit,verifyAudit} from './audit.js';
 import {classify,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
 import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
-import {parseRequestBody,saveImage,safeImageFile} from './uploads.js';
+import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as view from './views.js';
+import * as supportView from './support-views.js';
+import * as homeView from './home-views.js';
+import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
+import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
 import {ticketMessages,writeTicketReply,reserveStaffPing,ownerRecommendation,awaitingOwnerQueue,ownerReview} from './tickets.js';
 import {application,ownApplications,activeApplication,latestApplication,applicationCounts,staffQueue,reviewerVotes,adminVotes,reviewerVote,adminVote,userProfile,profileSections,listPosts,postDetails,listComments,listSuggestions,suggestionDetails,suggestionVoters,deliverAcceptedRole} from './services.js';
 
@@ -41,6 +45,7 @@ const idFrom=(s)=>{const v=Number(s);return Number.isSafeInteger(v)&&v>0?v:null;
 const pageNumber=v=>Number.isInteger(Number(v))?Math.max(0,Math.min(100,Number(v))):0;
 const isStaffRole=r=>['reviewer','admin','owner'].includes(r);
 const isAdminRole=r=>['admin','owner'].includes(r);
+const appealRoute=p=>p==='/'||p==='/tickets/new'||p==='/tickets/mine'||/^\/tickets\/(new\/ban_appeal|\d+(?:\/reply)?|attachments\/\d+)$/.test(p);
 const ipOf=req=>{
   const remote=String(req.socket.remoteAddress||'').slice(0,90);
   return config.trustProxy?String(req.headers['x-forwarded-for']||remote).split(',')[0].trim().slice(0,90):remote;
@@ -92,8 +97,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(ctx.member)return;
       if(!ctx.user)throw new Redirect('/auth/login');
       const [guild,actual]=await Promise.all([discord.getGuild(),discord.getGuildMember(ctx.user.id)]);
-      if(!guild||!actual||actual.pending)throw new HttpError(403,'This Discord account is not currently a verified member of SB’s & Cam’s Store. Complete membership screening or sign in with the correct account.');
-      ctx.guild=guild;ctx.member=actual;
+      if(!guild)throw new HttpError(503,'Discord server verification is currently unavailable.');
+      ctx.guild=guild;
+      if(!actual||actual.pending){
+        // Discord OAuth still verifies the account. Non-members may only submit/follow ban appeals.
+        if(!appealRoute(pathname))throw new HttpError(403,'Server membership is required for this feature. Non-members may submit a Ban Appeal.');
+        ctx.role='appeal-only';return;
+      }
+      ctx.member=actual;
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
@@ -114,8 +125,24 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.0'}),'application/json; charset=utf-8');}
-    if(pathname==='/'&&req.method==='GET'){if(ctx.user)await member();return html(view.home(ctx));}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.1'}),'application/json; charset=utf-8');}
+    if(pathname==='/'&&req.method==='GET'){
+      if(!ctx.user)return html(view.home(ctx));
+      await member();
+      if(ctx.role==='appeal-only')return html(homeView.appealHome(ctx,{tickets:mySupportTickets(ctx.user.id).filter(t=>t.category==='ban_appeal')}));
+      if(!isStaffRole(ctx.role)){
+        const posts=listPosts(ctx.user.id,{limit:4}),tickets=mySupportTickets(ctx.user.id),applications=ownApplications(ctx.user.id);
+        return html(homeView.memberHome(ctx,{posts,tickets,applications}));
+      }
+      // Use the same permission filter for the homepage, full staff queue and ticket URLs.
+      const supports=await supportQueueVisible(ctx,openSupportTickets(),discord,config);
+      const applications=all("SELECT a.*,u.display_name,u.username FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
+      const tickets=[
+        ...supports.map(t=>({...t,displayId:'T-'+t.id,href:'/staff/tickets/'+t.id})),
+        ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id}))
+      ].sort((a,b)=>b.updated_at-a.updated_at);
+      return html(homeView.staffHome(ctx,{tickets,staffMessages:staffChatRecent(),applications,activeCount:supports.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
+    }
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
       setCookie(res,'oauth',Buffer.from(JSON.stringify({state,verifier})).toString('base64url'),{maxAge:600});
@@ -128,16 +155,17 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!saved || !secureEqual(url.searchParams.get('state'),saved.state)||!url.searchParams.get('code'))invalid('Discord authorization was cancelled or expired. Try signing in again.');
       const token=await discord.exchangeCode(url.searchParams.get('code'),saved.verifier);
       const [profile,oauthMember,guild]=await Promise.all([discord.getDiscordUser(token.access_token),discord.getOAuthGuildMember(token.access_token),discord.getGuild()]);
-      if(!profile||!idOK(profile.id)||!oauthMember||oauthMember.pending)forbidden('Your Discord account must be a verified member of this server.');
-      const actual=await discord.getGuildMember(profile.id);if(!actual||actual.pending)forbidden('Discord bot could not verify membership.');
+      if(!profile||!idOK(profile.id)||profile.bot||!guild)forbidden('A valid personal Discord account is required.');
+      // Non-members can authenticate with Discord solely to submit and track Ban Appeals.
+      const actual=await discord.getGuildMember(profile.id);
       upsertUser(profile);ensureProfile(profile.id);
       if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));
       const sid=randomToken(),csrf=randomToken();run('INSERT INTO sessions(token_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)',sha256(sid),profile.id,csrf,now()+7*86400000);
       setCookie(res,'sid',sid,{maxAge:7*86400});
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
-      const role=classify(actual,guild.owner_id,profile.id,config,coowners);
+      const role=actual&&!actual.pending?classify(actual,guild.owner_id,profile.id,config,coowners):'appeal-only';
       if(isStaffRole(role))logAction({...ctx,user:profile,role},'staff.login',profile.id);
-      return redirect(res,'/dashboard');
+      return redirect(res,role==='appeal-only'?'/tickets/new/ban_appeal':'/');
     }
     if(testLogin && process.env.NODE_ENV==='test' && pathname.startsWith('/__test/login/') && req.method==='GET'){
       const id=pathname.split('/').pop();if(!idOK(id))invalid();const m=await discord.getGuildMember(id);if(!m)forbidden();
@@ -727,5 +755,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.2.1 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.1 running at ${config.baseUrl}`));
 }
