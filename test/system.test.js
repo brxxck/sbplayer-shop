@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
 const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014'};
-const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009'};
+const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006',mega:'200000000000000007',prison:'200000000000000008',storeStaff:'200000000000000009',sbsLeader:'1557586028729077841',sbsMember:'1565070132676661439'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
@@ -22,7 +22,9 @@ const fakeRoles=[
   {id:roles.bot,name:'SB Bot',position:90,permissions:String(1n<<28n),managed:true,color:442211},
   {id:roles.mega,name:'Mega Smp Staff',position:7,permissions:'0',managed:false,color:112233},
   {id:roles.prison,name:'Prison Staff',position:6,permissions:'0',managed:false,color:223344},
-  {id:roles.storeStaff,name:'Staff',position:5,permissions:'0',managed:false,color:334455}
+  {id:roles.storeStaff,name:'Staff',position:5,permissions:'0',managed:false,color:334455},
+  {id:roles.sbsLeader,name:'SBs Team Leader',position:12,permissions:'0',managed:false,color:0xdb2626},
+  {id:roles.sbsMember,name:'[SBs] SBs Team Member',position:11,permissions:'0',managed:false,color:0xff2525}
 ];
 const memberMap=new Map();
 for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{user:{id,username:key.toLowerCase(),global_name:key,avatar:null,bot:key==='bot'},roles:key.startsWith('admin')?[roles.admin]:key==='reviewer'?[roles.reviewer]:key==='bot'?[roles.bot]:[],pending:false});
@@ -31,7 +33,10 @@ for(const [key,id] of Object.entries(ids))if(key!=='guild')memberMap.set(id,{use
  memberMap.get(ids.member4).roles.push(roles.prison);
  memberMap.get(ids.member5).roles.push(roles.mega,roles.prison);
  memberMap.get(ids.member6).roles.push(roles.storeStaff);
- memberMap.get(ids.adminA).roles.push(roles.mega);
+ memberMap.get(ids.adminA).roles.push(roles.mega,roles.sbsMember);
+ memberMap.get(ids.member2).roles.push(roles.sbsMember);
+ memberMap.get(ids.member3).roles.push(roles.sbsLeader);
+ memberMap.get(ids.member4).roles.push(roles.sbsLeader,roles.sbsMember);
 let additions=0;let failNextRole=false;const notifications=[];
 const fake={
   getGuild:async()=>({id:ids.guild,owner_id:ids.owner}),
@@ -133,6 +138,49 @@ test('private profiles do not expose role badges to other members, but owners se
  }finally{
    run('UPDATE profiles SET public=1 WHERE user_id=?',id);
  }
+});
+
+test('Our Staff, Team Members, Known Members render in requested order with exact team-role membership',async()=>{
+  const page=await (await get('/team','member')).text();
+  assert.ok(page.includes('>Our Staff</span>'));
+  assert.ok(page.includes('>Team Members</span>'));
+  assert.ok(page.includes('>Known Members</span>'));
+  assert.ok(page.indexOf('>Our Staff</span>')<page.indexOf('>Team Members</span>'));
+  assert.ok(page.indexOf('>Team Members</span>')<page.indexOf('>Known Members</span>'));
+  assert.ok(page.includes('href="/team?tab=sbs"'));
+  assert.ok(page.includes('href="/team?tab=known"'));
+  assert.ok(!page.includes('href="/u/'+ids.member2+'"'),'SBs-only role does not make a store staff member');
+  assert.ok(!page.includes('href="/u/'+ids.member3+'"'),'SBs leader-only role does not make store staff');
+  assert.match(page,/adminA[\s\S]*?sbs-member-tag/,'a store admin with SBs Member also has the red badge');
+  const team=await (await get('/team?tab=sbs','member')).text();
+  assert.ok(team.includes('SBs x Scam'));
+  assert.ok(team.includes('SBs Team Leaders'));
+  assert.ok(team.includes('SBs Team Members'));
+  for(const key of ['member2','member3','member4','adminA'])assert.ok(team.includes('href="/u/'+ids[key]+'"'),key+' should appear');
+  assert.ok(!team.includes('href="/u/'+ids.member5+'"'),'external staff without SBs role excluded');
+  assert.equal(team.split('href="/u/'+ids.member4+'"').length-1,1,'dual leader/member role shown once');
+  assert.match(team,/class="sbs-member-tag" title="SBs Team Member" aria-label="SBs Team Member">\[SBs\]<\/span>/);
+  const known=await (await get('/team?tab=known&known=prison','member')).text();
+  assert.ok(known.includes('href="/u/'+ids.member4+'"'),'Prison role stays in Known Members');
+  assert.ok(known.includes('href="/u/'+ids.member5+'"'));
+  assert.ok(known.includes('[SBs]'),'SBs member gets name tag even in Known Members');
+  const invalid=await (await get('/team?tab=unexpected','member')).text();
+  assert.ok(invalid.includes('>Our Staff</span>'),'unexpected tab defaults to Our Staff');
+});
+
+test('SBs Member tag follows names on profiles but leader-only and private profiles are not mislabeled',async()=>{
+  const profile=await (await get('/u/'+ids.member2,'member')).text();
+  assert.match(profile,/<h1>member2<span class="sbs-member-tag"[^>]*>\[SBs\]<\/span><\/h1>/);
+  const leader=await (await get('/u/'+ids.member3,'member')).text();
+  assert.match(leader,/<h1>member3<\/h1>/,'SBs leader-only is not assigned the member badge');
+  assert.doesNotMatch(leader,/<h1>member3<span class="sbs-member-tag"/);
+  run('UPDATE profiles SET public=0 WHERE user_id=?',ids.member2);
+  try{
+   const privateView=await (await get('/u/'+ids.member2,'member')).text();
+   assert.doesNotMatch(privateView,/<span class="sbs-member-tag"/,'private profile does not expose team badge');
+   const owner=await (await get('/u/'+ids.member2,'member2')).text();
+   assert.match(owner,/<h1>member2<span class="sbs-member-tag"/,'profile owner sees own badge');
+  }finally{run('UPDATE profiles SET public=1 WHERE user_id=?',ids.member2);}
 });
 
 test('members submit private applications; optional reviewers vote once then ticket disappears',async()=>{
