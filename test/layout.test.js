@@ -57,3 +57,44 @@ test('static CSS and JS are served no-store even with version query; logo is rec
   assert.equal(logo.status,200);
   assert.equal(logo.headers.get('content-type'),'image/png');
 });
+
+
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+test('Discord receives SB Store branded previews without a login redirect',async()=>{
+ const base='http://127.0.0.1:'+server.address().port;
+ const headers={'user-agent':'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)'};
+ for(const [path,heading] of [
+   ['/','SB&#39;s &amp; Cam&#39;s Store'],
+   ['/team','Our Team | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/feed','Main Feed | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/suggestions','Server Suggestions | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/tickets/new','Support Tickets | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/apply','Staff Applications | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/staff/tickets/12345','Private Ticket | SB&#39;s &amp; Cam&#39;s Store']
+ ]){
+   const response=await fetch(base+path,{headers,redirect:'manual'});
+   assert.equal(response.status,200,'Discordbot gets HTML rather than an OAuth redirect for '+path);
+   assert.match(response.headers.get('content-type'),/text\/html/);
+   const html=await response.text();
+   assert.ok(html.includes('property="og:title" content="'+heading+'"'),path+' should be branded');
+   assert.match(html,/property="og:site_name" content="SB&#39;s &amp; Cam&#39;s Store"/);
+   assert.match(html,/property="og:image" content="https:\/\/sbstore\.info\/static\/sb-logo\.png"/);
+   assert.match(html,/property="og:description" content="[^"]+"/);
+   assert.match(html,/name="twitter:card" content="summary"/);
+   assert.ok(html.includes('property="og:url" content="https://sbstore.info'+path+'"'));
+   if(path!=='/')assert.ok(html.includes('Continue with Discord'));
+   assert.doesNotMatch(html,/discord\.com\/oauth2/,'site previews must not contain OAuth redirects');
+ }
+});
+
+test('guest preview never exposes ticket data or mistakes private URLs for public records',async()=>{
+ const base='http://127.0.0.1:'+server.address().port;
+ const response=await fetch(base+'/staff/applications/6577',{redirect:'manual'});
+ assert.equal(response.status,200);
+ const html=await response.text();
+ assert.match(html,/Private Ticket/);
+ assert.doesNotMatch(html,/Applicant responses|Admin decisions|Private admin note|ticket-conversation/);
+ assert.doesNotMatch(html,/Application #6577|Ticket #6577/);
+ const noPreview=await fetch(base+'/staff/secret/not-a-route',{redirect:'manual'});
+ assert.equal(noPreview.status,303,'unknown paths still follow ordinary login checks');
+});
