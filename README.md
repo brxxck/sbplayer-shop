@@ -1,7 +1,39 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.5.3
+# SB's & Cam's Store — Community Portal V1.6.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.6.0 — SBsxScam MegaSMP Team Dashboard
+
+- **Dedicated fourth team tab:** Open `/team?tab=mega` (or the sidebar's **MegaSMP Team** link) for SBsxScam's dashboard. The linked InPvP team ID is `5638a504-3347-43fc-89d6-424dad53b7f6`.
+- **Separate roster sources:** The current Discord Team Members directory still shows members with the two existing SBs roles; those accounts are explicitly **not assumed** to be Minecraft team members. The new in-game roster starts empty until admins add Gamertags or a permitted structured feed supplies them. No fake financial numbers are seeded.
+- **Stats and leaderboard:** Per-player deposits, withdrawals, net contributions, contribution leaderboard, reported bank balance, recorded transaction list, and source labels. Unknown values display as **Not recorded**, never zero. Cumulative authorized-feed totals *replace* manual totals for that member instead of being added to them, preventing double counting. Team deposit/withdrawal subtotals include former members' historical contributions, and remain explicitly partial while some values are missing. The team-wide **net** figure is withheld until all recorded members have both totals; potentially unsafe integer sums are never shown as exact.
+- **Season history:** Only the verified server owner can create a new season; previous rosters, bank values and ledger records remain readable. Owners and admins may add/bulk-add Gamertags, update active/former status, enter deposit/withdrawal entries, record an independent bank balance, and import structured snapshots for the active season. All changes require CSRF and are logged in the owner-only audit.
+- **Privacy:** Discord accounts that are not verified members of the SB Store guild may still view the Discord team directory, but cannot access the team-bank dashboard or its financial data endpoint. Administrative edits require verified owner/admin privileges.
+- **Five-minute refresh:** The browser re-reads the website's own authenticated JSON endpoint without reloading or losing scroll. If an **explicitly authorized JSON feed** is configured, a server-side worker polls it every five minutes and stores successful snapshots in the existing SQLite volume. Failures retain cached data with source timestamps and stale warnings. No external polling occurs by default.
+- **InPvP limitation:** Their public teams directory shows *Team data sync in progress*. Individual deposits/withdrawals and full in-game member details have not been verified as available. InPvP's [Terms](https://inpvp.net/terms) restrict automated scripts/bots unless explicitly permitted. **Do not enable InPvP polling without written or otherwise explicit permission.** The ordinary public team-page link does not constitute an API.
+- **No new credentials required for manual mode.** Trusted-feed configuration is optional and disabled by default:
+
+  - `MEGA_TEAM_SYNC_URL=https://trusted.example.net/approved-team-snapshot.json` — operator-provided, authorized HTTPS JSON feed (not the InPvP HTML page).
+  - `MEGA_TEAM_SYNC_AUTHORIZED=true` — administrator attests they have permission to automate the configured provider.
+  - `MEGA_TEAM_SYNC_TOKEN=...` — optional private bearer token; never render it in HTML or logs.
+  - `MEGA_TEAM_INPVP_AUTOMATION_APPROVED=true` — only if InPvP has specifically approved an automated interface; otherwise `inpvp.net` hosts remain blocked.
+
+- **Permitted-feed JSON schema** (the same structure can be pasted into the admin import form):
+  ```json
+  {
+    "team_id": "5638a504-3347-43fc-89d6-424dad53b7f6",
+    "season": "current",
+    "updated_at": "2026-11-12T21:00:00Z",
+    "complete_roster": true,
+    "bank_balance": null,
+    "members": [
+      {"gamertag":"ExamplePlayer","role":"Member","active":true,"deposits":null,"withdrawals":null}
+    ]
+  }
+  ```
+  Use numbers for known integer amounts; use `null` for unavailable amounts. Season keys must match the website's current season. Changes are validated and committed atomically; previously saved figures are retained when the provider is unavailable.
+- **Deployment:** Leave the existing Railway project, SQLite database and persistent `/app/data` volume untouched. Deploy only after the full test suite passes. Confirm `/health` returns `1.6.0`, then visit **Team Members → MegaSMP Team** and add/import real member data.
 
 ## V1.5.3 — Private inline Evidence Viewer
 
@@ -76,19 +108,19 @@
 - The **target and details** columns also display resolved usernames where possible; exports retain the original IDs, row hashes, and other forensic data plus readable display columns.
 - **Audit scope:** record **state changes** (staff review decisions, ticket replies and status updates, role changes, settings, owner access, profile/content edits, etc.) and **successful access to individual private tickets/attachments**. Routine page loads, audit page views, queue refreshes, failed attempts and webhook notification delivery no longer add noisy audit entries.
 - Old browsing-related events are **hidden from the audit page** and from its default **Export changes & ticket access** CSV, but are **not deleted or changed**. Owners can use **Full historical CSV** to retrieve all original events, preserving the tamper-evident hash chain.
-- **Any personal Discord account may sign in** using OAuth, even if it isn't in the Discord guild. Missing guild membership or pending membership screening gives the restricted \`appeal-only\` role, which can **submit and track its own Ban Appeals** and now visit **Meet the Team** (including Our Staff, Team Members / SBs x Scam, and Known Members). Regular feeds, member profiles, other ticket types and staff/admin features remain blocked.
+- **Any personal Discord account may sign in** using OAuth, even if it isn't in the Discord guild. Missing guild membership or pending membership screening gives the restricted `appeal-only` role, which can **submit and track its own Ban Appeals** and now visit **Meet the Team** (including Our Staff, Team Members / SBs x Scam, and Known Members). Regular feeds, member profiles, other ticket types and staff/admin features remain blocked.
 - For restricted users, the team directory cards show names, avatars and role labels but **do not link to member profiles**. The restricted homepage and sidebar include **Meet the Team**, and people signing in from shared team links return to that page after Discord authentication.
-- **Safe Railway update:** no destructive migrations, no changes to existing application/ticket data, and no new environment variables. **Back up the existing Railway volume**, keep \`/app/data\` mounted and \`DB_PATH=/app/data/app.sqlite\`, deploy the latest tested GitHub \`main\` on your existing \`sbplayer-shop\` service, and verify \`https://sbstore.info/health\` returns \`"version":"1.3.9"\`.
-- **Test procedure:** sign in with a Discord account that is *not* in your server, verify the **Ban Appeal** and **Meet the Team** links work, then confirm \`/feed\`, \`/dashboard\`, \`/members\` and \`/staff\` deny access. Check Owner Audit Log for @username labels and clean event categories.
+- **Safe Railway update:** no destructive migrations, no changes to existing application/ticket data, and no new environment variables. **Back up the existing Railway volume**, keep `/app/data` mounted and `DB_PATH=/app/data/app.sqlite`, deploy the latest tested GitHub `main` on your existing `sbplayer-shop` service, and verify `https://sbstore.info/health` returns `"version":"1.3.9"`.
+- **Test procedure:** sign in with a Discord account that is *not* in your server, verify the **Ban Appeal** and **Meet the Team** links work, then confirm `/feed`, `/dashboard`, `/members` and `/staff` deny access. Check Owner Audit Log for @username labels and clean event categories.
 
 ## V1.3.8 — Staff, Mod and Temp Mod sections
 
 - **Our Staff** keeps **Ownership** and **Administration**, then replaces the former generic **Other Staff** grid with three separate groups in this order: **Staff → Mod → Temp Mod**. Each group is visible even if no members are currently assigned.
-- **Temp Mod** membership is determined exclusively by the Discord role ID \`1539085168281919648\`, not by fuzzy name matching. The label uses the role's current Discord name.
-- **Mod** includes the store's \`Mod\`, \`Moderator\`, and \`Head Mod\` roles. **Staff** includes normal/head/senior store \`Staff\` roles, plus explicitly configured reviewer/team staff roles when they do not hold a more specific rank.
+- **Temp Mod** membership is determined exclusively by the Discord role ID `1539085168281919648`, not by fuzzy name matching. The label uses the role's current Discord name.
+- **Mod** includes the store's `Mod`, `Moderator`, and `Head Mod` roles. **Staff** includes normal/head/senior store `Staff` roles, plus explicitly configured reviewer/team staff roles when they do not hold a more specific rank.
 - People with more than one staff role appear **once**, in their highest applicable group: **Ownership > Administration > Staff > Mod > Temp Mod**. The displayed role badge comes from the matched internal role, not unrelated Mega SMP staff roles.
 - **Known Members** (Mega SMP / Prison staff) and **Team Members** (SBs x Scam) remain separate. External staff and team roles cannot accidentally create an **Our Staff** card.
-- **Safe deployment:** This is a presentation/role-classification update. No database schema changes or new Railway settings are needed. Keep the existing \`sbplayer-shop\` service and \`/app/data\` volume, back up before redeploying GitHub \`main\`, and verify \`https://sbstore.info/health\` reports \`"version":"1.3.8"\`.
+- **Safe deployment:** This is a presentation/role-classification update. No database schema changes or new Railway settings are needed. Keep the existing `sbplayer-shop` service and `/app/data` volume, back up before redeploying GitHub `main`, and verify `https://sbstore.info/health` reports `"version":"1.3.8"`.
 
 ## V1.3.7 — Mega Staff Trusted directory fix and cleaner heading
 
@@ -97,27 +129,27 @@
 - Users with both a legitimate store-staff role and an external Mega SMP Staff Trusted role still appear under **Our Staff** with their actual store-staff title, and in the Mega SMP known-members list.
 - The explanatory text **“Automatically detected from N Discord server roles.”** beneath the **Meet our team** heading has been removed. The directories remain automatically populated from verified Discord member roles.
 - Existing tab order remains **Our Staff → Team Members → Known Members**, with SBs x Scam and Prison Staff grouping unchanged.
-- **Safe Railway deployment:** no database changes, schema updates or new variables. Keep the existing \`sbplayer-shop\` service and \`/app/data\` volume. Back up first, deploy the tested \`main\` branch, then confirm \`https://sbstore.info/health\` reports \`"version":"1.3.7"\`.
+- **Safe Railway deployment:** no database changes, schema updates or new variables. Keep the existing `sbplayer-shop` service and `/app/data` volume. Back up first, deploy the tested `main` branch, then confirm `https://sbstore.info/health` reports `"version":"1.3.7"`.
 
 ## V1.3.6 — SBs x Scam Team Members and red [SBs] name tag
 
 - The top navigation on **Team Members** now appears in this exact order: **Our Staff → Team Members → Known Members**. The first keeps the existing store-staff groups, and the third keeps the Mega SMP Staff and Prison Staff subtabs.
 - The new **Team Members** tab is labelled **SBs x Scam** inside the page and finds members from two exact Discord role IDs:
-  - **SBs Team Leader:** \`1557586028729077841\`
-  - **SBs Team Member:** \`1565070132676661439\`
+  - **SBs Team Leader:** `1557586028729077841`
+  - **SBs Team Member:** `1565070132676661439`
 - Team Members are grouped into **SBs Team Leaders** and **SBs Team Members**. If someone has both roles, they appear once under Team Leaders; if they also genuinely belong to store staff or a Known Members group, they remain visible in those other tabs.
 - **[SBs]** is displayed in **red immediately after the display name** on team directory cards and member profiles for users who **actually have the SBs Team Member role**. A leader who doesn't also hold the member role does not receive the tag. This badge is derived from verified Discord role membership, not editable profile text.
 - A member having only an SBs role is not treated as a store staff member solely because of that role. Badge visibility respects existing private profile permissions.
-- **Safe Railway deployment:** no database migrations, no new variables, no role changes and no volume reset. Keep your existing \`sbplayer-shop\` service, \`/app/data\` volume and \`DB_PATH=/app/data/app.sqlite\`. Back up your volume first, deploy the latest tested GitHub \`main\` commit, then verify \`https://sbstore.info/health\` returns \`"version":"1.3.6"\` and open \`https://sbstore.info/team?tab=sbs\`. The bot needs Guild Members Intent for a complete member list.
+- **Safe Railway deployment:** no database migrations, no new variables, no role changes and no volume reset. Keep your existing `sbplayer-shop` service, `/app/data` volume and `DB_PATH=/app/data/app.sqlite`. Back up your volume first, deploy the latest tested GitHub `main` commit, then verify `https://sbstore.info/health` returns `"version":"1.3.6"` and open `https://sbstore.info/team?tab=sbs`. The bot needs Guild Members Intent for a complete member list.
 
 ## V1.3.5 — Discord roles on every member profile
 
 - Every member profile now has a **Discord Roles** section **directly below the bio and above the profile statistics**, using coloured, mobile-wrapping badges for the user's roles from the configured Discord guild.
-- Role names and colours come from live Discord server role definitions, ordered by **Discord role position** (highest first). The shared **\`@everyone\`** role is excluded; managed, regular community, store-staff, Mega SMP Staff and Prison Staff roles are included when assigned.
+- Role names and colours come from live Discord server role definitions, ordered by **Discord role position** (highest first). The shared **`@everyone`** role is excluded; managed, regular community, store-staff, Mega SMP Staff and Prison Staff roles are included when assigned.
 - This is **read-only** and requires no manual role entry. Role and member lookups are cached for **60 seconds** to reduce Discord API usage; refresh the member's profile after that interval to see changes. Your own page uses your freshly verified Discord membership where possible.
 - **Privacy:** another user's private profile does not show roles and does not trigger an additional role lookup. A person viewing their own private profile can still see their roles.
 - Missing Discord data is shown as an unavailable state, never fabricated roles. Escaped role labels and validated hex colours prevent user-controlled role names from injecting markup or CSS.
-- **Safe deployment:** keep the existing Railway service and \`/app/data\` persistent volume. This release changes presentation and read-only API lookups only: **no SQLite schema changes, no reset, and no new environment variables**. Back up the volume as normal, deploy the latest \`main\` commit, then verify \`https://sbstore.info/health\` returns \`"version":"1.3.5"\`.
+- **Safe deployment:** keep the existing Railway service and `/app/data` persistent volume. This release changes presentation and read-only API lookups only: **no SQLite schema changes, no reset, and no new environment variables**. Back up the volume as normal, deploy the latest `main` commit, then verify `https://sbstore.info/health` returns `"version":"1.3.5"`.
 
 ## V1.3.4 — Known Members tab on Meet the Team
 
@@ -130,14 +162,14 @@
 
 ## V1.3.3 — Branded Discord link previews
 
-Discord was showing its own homepage on shared \`sbstore.info/team\` links because signed-out web crawlers received a Discord OAuth redirect and the pages lacked Open Graph metadata.
+Discord was showing its own homepage on shared `sbstore.info/team` links because signed-out web crawlers received a Discord OAuth redirect and the pages lacked Open Graph metadata.
 
-- All site pages now serve **server-rendered Open Graph and Twitter Card tags** with \`SB's & Cam's Store\` branding, the existing public SB logo (\`/static/sb-logo.png\`), an absolute canonical \`BASE_URL\`, and a route-specific safe description for common pages.
+- All site pages now serve **server-rendered Open Graph and Twitter Card tags** with `SB's & Cam's Store` branding, the existing public SB logo (`/static/sb-logo.png`), an absolute canonical `BASE_URL`, and a route-specific safe description for common pages.
 - Clicking **Continue with Discord** on a shared link now carries a verified same-site return path through OAuth, so a member signing in from `/team` returns to `/team` rather than being dumped on Home. Unsafe or external return URLs are rejected.
-- Signed-out visitors (including Discordbot) can fetch **public login landing pages** for \`/team\`, \`/members\`, \`/feed\`, \`/suggestions\`, \`/apply\`, \`/tickets/new\`, \`/dashboard\`, and common shared ticket/profile links, with the normal **Continue with Discord** action. Actual user/member/staff content still requires authenticated authorization.
+- Signed-out visitors (including Discordbot) can fetch **public login landing pages** for `/team`, `/members`, `/feed`, `/suggestions`, `/apply`, `/tickets/new`, `/dashboard`, and common shared ticket/profile links, with the normal **Continue with Discord** action. Actual user/member/staff content still requires authenticated authorization.
 - Shared private ticket and staff-application links show only a **generic Private Ticket preview**. Ticket IDs, replies, staff reports, decisions and attachments are **not** displayed to the crawler.
-- **Safe deployment:** Back up the existing Railway volume, keep \`DB_PATH=/app/data/app.sqlite\`, and redeploy the same service from GitHub \`main\`. There are **no database changes** and no new Railway variables. Ensure \`BASE_URL=https://sbstore.info\` is already set.
-- Check \`/health\` for \`"version":"1.3.3"\`, then paste \`https://sbstore.info/team?preview=133\` into a **new Discord message**. Discord can cache old previews; a new query string prompts a fresh fetch. The card should say **Our Team | SB's & Cam's Store** with the SB logo.
+- **Safe deployment:** Back up the existing Railway volume, keep `DB_PATH=/app/data/app.sqlite`, and redeploy the same service from GitHub `main`. There are **no database changes** and no new Railway variables. Ensure `BASE_URL=https://sbstore.info` is already set.
+- Check `/health` for `"version":"1.3.3"`, then paste `https://sbstore.info/team?preview=133` into a **new Discord message**. Discord can cache old previews; a new query string prompts a fresh fetch. The card should say **Our Team | SB's & Cam's Store** with the SB logo.
 
 Note: If Chrome or Discord flags the domain as dangerous, that separate domain reputation issue still needs to be resolved. Metadata cannot override security or trust warnings.
 
@@ -162,21 +194,21 @@ Note: If Chrome or Discord flags the domain as dangerous, that separate domain r
 - **Private Discord notifications:** ordinary new tickets trigger @here in the existing staff-only webhook; applicant replies are limited to one @here per ticket per 5 minutes. Staff Reports never go to that general channel: they use the separately configured admin or owner report webhooks **without @here**. If a private webhook is missing, the confidential notification is suppressed rather than falling back to the general staff channel.
 - **Ban appeals for banned users:** Discord OAuth can authenticate non-guild users for *only* the Ban Appeal form, their own appeals and replies. All other website pages remain blocked until verified guild membership. One unresolved Ban Appeal per account.
 - **Default profile UI:** repairs default typography, headings, empty states, sizing, spacing, mobile layout and avatar/header positioning without resetting custom profile data.
-- **No destructive migrations:** uses additive SQLite tables for support tickets, private attachments and staff-chat messages. Existing applications, votes, member accounts, posts, suggestions, profiles, sessions, logs and image uploads are left intact. Evidence is stored under \`/app/data/ticket-files\` outside public static serving.
+- **No destructive migrations:** uses additive SQLite tables for support tickets, private attachments and staff-chat messages. Existing applications, votes, member accounts, posts, suggestions, profiles, sessions, logs and image uploads are left intact. Evidence is stored under `/app/data/ticket-files` outside public static serving.
 
 ### Railway V1.3.1 safe update checklist
 
-1. Go to the existing Railway service \`sbplayer-shop\`. Under **Volumes**, confirm the same persistent volume remains mounted at **\`/app/data\`**. Confirm **\`DB_PATH=/app/data/app.sqlite\`** under Variables. DO NOT delete the volume or create a replacement service.
-2. Under **Backups**, create or verify a volume snapshot *before* deploying. For SQLite in WAL mode, use a SQLite-aware backup or Railway volume snapshot rather than copying only the open \`.sqlite\` file.
-3. Confirm \`BASE_URL=https://sbstore.info\`, \`DISCORD_WEBHOOK_URL\`, \`FINAL_APPROVER_USER_ID\` (unk.sb's **numeric Discord user ID**), \`ADMIN_ROLE_IDS\`, \`REVIEWER_ROLE_IDS\` remain configured.
-4. Add **\`DISCORD_ADMIN_REPORT_WEBHOOK_URL\`** pointing to a **private admin/owner-only Discord channel**. Add **\`DISCORD_OWNER_REPORT_WEBHOOK_URL\`** pointing to a **separate owner-only channel**. Do not reuse the general staff-channel webhook; leave either unset if the corresponding private channel does not exist yet.
-5. Deploy the latest V1.3.1 GitHub \`main\` commit through Railway's existing connected GitHub deployment. If auto-deployment is enabled, inspect the latest deployment rather than clicking a second deploy.
-6. Visit \`https://sbstore.info/health\` and check \`"version":"1.3.1"\`. Sign in: check the Member or Staff homepage appropriate to your Discord role. Test ticket creation and staff chat.
+1. Go to the existing Railway service `sbplayer-shop`. Under **Volumes**, confirm the same persistent volume remains mounted at **`/app/data`**. Confirm **`DB_PATH=/app/data/app.sqlite`** under Variables. DO NOT delete the volume or create a replacement service.
+2. Under **Backups**, create or verify a volume snapshot *before* deploying. For SQLite in WAL mode, use a SQLite-aware backup or Railway volume snapshot rather than copying only the open `.sqlite` file.
+3. Confirm `BASE_URL=https://sbstore.info`, `DISCORD_WEBHOOK_URL`, `FINAL_APPROVER_USER_ID` (unk.sb's **numeric Discord user ID**), `ADMIN_ROLE_IDS`, `REVIEWER_ROLE_IDS` remain configured.
+4. Add **`DISCORD_ADMIN_REPORT_WEBHOOK_URL`** pointing to a **private admin/owner-only Discord channel**. Add **`DISCORD_OWNER_REPORT_WEBHOOK_URL`** pointing to a **separate owner-only channel**. Do not reuse the general staff-channel webhook; leave either unset if the corresponding private channel does not exist yet.
+5. Deploy the latest V1.3.1 GitHub `main` commit through Railway's existing connected GitHub deployment. If auto-deployment is enabled, inspect the latest deployment rather than clicking a second deploy.
+6. Visit `https://sbstore.info/health` and check `"version":"1.3.1"`. Sign in: check the Member or Staff homepage appropriate to your Discord role. Test ticket creation and staff chat.
 7. As an owner, visit **Admin Settings → Discord staff webhook**. Use **Test Staff Webhook**, **Test Admin Reports**, or **Test Owner Reports**. All are **no-ping** tests. Confirm the messages arrive in the intended private channels.
 
-Member-uploaded profile images stay in \`/app/data/uploads\`, ticket media in \`/app/data/ticket-files\`, and all new messages and tickets in \`/app/data/app.sqlite\`. Do not change their persistent storage paths. An ordinary code redeploy does not delete correctly mounted volume data.
+Member-uploaded profile images stay in `/app/data/uploads`, ticket media in `/app/data/ticket-files`, and all new messages and tickets in `/app/data/app.sqlite`. Do not change their persistent storage paths. An ordinary code redeploy does not delete correctly mounted volume data.
 
-**Security:** the Chrome Safe Browsing warning previously observed for \`sbstore.info\` is a separate outstanding issue; investigate Google Search Console Security Issues before encouraging public traffic. Rotate leaked Discord bot, OAuth and webhook secrets and remove sensitive database history from public GitHub.
+**Security:** the Chrome Safe Browsing warning previously observed for `sbstore.info` is a separate outstanding issue; investigate Google Search Console Security Issues before encouraging public traffic. Rotate leaked Discord bot, OAuth and webhook secrets and remove sensitive database history from public GitHub.
 
 ## V1.3.0: private ticket replies, @here webhook and final owner authorization
 

@@ -9,7 +9,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.5.3-evidence-viewer';
+const assetVersion = '1.6.0-megasmp-team';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -139,15 +139,15 @@ export function shell(ctx,title,content) {
   const unread=Number(ctx.notificationCount)||0;
   return `<!doctype html>
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script><script src="/static/evidence.js?v=${assetVersion}" defer></script></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script><script src="/static/evidence.js?v=${assetVersion}" defer></script><script src="/static/mega-team.js?v=${assetVersion}" defer></script></head>
 <body><div class="shell"><aside class="sidebar"><div class="sidebar-scroll"><a href="/" class="brand"><img class="brand-logo" src="/static/sb-logo.png?v=${assetVersion}" alt="SB logo" width="44" height="44" style="width:44px;height:44px;min-width:44px;max-width:44px;max-height:44px;object-fit:cover"><span><b>SB's & Cam's</b><small>STORE COMMUNITY</small></span></a>
-<div class="sidebar-title">DISCOVER</div><nav>${navLink('/','Home','⌂',ctx)}${user?`${role==='appeal-only'?`${navLink('/tickets/new/ban_appeal','Submit Ban Appeal','✉',ctx)}${navLink('/tickets/mine','My Appeals','◷',ctx)}${navLink('/team','Meet the Team','♛',ctx)}`:`${navLink('/tickets/new','Submit a Ticket','✉',ctx)}${!staffNavigation?navLink('/tickets/mine','My Tickets','◷',ctx):''}${!staffNavigation?navLink('/dashboard','My Applications','▣',ctx):''}${staffNavigation?navLink('/promotions','Apply for a Promotion','✎',ctx):navLink('/apply','Apply for Staff','✎',ctx)}${navLink('/feed','Main Feed','◉',ctx)}${navLink('/suggestions','Server Suggestions','✧',ctx)}${navLink('/members','Socials & Members','♧',ctx)}${navLink('/team','Team Members','♛',ctx)}`}`:''}</nav>
+<div class="sidebar-title">DISCOVER</div><nav>${navLink('/','Home','⌂',ctx)}${user?`${role==='appeal-only'?`${navLink('/tickets/new/ban_appeal','Submit Ban Appeal','✉',ctx)}${navLink('/tickets/mine','My Appeals','◷',ctx)}${navLink('/team','Meet the Team','♛',ctx)}`:`${navLink('/tickets/new','Submit a Ticket','✉',ctx)}${!staffNavigation?navLink('/tickets/mine','My Tickets','◷',ctx):''}${!staffNavigation?navLink('/dashboard','My Applications','▣',ctx):''}${staffNavigation?navLink('/promotions','Apply for a Promotion','✎',ctx):navLink('/apply','Apply for Staff','✎',ctx)}${navLink('/feed','Main Feed','◉',ctx)}${navLink('/suggestions','Server Suggestions','✧',ctx)}${navLink('/members','Socials & Members','♧',ctx)}${navLink('/team','Team Members','♛',ctx)}${navLink('/mega-team','MegaSMP Team','♛',ctx)}`}`:''}</nav>
 ${user&&role!=='appeal-only'?`<div class="sidebar-title">MY SOCIAL</div><nav>${navLink('/profile','My Profile','◉',ctx)}${navLink('/notifications',unread?'Notifications ('+unread+')':'Notifications','♢',ctx)}${navLink('/saved','Saved Posts','▤',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}</nav>`:''}
 ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tickets','All Tickets','▣',ctx)}${navLink('/staff','Application Reviews','▤',ctx)}${admin?navLink('/staff/promotions','Promotion Reviews','♛',ctx):''}${admin?`${navLink('/admin/roles','Role Management','⬡',ctx)}${navLink('/admin/settings','Admin Settings','⚙',ctx)}${navLink('/admin/moderation','Moderation','⚑',ctx)}`:''}${role==='owner'?`${navLink('/owner/approvals','Final Approvals','✓',ctx)}${navLink('/owner/audit','Owner Audit Log','☷',ctx)}${navLink('/owner/owners','Owner Access','♜',ctx)}`:''}</nav>`:''}
 </div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/profile'}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a><a href="/team">Meet the Team</a>':'<a href="/tickets/new">Submit Ticket</a>'+(staffNavigation?'':'<a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a>')+'<a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staffNavigation?'<a href="/promotions">Apply for a Promotion</a>':''}${role==='appeal-only'?'':'<a href="/profile">My Profile</a><a href="/notifications">Notifications</a><a href="/saved">Saved</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.5.3</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.6.0</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
@@ -264,7 +264,7 @@ const sbsNameTag=member=>member?'<span class="sbs-member-tag" title="SBs Team Me
 const teamCards=(members,restricted=false)=>members.map(m=>`<${restricted?'div':'a'} class="team-card panel"${restricted?'':` href="/u/${attr(m.id)}"`}><div class="team-banner"></div>
  ${avatar(m,'xl',true)}<h3>${esc(m.nickname||m.display_name)}${sbsNameTag(m.sbsMember)}</h3><p>@${esc(m.username)}</p>
  ${tag(m.staffTitle)}${restricted?'':'<span class="table-link">View profile →</span>'}</${restricted?'div':'a'}>`).join('');
-export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0}){
+export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',knownTab='mega',partial=false,rolesCount=0,megaContent=''}){
  const knownTotal=new Set(knownGroups.flatMap(g=>g.members.map(m=>m.id))).size;
  const selected=knownGroups.find(g=>g.key===knownTab)||knownGroups[0]||{key:'mega',title:'Mega SMP Staff',members:[]};
  const sbsTotal=sbsGroups.reduce((sum,g)=>sum+g.members.length,0);
@@ -275,7 +275,9 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
  <a class="team-directory-tab ${tab==='sbs'?'active':''}" href="/team?tab=sbs" ${tab==='sbs'?'aria-current="page"':''}>
    <span>Team Members</span><small>${sbsTotal} member${sbsTotal===1?'':'s'}</small></a>
  <a class="team-directory-tab ${tab==='known'?'active':''}" href="/team?tab=known" ${tab==='known'?'aria-current="page"':''}>
-   <span>Known Members</span><small>${knownTotal} member${knownTotal===1?'':'s'}</small></a></nav>`;
+   <span>Known Members</span><small>${knownTotal} member${knownTotal===1?'':'s'}</small></a>
+ <a class="team-directory-tab ${tab==='mega'?'active':''}" href="/team?tab=mega" ${tab==='mega'?'aria-current="page"':''}>
+   <span>MegaSMP Team</span><small>Bank &amp; contributions</small></a></nav>`;
  const knownContent=`<section class="team-section known-member-section">
    <div class="section-heading"><div><h2>Known Members</h2><p class="muted tiny">Recognised Mega SMP and Prison staff members from our Discord server.</p></div>
      <span class="muted">${knownTotal} member${knownTotal===1?'':'s'}</span></div>
@@ -301,9 +303,9 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
      <span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
    <div class="member-grid">${teamCards(g.members,restricted)}</div></section>`).join('')||
    '<div class="empty panel">No team members detected yet. Check your bot permissions and role configuration.</div>';
- return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>')}
+ return shell(ctx,'Team Members',`${titlebar(tab==='mega'?'MEGASMP TEAM':'THE PEOPLE BEHIND THE SERVER',tab==='mega'?'SBsxScam <span class="gradient">team.</span>':'Meet our <span class="gradient">team.</span>')}
    ${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
-   ${tabs}${tab==='known'?knownContent:tab==='sbs'?sbsContent:teamContent}`);
+   ${tabs}${tab==='mega'?megaContent:tab==='known'?knownContent:tab==='sbs'?sbsContent:teamContent}`);
 }
 
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE

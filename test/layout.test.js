@@ -23,8 +23,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.5\.3-evidence-viewer/);
-  assert.match(page,/\/static\/app\.js\?v=1\.5\.3-evidence-viewer/);
+  assert.match(page,/\/static\/style\.css\?v=1\.6\.0-megasmp-team/);
+  assert.match(page,/\/static\/app\.js\?v=1\.6\.0-megasmp-team/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -74,6 +74,35 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
    assert.ok(script.includes(marker),marker+' evidence viewer behavior');
  assert.match(script,/field\.addEventListener\('change'/);
  assert.match(script,/media\.replaceChildren\(\)/);
+});
+
+test('MegaSMP team dashboard offers a separate real-roster tab and local five-minute refresh',async()=>{
+ const page=home(signed);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.6\.0-megasmp-team/);
+ const {megaDashboard}=await import('../src/mega-team-data.js');
+ const {megaTeamPanel}=await import('../src/mega-team-views.js');
+ const dashboard=megaDashboard();
+ const html=megaTeamPanel(signed,{data:dashboard,discordGroups:[],syncEnabled:false});
+ assert.match(html,/data-mega-dashboard/);
+ assert.match(html,/No authorized live feed configured/);
+ assert.match(html,/In-game team roster/);
+ assert.match(html,/Discord team roster/);
+ assert.match(html,/Contribution leaderboard/);
+ assert.match(html,/Reported team bank/);
+ assert.match(html,/Not recorded|No in-game roster imported yet/);
+ assert.ok(html.includes('href="https://inpvp.net/megasmp/teams?team=SBsxScam&amp;gamemode=megasmp&amp;id=5638a504-3347-43fc-89d6-424dad53b7f6"'));
+ assert.match(html,/action="\/team\/mega\/roster"/,'admin management controls are role-scoped');
+ assert.match(html,/action="\/team\/mega\/season"/,'owner controls can change the season');
+ assert.doesNotMatch(megaTeamPanel({...signed,role:'member'},{data:dashboard,discordGroups:[],syncEnabled:false}),/action="\/team\/mega\/bank"/);
+ const nonMember=megaTeamPanel({...signed,role:'appeal-only'},{data:dashboard,discordGroups:[],syncEnabled:false});
+ assert.ok(nonMember.includes('verified Discord server members'));
+ assert.doesNotMatch(nonMember,/data-mega-value="balance"|action="\/team\/mega\/bank"/);
+ const script=readFileSync(new URL('../public/mega-team.js',import.meta.url),'utf8');
+ assert.ok(script.includes("fetch('/team/mega/data?season='"));
+ assert.match(script,/setInterval\(/);
+ assert.ok(script.includes('},300000)'));
+ assert.ok(script.includes("textContent="),'user-controlled data must never be inserted with innerHTML');
+ assert.doesNotMatch(script,/inpvp\.net\/api/,'the browser must not scrape InPvP');
 });
 
 test('staff, mods and temp mods use promotion navigation; ordinary members keep applications',()=>{

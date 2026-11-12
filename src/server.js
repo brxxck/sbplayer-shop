@@ -18,6 +18,10 @@ import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
 import * as homeView from './home-views.js';
 import * as socialView from './social-views.js';
+import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMember,setMegaMemberStatus,addMegaTransaction,recordMegaBank,createMegaSeason} from './mega-team.js';
+import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
+import {megaTeamPanel} from './mega-team-views.js';
+import {createMegaTeamSync} from './mega-team-sync.js';
 import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
 import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
@@ -123,7 +127,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path) {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -143,6 +147,7 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
+  const megaSync=createMegaTeamSync();
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
   // Resolve historical IDs on read without changing the signed hash-chain records.
   // Local users are preferred; limited external lookups are cached to protect API quotas.
@@ -239,7 +244,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.3'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.6.0'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -328,6 +333,81 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/saved'&&req.method==='GET'){
       const page=pageNumber(url.searchParams.get('page'));
       return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
+    }
+    // V1.6: MegaSMP dashboard. No requests to InPvP are made from these routes.
+    if(pathname==='/mega-team'&&req.method==='GET')return redirect(res,'/team?tab=mega');
+    if(pathname==='/team/mega/data'&&req.method==='GET'){
+      rate(ctx,'mega.team.read',80,60000);
+      const data=megaDashboard(url.searchParams.get('season')||undefined);
+      // Readers may view contribution figures, not administrative notes or Discord IDs.
+      if(!isAdminRole(ctx.role)){
+        data.members=data.members.map(({discordId,...rest})=>rest);
+        data.transactions=data.transactions.map(({notes,actor_id,...rest})=>rest);
+      }
+      return respond(res,200,JSON.stringify({...data,syncEnabled:megaSync.enabled}),'application/json; charset=utf-8');
+    }
+    if(pathname.startsWith('/team/mega/')&&req.method==='POST'){
+      const task=pathname.slice('/team/mega/'.length);
+      await authorize(task==='season'?'owner':'admin');
+      rate(ctx,'mega.team.change',40,3600000);
+      const {fields}=await form();
+      const current=activeMegaSeason();
+      const selected=String(fields.season||current);
+      if(task!=='season'&&selected!==current)invalid('Only the current season can be edited.');
+      const back='/team?tab=mega&season='+encodeURIComponent(current);
+      try{
+        if(task==='roster'){
+          const names=String(fields.gamertags||'').split(/[\r\n,]+/).map(x=>x.trim()).filter(Boolean);
+          if(!names.length||names.length>100||String(fields.gamertags||'').length>3000)invalid('Add 1 to 100 Gamertags.');
+          if(names.some(x=>!validGamertag(x)))invalid('One or more Minecraft Gamertags are invalid.');
+          const role=['Leader','Officer','Member'].includes(fields.role)?fields.role:'Member';
+          const unique=[...new Map(names.map(x=>[x.toLowerCase(),x])).values()];
+          transaction(()=>{for(const gamertag of unique)upsertMegaMember({season:current,gamertag,role,source:'manual'});});
+          logAction(ctx,'mega.team.member.upsert','mega:'+MEGA_TEAM_ID,{season:current,count:unique.length});
+          return success(back,'Updated '+unique.length+' Minecraft roster entries.');
+        }
+        if(task==='member-status'){
+          const id=Number(fields.member_id);
+          if(!Number.isSafeInteger(id)||id<1)invalid('Select a team member.');
+          setMegaMemberStatus({season:current,memberId:id,status:fields.status});
+          logAction(ctx,'mega.team.member.status','mega-member:'+id,{season:current,status:fields.status});
+          return success(back,'Updated player membership status.');
+        }
+        if(task==='transaction'){
+          const id=Number(fields.member_id);
+          if(!Number.isSafeInteger(id)||id<1)invalid('Select a team member.');
+          const transactionId=addMegaTransaction({season:current,memberId:id,kind:fields.kind,
+            amount:fields.amount,notes:fields.notes||'',actorId:ctx.user.id});
+          logAction(ctx,'mega.team.transaction.record','mega-transaction:'+transactionId,
+            {season:current,memberId:id,kind:fields.kind,amount:fields.amount});
+          return success(back,'Contribution recorded. This is not verified by InPvP.');
+        }
+        if(task==='bank'){
+          const snapshotId=recordMegaBank({season:current,balance:fields.balance,source:'manual'});
+          logAction(ctx,'mega.team.bank.snapshot','mega-bank:'+snapshotId,{season:current,balance:fields.balance});
+          return success(back,'Reported bank balance saved.');
+        }
+        if(task==='import'){
+          const raw=String(fields.snapshot||'');
+          if(!raw||raw.length>100000)invalid('Snapshot must be valid JSON under 100 KB.');
+          let payload;try{payload=JSON.parse(raw);}catch{invalid('Snapshot is not valid JSON.');}
+          if(payload?.season&&payload.season!==current)invalid('Import only into the active season.');
+          payload.season=current;
+          const result=importMegaSnapshot(payload,{source:'manual_import'});
+          logAction(ctx,'mega.team.snapshot.import','mega:'+MEGA_TEAM_ID,
+            {season:current,count:result.count,source:'manual_import'});
+          return success(back,'Manually submitted team snapshot imported.');
+        }
+        if(task==='season'){
+          const next=createMegaSeason(fields.label);
+          logAction(ctx,'mega.team.season.create','mega-season:'+next,{name:fields.label});
+          return success('/team?tab=mega&season='+encodeURIComponent(next),'New season created; prior history preserved.');
+        }
+      }catch(error){
+        if(error instanceof HttpError)throw error;
+        invalid(String(error.message||'Invalid team update.').slice(0,190));
+      }
+      missing();
     }
     // V1.3.1 support tickets: one permission check is reused by listing, page and attachment routes.
     function denyAppealOnlyOtherTypes(category) {
@@ -928,9 +1008,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ].map(g=>({...g,members:g.members.sort((a,b)=>String(a.display_name).localeCompare(String(b.display_name)))}));
       const sortByName=(a,b)=>String(a.nickname||a.display_name).localeCompare(String(b.nickname||b.display_name));
       const sbsGroups=[{title:'SBs Team Leaders',members:sbsLeaders.sort(sortByName)},{title:'SBs Team Members',members:sbsMembers.sort(sortByName)}].filter(g=>g.members.length);
-      const selected=['team','sbs','known'].includes(url.searchParams.get('tab'))?url.searchParams.get('tab'):'team';
+      const selected=['team','sbs','known','mega'].includes(url.searchParams.get('tab'))?url.searchParams.get('tab'):'team';
       const knownTab=url.searchParams.get('known')==='prison'?'prison':'mega';
-      return html(view.team(ctx,{groups,knownGroups,sbsGroups,tab:selected,knownTab,partial,rolesCount:roles.length}));
+      const megaContent=selected==='mega'?megaTeamPanel(ctx,{data:megaDashboard(url.searchParams.get('season')||undefined),discordGroups:sbsGroups,syncEnabled:megaSync.enabled}):'';
+       return html(view.team(ctx,{groups,knownGroups,sbsGroups,tab:selected,knownTab,partial,rolesCount:roles.length,megaContent}));
     }
     let userMatch=/^\/u\/(\d{15,22})$/.exec(pathname);
     if(userMatch && req.method==='GET'){
@@ -1246,7 +1327,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     missing();
   }
-  return http.createServer(async(req,res)=>{
+  const website=http.createServer(async(req,res)=>{
     try{await handle(req,res);}catch(e){
       if(res.headersSent){if(!res.writableEnded)res.end();return;}
       if(e instanceof Redirect)return redirect(res,e.path);
@@ -1259,8 +1340,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       respond(res,err.status,out);
     }
   });
+  megaSync.start();
+  website.on('close',()=>megaSync.stop());
+  return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.3 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.6.0 running at ${config.baseUrl}`));
 }
