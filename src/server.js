@@ -145,7 +145,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
-      setCookie(res,'oauth',Buffer.from(JSON.stringify({state,verifier})).toString('base64url'),{maxAge:600});
+      const requested=String(url.searchParams.get('next')||'');
+      const next=requested.startsWith('/')&&!requested.startsWith('//')&&view.linkPreviewData(requested)?requested:'/';
+      setCookie(res,'oauth',Buffer.from(JSON.stringify({state,verifier,next})).toString('base64url'),{maxAge:600});
       res.writeHead(302,{location:discord.authUrl(state,sha256(verifier))});res.end();return;
     }
     if(pathname==='/auth/callback'&&req.method==='GET'){
