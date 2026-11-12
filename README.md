@@ -1,7 +1,14 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.1
+# SB's & Cam's Store — Community Portal V1.7.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.2 — Bank tab interaction timeout fix
+
+- Fix the live Railway collector stopping at `getByRole('button', {name: /^Bank$/i}).click()`: it now checks all visible matching controls instead of assuming the first Bank button is actionable.
+- The collector recognizes an already selected tab and tries a standard keyboard Enter activation when a visible, enabled control cannot be clicked. It does **not** force-click, bypass verification challenges, inject JavaScript events, or click disabled controls.
+- Failures now report a bounded, descriptive reason (such as a disabled or blocked Bank tab), instead of only truncating a generic Playwright timeout. Successful collection remains subject to the actual page layout and login state.
+- Added regression tests for a pointer click timeout, keyboard fallback, a selected tab and a disabled control. No database migration; existing Railway /app/data, Discord data, and website permissions are unchanged.
 
 ## V1.7.1 — opt-in live bank capture and connected dashboard
 
