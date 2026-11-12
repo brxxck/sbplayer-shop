@@ -1,7 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {test,after,before} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync,existsSync} from 'node:fs';
+import {mkdtempSync,rmSync,existsSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
@@ -79,6 +79,22 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/admin/roles','adminA')).status,200);
   assert.equal((await get('/team','member')).status,200);
   assert.equal((await get('/members?q=mem','member')).status,200);
+});
+
+test('collector diagnostic screenshots require verified website owner access',async()=>{
+ const path='/owner/mega/collector-screenshot.png';
+ assert.equal((await get(path,'member')).status,403);
+ assert.equal((await get(path,'adminA')).status,403);
+ assert.equal((await get(path,'reviewer')).status,403);
+ assert.equal((await get(path,'owner')).status,404,'no diagnostic file should return 404');
+ const file=join(dirname(config.dbPath),'mega-bank-last-failure.png');
+ writeFileSync(file,Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),Buffer.alloc(256)]));
+ const result=await get(path,'owner');
+ assert.equal(result.status,200);
+ assert.equal(result.headers.get('content-type'),'image/png');
+ assert.equal(result.headers.get('cache-control'),'private, no-store');
+ assert.equal((await get(path,'adminA')).status,403);
+ rmSync(file,{force:true});
 });
 
 test('verified SB Store Staff, Mod and Temp Mod Discord roles use promotion navigation',async()=>{
