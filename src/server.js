@@ -168,8 +168,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return redirect(res,role==='appeal-only'?'/tickets/new/ban_appeal':'/');
     }
     if(testLogin && process.env.NODE_ENV==='test' && pathname.startsWith('/__test/login/') && req.method==='GET'){
-      const id=pathname.split('/').pop();if(!idOK(id))invalid();const m=await discord.getGuildMember(id);if(!m)forbidden();
-      upsertUser({...m,user:m.user||{id,username:'test'+id,global_name:'Test '+id}});ensureProfile(id);
+      const id=pathname.split('/').pop();if(!idOK(id))invalid();const m=await discord.getGuildMember(id);
+      // Test-only login can emulate a Discord-authenticated user who is banned from the guild.
+      upsertUser(m?{...m,user:m.user||{id,username:'test'+id,global_name:'Test '+id}}:{id,username:'test'+id,global_name:'Test '+id});ensureProfile(id);
       const sid=randomToken();run('INSERT INTO sessions(token_hash,user_id,csrf,expires_at) VALUES(?,?,?,?)',sha256(sid),id,randomToken(),now()+86400000);
       setCookie(res,'sid',sid,{maxAge:86400});return redirect(res,'/dashboard');
     }
