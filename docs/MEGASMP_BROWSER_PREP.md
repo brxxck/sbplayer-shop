@@ -25,7 +25,7 @@ The independent captured-event database records Gamertag, action, exact amount i
 
 Use Node.js 22+ and a separate test database. Do not point the unverified worker at production /app/data.
 
-1. Check out GitHub branch prep/megasmp-authorized-api-csv-adapters.
+1. Check out GitHub branch feature/megasmp-bank-auto-collector-unpublished.
 2. Install Chromium automation support locally without publishing any dependencies:
 
        npm install --no-save --package-lock=false playwright
