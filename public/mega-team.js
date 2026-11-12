@@ -35,7 +35,9 @@
    for(const [i,m] of active.entries()){
     const tr=document.createElement('tr');cell(tr,'#'+(i+1));cell(tr,m.gamertag);cell(tr,money(m.deposits),'mega-number');
     fragment.append(tr);
-   }rank.replaceChildren(fragment);
+   }
+   if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No ranked contributions yet.');fragment.append(empty);}
+   rank.replaceChildren(fragment);
   }
   if(history){
    const fragment=document.createDocumentFragment();
@@ -43,7 +45,9 @@
     const tr=document.createElement('tr');
     cell(tr,date(t.occurred_at));cell(tr,t.gamertag);cell(tr,t.kind==='deposit'?'Deposit':'Withdrawal');
     cell(tr,money(t.amount),'mega-number');fragment.append(tr);
-   }history.replaceChildren(fragment);
+   }
+   if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No individual transactions recorded yet.');fragment.append(empty);}
+   history.replaceChildren(fragment);
   }
  }
  let busy=false;
@@ -71,7 +75,13 @@
     'Partial totals · '+data.totals.withBoth+'/'+data.totals.activeMembers+' members have both totals':
     'Complete recorded roster coverage · '+data.totals.withBoth+'/'+data.totals.activeMembers;
    const latest=root.querySelector('[data-mega-updated]');
-   if(latest)latest.textContent='Latest known source: '+date(data.sync?.last_source_at||data.bank?.as_of);
+   const sourceAt=data.sync?.last_source_at||0;
+   if(latest)latest.textContent='Latest known source: '+date(sourceAt||data.bank?.as_of);
+   const indicator=root.querySelector('[data-mega-syncstatus]');
+   if(indicator)indicator.textContent=!data.syncEnabled?'No authorized live feed configured':
+    !data.sync?.last_success?'Awaiting first authorized sync':
+    sourceAt&&Date.now()-sourceAt>15*60000?'Source outdated — showing last saved values':
+    'Authorized feed last synced '+date(data.sync.last_success);
    rebuildRows(data);
    if(status)status.textContent='Updated from saved records '+new Date().toLocaleTimeString();
   }catch{
