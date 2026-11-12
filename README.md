@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.3.1
+# SB's & Cam's Store — Community Portal V1.3.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.3.2 — unk.sb may vote and make a separate final approval decision
+
+- **unk.sb can cast an admin recommendation vote** (Accept or Deny), exactly like other admins. The vote counts as **one** of the two matching votes, not as an automatic final decision.
+- Another **distinct admin** must agree to establish a recommendation. One admin account may vote only once per application. The designated final approver can **separately** click **Final Accept**, **Final Deny**, or **Return for re-review** when two matching votes have been recorded.
+- **Final Accept** only appears after **two Accept** recommendations. If the recommendation is Deny, the owner can **Final Deny** or **Return for re-review**. A final Deny can also override an Accept recommendation.
+- No Discord role is assigned, and no application is accepted or denied, until the explicit final action from the configured **FINAL_APPROVER_USER_ID**. All votes and final actions have separate audit records.
+- The admin review page no longer incorrectly displays "This application is finalized" on tickets that are merely Reviewing.
+- **Safe update:** This version does not reset or rebuild the SQLite database. Back up the existing Railway volume, confirm `DB_PATH=/app/data/app.sqlite`, and deploy the latest GitHub `main` commit in the same Railway service. Do not delete the volume or service. `/health` returns `"version":"1.3.2"`. No new environment variables are required beyond the existing V1.3.1 configuration.
 
 ## V1.3.1 — Member/Staff Dashboards and Chat-Style Support Tickets
 
