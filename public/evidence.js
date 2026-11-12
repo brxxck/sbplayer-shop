@@ -30,7 +30,25 @@
   let activeElement=null;
 
   const applyScale=()=>{
-    if(activeElement?.tagName==='IMG')activeElement.style.transform='scale('+scale+')';
+    if(activeElement?.tagName==='IMG'&&activeElement.naturalWidth&&media){
+      // Scale the actual image dimensions, not a CSS transform: overflow remains
+      // scrollable so corners of enlarged screenshots are reachable on mobile.
+      const bounds=media.getBoundingClientRect();
+      const fit=Math.min(bounds.width/activeElement.naturalWidth,bounds.height/activeElement.naturalHeight,1);
+      if(Number.isFinite(fit)&&fit>0){
+        const x=(media.scrollLeft+bounds.width/2)/Math.max(1,media.scrollWidth);
+        const y=(media.scrollTop+bounds.height/2)/Math.max(1,media.scrollHeight);
+        const w=Math.max(1,Math.round(activeElement.naturalWidth*fit*scale));
+        const h=Math.max(1,Math.round(activeElement.naturalHeight*fit*scale));
+        activeElement.style.width=w+'px';
+        activeElement.style.height=h+'px';
+        activeElement.style.maxWidth='none';
+        activeElement.style.maxHeight='none';
+        activeElement.style.marginTop=Math.max(0,Math.round((bounds.height-h)/2))+'px';
+        media.scrollLeft=Math.max(0,x*media.scrollWidth-bounds.width/2);
+        media.scrollTop=Math.max(0,y*media.scrollHeight-bounds.height/2);
+      }
+    }
     if(zoomLabel)zoomLabel.textContent=Math.round(scale*100)+'%';
     if(zoomIn)zoomIn.disabled=!activeElement||activeElement.tagName!=='IMG'||scale>=4;
     if(zoomOut)zoomOut.disabled=!activeElement||activeElement.tagName!=='IMG'||scale<=1;
@@ -55,8 +73,11 @@
       element.setAttribute('aria-label',name);
     }
     // Setting the URL only after validating its origin/path avoids unsafe redirects.
+    if(kind==='image')element.addEventListener('load',applyScale,{once:true});
     element.src=url;
     media.replaceChildren(element);
+    media.classList.toggle('is-video',kind==='video');
+    media.scrollLeft=0;media.scrollTop=0;
     activeElement=element;
     title.textContent=name;
     const group=galleryButtons(),current=group.indexOf(button);
@@ -76,8 +97,8 @@
     }else{
       download.hidden=true;
     }
-    applyScale();
     if(!dialog.open)dialog.showModal();
+    applyScale();
     selected=button;
     dialogOpen=true;
     return true;
