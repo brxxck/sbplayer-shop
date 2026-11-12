@@ -260,6 +260,19 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         .map(a=>({...a,category:'application',unread:a.unread_replies||0,href:'/dashboard/applications/'+a.id}));
       return html(supportView.myTickets(ctx,{tickets:[...supports,...apps].sort((a,b)=>b.updated_at-a.updated_at)}));
     }
+    const applicationAttachmentMatch=/^\/applications\/attachments\/(\d+)$/.exec(pathname);
+    if(applicationAttachmentMatch&&req.method==='GET'){
+      const att=one('SELECT * FROM application_ticket_attachments WHERE id=?',idFrom(applicationAttachmentMatch[1]));
+      if(!att)missing();
+      const app=application(att.application_id);
+      if(!app || (app.user_id!==ctx.user.id && !isStaffRole(ctx.role)))missing();
+      const file=safeTicketFile(att.stored_path);
+      if(!file)missing();
+      return respond(res,200,readFileSync(file),att.mime_type,{
+        'content-disposition':'attachment; filename="application-evidence.'+att.stored_path.split('.').at(-1)+'"',
+        'x-content-type-options':'nosniff','cache-control':'no-store'
+      });
+    }
     if(attachmentMatch&&req.method==='GET'){
       const att=one('SELECT * FROM support_ticket_attachments WHERE id=?',idFrom(attachmentMatch[1]));
       if(!att)missing();
