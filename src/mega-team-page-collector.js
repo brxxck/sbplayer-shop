@@ -42,19 +42,60 @@ export async function extractBankRows(page,{selector='',maxRows=MAX_ROWS}={}){
     });
   },{selector,cap:maxRows});
 }
-async function openBankTab(page){
-  const tabs=[
-    page.getByRole('tab',{name:/^Bank$/i}),
-    page.getByRole('button',{name:/^Bank$/i}),
-    page.getByText('Bank',{exact:true})
+// Bank can appear as a tab, button or clickable label on different page layouts.
+// A visible button is not necessarily actionable: Playwright may be waiting on
+// hydration, animation or an ordinary overlay. Try bounded, accessible actions;
+// never force-click, dispatch synthetic DOM events or bypass verification.
+export async function openBankTab(page){
+  const groups=[
+    ['tab',page.getByRole('tab',{name:/^Bank$/i})],
+    ['button',page.getByRole('button',{name:/^Bank$/i})],
+    ['label',page.getByText('Bank',{exact:true})]
   ];
-  for(const tab of tabs){
-    if(await tab.count()>0&&await tab.first().isVisible()){
-      await tab.first().click({timeout:5000});
-      await delay(WAIT_MS);
-      return true;
+  const problems=[];
+  let visible=0;
+  for(const [kind,locator] of groups){
+    const count=Math.min(await locator.count(),5);
+    for(let i=0;i<count;i++){
+      const target=typeof locator.nth==='function'?locator.nth(i):locator.first();
+      if(!await target.isVisible().catch(()=>false))continue;
+      visible++;
+      const attr=async name=>{
+        try{return typeof target.getAttribute==='function'?await target.getAttribute(name):null;}
+        catch{return null;}
+      };
+      const selected=await attr('aria-selected');
+      const state=await attr('data-state');
+      const pressed=await attr('aria-pressed');
+      if(selected==='true'||state==='active'||pressed==='true')return true;
+      const enabled=typeof target.isEnabled==='function'?
+        await target.isEnabled().catch(()=>false):true;
+      if(!enabled){problems.push(kind+' disabled');continue;}
+      try{
+        await target.click({timeout:7500});
+        await delay(WAIT_MS);
+        return true;
+      }catch(error){
+        // A verification/anti-bot screen requires normal user intervention.
+        if(await page.getByText(/verify you are human|captcha|security challenge/i).count())
+          throw new Error('Bank page requires human verification; collector did not bypass it.');
+        // Keyboard activation is a normal accessible alternative to a pointer
+        // click blocked by site layout. Do not attempt it for non-controls.
+        if(kind!=='label'&&typeof target.press==='function'){
+          try{
+            await target.press('Enter',{timeout:3500});
+            await delay(WAIT_MS);
+            return true;
+          }catch{/* Try another matching control rather than ending this capture. */}
+        }
+        const message=String(error?.message||'');
+        problems.push(kind+(/timeout/i.test(message)?' click timed out':' click failed'));
+      }
     }
   }
+  if(visible)throw new Error('Bank tab is visible but not actionable ('+
+    [...new Set(problems)].slice(0,3).join('; ')+
+    '). Check loading state, sign-in and blocking overlays.');
   return false;
 }
 async function scrollEventLog(page){
@@ -133,6 +174,10 @@ export async function captureTeamBankPage(page,{
   const overview=await extractTeamOverview(page);
   const bankSelected=await openBankTab(page);
   if(!bankSelected)throw new Error('Bank tab was not found. Site layout needs calibration.');
+  const afterBank=new URL(page.url());
+  if(afterBank.hostname!=='inpvp.net'||afterBank.searchParams.get('id')!==MEGA_TEAM_ID)
+    throw new Error('Bank tab navigation left the approved team page; capture rejected.');
+
   const found=new Map();
   let pagesVisited=0,loops=0,noGrowth=0,reportedCount=null;
   for(let pageIndex=0;pageIndex<maxPages;pageIndex++){

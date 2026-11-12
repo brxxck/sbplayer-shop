@@ -13,7 +13,7 @@ const {parseMegaMoneyCents,formatMegaCents,parseMegaEventRow,prepareMegaEvents}=
 const {saveMegaCapture,megaCapturedBankSummary,noteMegaCaptureFailure}=await import('../src/mega-team-bank-event-store.js');
 const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
 const {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount}=await import('../src/mega-team-discord-matches.js');
-const {captureTeamBankPage}=await import('../src/mega-team-page-collector.js');
+const {captureTeamBankPage,openBankTab}=await import('../src/mega-team-page-collector.js');
 const {MEGA_TEAM_ID,MEGA_TEAM_URL}=await import('../src/mega-team.js');
 after(()=>{db.close();rmSync(tmp,{recursive:true,force:true});});
 
@@ -109,6 +109,48 @@ test('read-only capture uses the exact team URL and bank tab only',async()=>{
  }),/Only the configured/);
 });
 
+
+test('Bank button pointer timeout falls back to normal keyboard activation',async()=>{
+ const actions=[];
+ const bank={
+   isVisible:async()=>true,isEnabled:async()=>true,getAttribute:async()=>null,
+   click:async()=>{actions.push('click');throw new Error('Timeout 7500ms exceeded');},
+   press:async key=>{actions.push('press:'+key);}
+ };
+ const matching={count:async()=>1,first:()=>bank,nth:()=>bank};
+ const absent={count:async()=>0,first:()=>({})};
+ const page={
+  getByRole:(kind)=>kind==='button'?matching:absent,
+  getByText:()=>absent
+ };
+ assert.equal(await openBankTab(page),true);
+ assert.deepEqual(actions,['click','press:Enter']);
+});
+test('selected Bank tab avoids clicking and blocked controls fail visibly',async()=>{
+ let clicks=0;
+ const selected={
+  isVisible:async()=>true,isEnabled:async()=>true,
+  getAttribute:async name=>name==='aria-selected'?'true':null,
+  click:async()=>{clicks++;}
+ };
+ const absent={count:async()=>0,first:()=>({})};
+ const page={
+  getByRole:()=>({count:async()=>1,first:()=>selected}),
+  getByText:()=>absent
+ };
+ assert.equal(await openBankTab(page),true);
+ assert.equal(clicks,0);
+ const blocked={
+  isVisible:async()=>true,isEnabled:async()=>false,
+  getAttribute:async()=>null,
+  click:async()=>{throw Error('Should not click disabled controls');}
+ };
+ const disabledPage={
+  getByRole:kind=>kind==='tab'?{count:async()=>1,first:()=>blocked}:absent,
+  getByText:()=>absent
+ };
+ await assert.rejects(()=>openBankTab(disabledPage),/visible but not actionable/);
+});
 
 test('all captured bank events remain browsable across 50-row pages with type/player filters',()=>{
  const batch=Array.from({length:127},(_,i)=>({
