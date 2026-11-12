@@ -50,6 +50,17 @@ function setCookie(res,name,value,{maxAge=0}={}) {
 }
 const idFrom=(s)=>{const v=Number(s);return Number.isSafeInteger(v)&&v>0?v:null;};
 const pageNumber=v=>Number.isInteger(Number(v))?Math.max(0,Math.min(100,Number(v))):0;
+function socialReturn(fields,id){
+  if(fields.origin==='saved')return '/saved#post-'+id;
+  if(Object.prototype.hasOwnProperty.call(fields,'feed_page')){
+    const page=pageNumber(fields.feed_page),tab=fields.feed_tab==='following'?'following':'all';
+    const params=new URLSearchParams();
+    if(tab==='following')params.set('tab','following');
+    if(page)params.set('page',String(page));
+    return '/feed'+(params.size?'?'+params:'')+'#post-'+id;
+  }
+  return '/post/'+id;
+}
 const isStaffRole=r=>['reviewer','admin','owner'].includes(r);
 const isAdminRole=r=>['admin','owner'].includes(r);
 const appealRoute=p=>p==='/'||p==='/team'||p==='/tickets/new'||p==='/tickets/mine'||/^\/tickets\/(new\/ban_appeal|\d+(?:\/reply)?|attachments\/\d+)$/.test(p);
@@ -705,37 +716,44 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const id=idFrom(m[1]),post=postDetails(id,ctx.user.id);if(!post)missing();
       return html(view.postDetail(ctx,{post,comments:listComments('post',id)}));
     }
-    m=/^\/post\/(\d+)\/(like|repost|comment)$/.exec(pathname);
+    m=/^\/post\/(\d+)\/(like|repost|comment|bookmark)$/.exec(pathname);
     if(m&&req.method==='POST'){
       const id=idFrom(m[1]),action=m[2];rate(ctx,`post.${action}`,action==='comment'?15:90,600000);
       const {fields}=await form(),post=postDetails(id,ctx.user.id);if(!post)missing();
       if(action==='like'){
         const exists=one('SELECT 1 FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
         if(exists)run('DELETE FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
-        else run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
+        else {run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());notifySocial(post.user_id,ctx.user.id,'like',id);}
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.like',`post:${id}`,{before:!!exists,after:!exists});
         // JavaScript-enhanced likes update in place so scrolling the feed never opens Post Details.
         if(String(req.headers.accept||'').includes('application/json')){
           const count=one('SELECT COUNT(*) AS count FROM post_likes WHERE post_id=?',id)?.count||0;
           return respond(res,200,JSON.stringify({post_id:id,liked:!exists,like_count:count}),'application/json; charset=utf-8');
         }
-        // Without JavaScript, return to the feed and this post rather than opening its detail page.
-        if(Object.prototype.hasOwnProperty.call(fields,'feed_page')){
-          const page=pageNumber(fields.feed_page);
-          return redirect(res,(page?'/feed?page='+page:'/feed')+'#post-'+id);
-        }
-        return redirect(res,`/post/${id}`);
+        return redirect(res,socialReturn(fields,id));
       }
       if(action==='repost'){
         if(post.repost_of)invalid('Nested reposts are not supported');
         const existing=one('SELECT id FROM posts WHERE user_id=? AND repost_of=? AND deleted_at IS NULL',ctx.user.id,id);
         if(existing)run('UPDATE posts SET deleted_at=? WHERE id=?',now(),existing.id);
-        else run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());
+        else {run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());notifySocial(post.user_id,ctx.user.id,'repost',id);}
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.repost',`post:${id}`,{before:!!existing,after:!existing});
-        return redirect(res,`/post/${id}`);
+        if(String(req.headers.accept||'').includes('application/json')){
+          const count=one('SELECT COUNT(*) AS count FROM posts WHERE repost_of=? AND deleted_at IS NULL',id)?.count||0;
+          return respond(res,200,JSON.stringify({post_id:id,reposted:!existing,repost_count:count}),'application/json; charset=utf-8');
+        }
+        return redirect(res,socialReturn(fields,id));
+      }
+      if(action==='bookmark'){
+        const old=one('SELECT 1 FROM post_bookmarks WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        if(old)run('DELETE FROM post_bookmarks WHERE post_id=? AND user_id=?',id,ctx.user.id);
+        else run('INSERT INTO post_bookmarks(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());
+        if(String(req.headers.accept||'').includes('application/json'))
+          return respond(res,200,JSON.stringify({post_id:id,saved:!old}),'application/json; charset=utf-8');
+        return redirect(res,socialReturn(fields,id));
       }
       if(action==='comment'){
-        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());
+        const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());notifySocial(post.user_id,ctx.user.id,'comment',id);
         if(isStaffRole(ctx.role))logAction(ctx,'social.comment.create','post:'+id,{body:body.slice(0,100)});
         return redirect(res,`/post/${id}`);
       }
