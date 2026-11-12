@@ -45,7 +45,7 @@ test('stylesheet has responsive image constraints and hides desktop mobile brand
   assert.match(css,/\.sidebar-scroll\s*\{[^}]*overflow-y:auto/);
 });
 test('static CSS and JS are served no-store even with version query; logo is recognized',async()=>{
-  server=createServer({discord:{}});
+  server=createServer({discord:{authUrl:(state)=>'https://discord.com/oauth2/authorize?state='+encodeURIComponent(state)}});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base='http://127.0.0.1:'+server.address().port;
   for(const path of ['/static/style.css?v=1.3.3-link-previews','/static/app.js?v=1.3.3-link-previews']){
@@ -82,7 +82,10 @@ test('Discord receives SB Store branded previews without a login redirect',async
    assert.match(html,/property="og:description" content="[^"]+"/);
    assert.match(html,/name="twitter:card" content="summary"/);
    assert.ok(html.includes('property="og:url" content="https://sbstore.info'+path+'"'));
-   if(path!=='/')assert.ok(html.includes('Continue with Discord'));
+   if(path!=='/'){
+     assert.ok(html.includes('Continue with Discord'));
+     assert.ok(html.includes('/auth/login?next='+encodeURIComponent(path)),'link should return to its original page');
+   }
    assert.doesNotMatch(html,/discord\.com\/oauth2/,'site previews must not contain OAuth redirects');
  }
 });
@@ -97,4 +100,22 @@ test('guest preview never exposes ticket data or mistakes private URLs for publi
  assert.doesNotMatch(html,/Application #6577|Ticket #6577/);
  const noPreview=await fetch(base+'/staff/secret/not-a-route',{redirect:'manual'});
  assert.equal(noPreview.status,303,'unknown paths still follow ordinary login checks');
+});
+
+test('Discord login keeps safe same-site return paths and rejects off-site redirect attempts',async()=>{
+ const base='http://127.0.0.1:'+server.address().port;
+ const inspect=async next=>{
+   const r=await fetch(base+'/auth/login?next='+encodeURIComponent(next),{redirect:'manual'});
+   assert.equal(r.status,302);
+   assert.match(r.headers.get('location'),/^https:\/\/discord\.com\/oauth2/);
+   const cookie=r.headers.get('set-cookie')||'';
+   const encoded=/oauth=([^;]+)/.exec(cookie)?.[1];
+   assert.ok(encoded,'OAuth state cookie exists');
+   return JSON.parse(Buffer.from(decodeURIComponent(encoded),'base64url').toString('utf8')).next;
+ };
+ assert.equal(await inspect('/team'),'/team');
+ assert.equal(await inspect('/staff/tickets/12345'),'/staff/tickets/12345');
+ assert.equal(await inspect('//malicious.example/steal'),'/');
+ assert.equal(await inspect('https://malicious.example/steal'),'/');
+ assert.equal(await inspect('/unknown-untrusted-route'),'/');
 });
