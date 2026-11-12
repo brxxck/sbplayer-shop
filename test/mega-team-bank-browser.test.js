@@ -13,7 +13,7 @@ const {parseMegaMoneyCents,formatMegaCents,parseMegaEventRow,prepareMegaEvents}=
 const {saveMegaCapture,megaCapturedBankSummary,noteMegaCaptureFailure}=await import('../src/mega-team-bank-event-store.js');
 const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
 const {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount}=await import('../src/mega-team-discord-matches.js');
-const {captureTeamBankPage,openBankTab,openEventLogSection,selectBankEventLog}=await import('../src/mega-team-page-collector.js');
+const {captureTeamBankPage,openBankTab,openEventLogSection,selectBankEventLog,revealTeamEventLog}=await import('../src/mega-team-page-collector.js');
 const {MEGA_TEAM_ID,MEGA_TEAM_URL}=await import('../src/mega-team.js');
 after(()=>{db.close();rmSync(tmp,{recursive:true,force:true});});
 
@@ -206,9 +206,31 @@ test('collector clearly identifies missing team detail view without fabricating 
      team:false,events:false,bank:false,signin:false,directory:true
    }
   };
-  await assert.rejects(()=>selectBankEventLog(page),/Team detail view unavailable/);
+  await assert.rejects(()=>selectBankEventLog(page,{viewportChecks:1}),/Team detail view unavailable/);
 });
 
+test('public team Event Log appears after scrolling below the roster',async()=>{
+ let revealed=false,clicks=0;
+ const absent={count:async()=>0,first:()=>({})};
+ const button={isVisible:async()=>true,isEnabled:async()=>true,getAttribute:async()=>null,
+  click:async()=>{clicks++;}};
+ const found={count:async()=>1,first:()=>button};
+ const page={
+  getByRole:(role,{name})=>String(name).includes('Bank')&&revealed?found:absent,
+  getByText:()=>absent,
+  evaluate:async(fn,arg)=>arg&&Object.hasOwn(arg,'total')?
+   (revealed=true,{found:true}):arg?.cap?[]:{}
+ };
+ assert.equal(await selectBankEventLog(page,{viewportChecks:2}),true);
+ assert.equal(revealed,true);
+ assert.equal(clicks,1);
+});
+test('scroll helper is bounded and does not manufacture a missing Event Log',async()=>{
+ let passes=0;
+ const page={evaluate:async()=>{passes++;return {found:false};}};
+ assert.equal(await revealTeamEventLog(page,{checks:2,intervalMs:1}),false);
+ assert.equal(passes,2);
+});
 test('all captured bank events remain browsable across 50-row pages with type/player filters',()=>{
  const batch=Array.from({length:127},(_,i)=>({
   eventId:'capture-history-'+String(i).padStart(4,'0'),

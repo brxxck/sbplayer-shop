@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.3
+# SB's & Cam's Store — Community Portal V1.7.4
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.4 — Public InPvP team Event Log below-the-fold fix
+
+- Screenshot-confirmed behavior: the signed-out SBsxScam team page displays a team overview and Members (22), followed lower down by an Event Log. The Bank filter showed 142 events and All showed 476 in the user-provided images; these counts are **reference observations**, never seeded as live data.
+- The collector scrolls the normal public page through its lower sections, in bounded steps, waiting for a real Event Log heading to render before finding the Bank control. This addresses the Railway log `Team detail view unavailable: directory loaded without Event Log` when the detail section is lazy-loaded below the initial viewport. The collector does not call undocumented endpoints, bypass authentication/challenges or fabricate rows.
+- Event extraction handles in-line player/action nodes that may render as `GermanBurgersDeposited` with no visible whitespace in the DOM text.
+- Bank balance parsing preserves compact units. The screenshot's `$40.3M` is interpreted nominally as `$40,300,000` and labeled **approximate**; it is not mis-stored as `$40.30` or presented as an independently exact balance. Labels live in a new additive table, preserving prior SQLite data.
+- The roster extractor recognizes headings such as `Members (22)` and only trusts explicit player attributes/profile links. It never infers full membership from bank activity.
+- Additional tests validate scrolling behavior, bounded retries and compact balance units. Railway variables stay unchanged. Actual live success still requires verification from Railway's new `[Mega bank]` logs after deployment.
 
 ## V1.7.3 — Event Log parent navigation and missing-data diagnostics
 

@@ -19,6 +19,10 @@ test('snapshot balance parsing preserves cents and rejects invalid values',()=>{
  assert.equal(parseObservedBalance('$0.67'),67);
  assert.equal(parseObservedBalance('$0.00'),0);
  assert.equal(parseObservedBalance('1,000.01'),100001);
+ assert.equal(parseObservedBalance('$40.3M'),4030000000);
+ assert.equal(parseObservedBalance('$2.75K'),275000);
+ assert.equal(parseObservedBalance('$1.2B'),120000000000);
+ assert.throws(()=>parseObservedBalance('$40.3MX'),/amount|value|Bank/);
  assert.equal(parseObservedBalance(null),null);
  assert.throws(()=>parseObservedBalance('-100'),/amount|value|Bank/);
 });
@@ -49,6 +53,18 @@ test('captured bank history appears without turning observed players into confir
  });
  assert.equal(again.inserted,0);
  assert.equal(megaDashboard().captured.totalEvents,1);
+});
+test('compact public bank balances are saved with approximate provenance',()=>{
+ const saved=saveMegaBrowserCapture({teamId:MEGA_TEAM_ID,rows:[],roster:[],bankBalance:'$40.3M'});
+ assert.equal(saved.bankSeen,true);
+ const bank=megaBrowserSnapshot().bank;
+ assert.equal(bank.balanceCents,4030000000);
+ assert.equal(bank.approximate,1);
+ assert.equal(bank.reportedText,'$40.3M');
+ const dashboard=megaDashboard();
+ assert.equal(dashboard.bank.balance,40300000);
+ assert.equal(dashboard.bank.source,'browser_capture_approx');
+ assert.equal(dashboard.bank.reportedText,'$40.3M');
 });
 test('manual values stay authoritative and never double-count captured events',()=>{
  run('INSERT INTO mega_team_members(season,gamertag,role,status,source,updated_at) VALUES(?,?,?,?,?,?)',
