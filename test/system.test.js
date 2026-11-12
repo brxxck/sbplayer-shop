@@ -98,7 +98,7 @@ test('private ticket replies remain private; @here pings are throttled and test 
   assert.equal((await post('/admin/settings/webhook/test','adminA',{})).status,403);
   assert.equal((await post('/admin/settings/webhook/test','owner',{})).status,303);
   assert.equal(notifications.at(-1).title,'SB Store Webhook Test');
-  assert.equal(notifications.at(-1).pingHere,undefined,'test should not ping anyone');
+  assert.equal(notifications.at(-1).pingHere,false,'test should not ping anyone');
 });
 
 test('one admin approval does not finalize; two distinct admins approve and Discord role assigned',async()=>{
