@@ -53,6 +53,36 @@ CREATE TABLE IF NOT EXISTS owner_review_actions (
  created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_owner_review_app ON owner_review_actions(application_id,id);
+CREATE TABLE IF NOT EXISTS support_tickets (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ user_id TEXT NOT NULL REFERENCES users(id),category TEXT NOT NULL
+ CHECK(category IN ('bug_report','player_report','reward_claim','staff_report','ban_appeal')),
+ fields_json TEXT NOT NULL,reported_user_id TEXT NOT NULL DEFAULT '',
+ visibility TEXT NOT NULL DEFAULT 'staff' CHECK(visibility IN ('staff','admin','owner')),
+ status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewing','resolved')),
+ created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,
+ resolved_at INTEGER,resolved_by TEXT,last_staff_ping_at INTEGER NOT NULL DEFAULT 0,
+ applicant_seen_at INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_support_owner ON support_tickets(user_id,updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_support_queue ON support_tickets(status,updated_at DESC);
+CREATE TABLE IF NOT EXISTS support_ticket_messages (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+ author_id TEXT NOT NULL REFERENCES users(id),author_role TEXT NOT NULL,
+ body TEXT NOT NULL,created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_support_messages ON support_ticket_messages(ticket_id,id);
+CREATE TABLE IF NOT EXISTS support_ticket_attachments (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+ original_name TEXT NOT NULL,stored_path TEXT NOT NULL UNIQUE,mime_type TEXT NOT NULL,
+ file_size INTEGER NOT NULL,created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_support_attachments ON support_ticket_attachments(ticket_id);
+CREATE TABLE IF NOT EXISTS staff_chat_messages (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,author_id TEXT NOT NULL REFERENCES users(id),
+ body TEXT NOT NULL,created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_staff_chat_recent ON staff_chat_messages(id DESC);
 CREATE TABLE IF NOT EXISTS profiles (
  user_id TEXT PRIMARY KEY REFERENCES users(id), nickname TEXT NOT NULL DEFAULT '',bio TEXT NOT NULL DEFAULT '',
  pronouns TEXT NOT NULL DEFAULT '',status_text TEXT NOT NULL DEFAULT '', accent TEXT NOT NULL DEFAULT 'blue',
