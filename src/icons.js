@@ -12,11 +12,12 @@ import {ICON_PATHS_9} from './lucide-paths-9.js';
 import {ICON_PATHS_10} from './lucide-paths-10.js';
 import {ICON_PATHS_11} from './lucide-paths-11.js';
 import {ICON_PATHS_12} from './lucide-paths-12.js';
+import {ICON_PATHS_13} from './lucide-paths-13.js';
 
 export const ICON_PATHS=Object.freeze({
   ...ICON_PATHS_1,...ICON_PATHS_2,...ICON_PATHS_3,...ICON_PATHS_4,
   ...ICON_PATHS_5,...ICON_PATHS_6,...ICON_PATHS_7,...ICON_PATHS_8,
-  ...ICON_PATHS_9,...ICON_PATHS_10,...ICON_PATHS_11,...ICON_PATHS_12
+  ...ICON_PATHS_9,...ICON_PATHS_10,...ICON_PATHS_11,...ICON_PATHS_12,...ICON_PATHS_13
 });
 export const AVAILABLE_ICONS=Object.freeze(Object.keys(ICON_PATHS));
 const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -35,7 +36,7 @@ export const NAV_ICON_NAMES=Object.freeze({
   '/':'house','/tickets/new':'ticket-plus','/tickets/new/ban_appeal':'scale',
   '/tickets/mine':'tickets','/dashboard':'clipboard-list','/apply':'file-pen-line',
   '/promotions':'award','/feed':'newspaper','/suggestions':'lightbulb',
-  '/members':'users-round','/team':'shield-check','/profile':'circle-user-round',
+  '/members':'users-round','/team':'shield-check','/mega-team':'wallet','/profile':'circle-user-round',
   '/notifications':'bell','/saved':'bookmark','/profile/edit':'user-round-pen',
   '/staff/tickets':'inbox','/staff':'clipboard-list','/staff/promotions':'award',
   '/admin/roles':'shield-check','/admin/settings':'settings-2','/admin/moderation':'gavel',
