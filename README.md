@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.4
+# SB's & Cam's Store — Community Portal V1.7.5
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.7.5 — Diagnose Railway's actual InPvP Event Log view
+
+- Railway V1.7.4 shows SBsxScam's roster and bank balance but no Event Log. Rather than guessing another live selector, this release adds a privacy-safe diagnostic report for the *actual* Chromium page: whether the body/main contain Event Log, whether Bank controls are present, rendered page height/scroll depth, page readiness, and counts of unsuccessful same-origin fetch/XHR requests and runtime page errors. No player data, query-string URLs, cookies, headers or error bodies appear in these logs.
+- The normal collector tries a native Bank control with exact text even if it lacks an accessibility label. The scrolling helper recognizes short Event Log headings in non-heading elements.
+- On capture failure, the worker saves one private screenshot of its real rendered page to the **existing** persistent SQLite volume (e.g., `/app/data/mega-bank-last-failure.png`); a successful capture clears that failure image.
+- The screenshot is available **only to a Discord-verified website owner** signed into this portal at `/owner/mega/collector-screenshot.png`. Ordinary members, reviewers, and admins are denied; the image is not stored in public uploads and is sent with `Cache-Control: private, no-store`. It may include what the InPvP browser actually showed, so do not share it publicly.
+- Tests cover the owner-only route, missing images, exact native Bank selector, and diagnostic error sanitization. No existing team or application data is reset, and no Railway variables need changing.
+- **This is a diagnostic and locator hardening update, not proof of a working live feed.** Next investigation should use both the fresh `[Mega bank][diagnostics]` line and the owner-only screenshot. Do not repeatedly deploy unverified selector guesses or fabricate financial activity.
 
 ## V1.7.4 — Public InPvP team Event Log below-the-fold fix
 

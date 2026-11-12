@@ -1,8 +1,8 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import http from 'node:http';
-import {readFileSync,statSync} from 'node:fs';
+import {readFileSync,statSync,existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {resolve,basename,extname} from 'node:path';
+import {resolve,basename,extname,dirname} from 'node:path';
 import {timingSafeEqual} from 'node:crypto';
 import {config,root,validateConfig} from './config.js';
 import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
@@ -249,7 +249,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.4',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.7.5',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -338,6 +338,20 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/saved'&&req.method==='GET'){
       const page=pageNumber(url.searchParams.get('page'));
       return html(socialView.savedPosts(ctx,{posts:listPosts(ctx.user.id,{page,saved:true}),page}));
+    }
+    // Railway's last failed public InPvP capture is visible only to the
+    // verified website owner. It is never served by /static or /uploads.
+    if(pathname==='/owner/mega/collector-screenshot.png'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'mega.collector.owner-diagnostic',12,60000);
+      const screenshot=resolve(dirname(config.dbPath),'mega-bank-last-failure.png');
+      if(!existsSync(screenshot))missing();
+      const stat=statSync(screenshot);
+      if(!stat.isFile()||stat.size<100||stat.size>8*1024*1024)missing();
+      return respond(res,200,readFileSync(screenshot),'image/png',{
+        'cache-control':'private, no-store',
+        'content-disposition':'inline; filename="mega-bank-private-diagnostic.png"'
+      });
     }
     // V1.6: MegaSMP dashboard. No requests to InPvP are made from these routes.
     if(pathname==='/mega-team'&&req.method==='GET')return redirect(res,'/team?tab=mega');
@@ -1428,5 +1442,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.4 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.7.5 running at ${config.baseUrl}`));
 }

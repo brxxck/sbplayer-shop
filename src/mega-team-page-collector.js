@@ -66,6 +66,15 @@ export async function openBankTab(page){
     ['button',page.getByRole('button',{name:/^Bank$/i})],
     ['label',page.getByText('Bank',{exact:true})]
   ];
+  // Some InPvP controls expose their label through nested elements rather
+  // than an accessible name. Match only a whole-word Bank control.
+  if(typeof page.locator==='function'){
+    try{
+      const controls=page.locator('button,[role="button"],[role="tab"]');
+      if(typeof controls.filter==='function')
+        groups.push(['native',controls.filter({hasText:/^\s*Bank\s*$/i})]);
+    }catch{}
+  }
   const problems=[];
   let visible=0;
   for(const [kind,locator] of groups){
@@ -157,22 +166,43 @@ async function alreadyShowingBankRows(page,selector){
 }
 
 // Only expose allowlisted booleans in errors; no page contents, cookies or user data.
-async function teamPageSignals(page){
+// Privacy-safe page diagnostics: never return text content, player names,
+// cookies, URLs with query strings, or raw network errors.
+export async function megaCollectorPageDiagnostics(page){
  try{
   return await page.evaluate(teamId=>{
-   const main=document.querySelector('main')||document.body;
-   const text=String(main?.innerText||'').slice(0,60000);
+   const body=String(document.body?.innerText||'');
+   const main=String(document.querySelector('main')?.innerText||'');
+   const controls=[...document.querySelectorAll('button,[role="button"],[role="tab"]')];
+   const hasEvent=text=>/\bEvent Log\b/i.test(text);
+   const bankNamed=controls.filter(el=>/^\s*Bank\s*$/i.test(String(el.textContent||''))).length;
+   const eventNamed=controls.filter(el=>/\bEvent Log\b/i.test(String(el.textContent||''))).length;
+   const scroll=document.scrollingElement||document.documentElement;
    return {
-    team:text.includes(teamId),
-    events:/\bEvent Log\b/i.test(text),
-    bank:/\bBank\b/i.test(text),
-    members:/\bMembers\s*\(\d+\)/i.test(text),
-    balance:/\bBank Balance\b/i.test(text),
-    signin:/sign in (?:with microsoft|to (?:view|see|access))|login required/i.test(text),
-    directory:/browse the top teams/i.test(text)
+    ready:document.readyState,
+    team:body.includes(teamId),members:/\bMembers\s*\(\d+\)/i.test(body),
+    balance:/\bBank Balance\b/i.test(body),
+    bodyEventLog:hasEvent(body),mainEventLog:hasEvent(main),
+    bodyBankAction:/\bDeposited\b|\bWithdrew\b|\bWithdrawn\b/i.test(body),
+    bankControls:bankNamed,eventControls:eventNamed,
+    documentHeight:Math.min(100000,scroll?.scrollHeight||0),
+    scrollTop:Math.round(scroll?.scrollTop||0),
+    viewportHeight:window.innerHeight,
+    verification:/verify you are human|captcha|security challenge/i.test(body),
+    loginPrompt:/login required|sign in to (?:view|access)/i.test(body)
    };
   },MEGA_TEAM_ID);
- }catch{return {team:false,events:false,bank:false,members:false,balance:false,signin:false,directory:false};}
+ }catch{return {diagnosticUnavailable:true};}
+}
+async function teamPageSignals(page){
+ const snapshot=await megaCollectorPageDiagnostics(page);
+ return {
+  team:!!snapshot.team,events:!!(snapshot.bodyEventLog??snapshot.events),
+  bank:!!snapshot.bankControls||!!snapshot.balance,
+  members:!!snapshot.members,balance:!!snapshot.balance,
+  signin:!!snapshot.loginPrompt,verification:!!snapshot.verification,
+  directory:!!snapshot.directory||!!snapshot.team||!!snapshot.members
+ };
 }
 
 // SPA hydration can delay both parent and child controls. Bound the retries and
@@ -184,8 +214,13 @@ export async function revealTeamEventLog(page,{checks=14,intervalMs=500}={}){
  for(let step=0;step<count;step++){
   const result=await page.evaluate(({step,total})=>{
    const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
-   const headings=[...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')];
-   const target=headings.find(el=>/^Event Log\b/i.test(clean(el.textContent)));
+   // The public Event Log title may be a styled div or span, not a
+   // semantic heading. Keep a short text bound to avoid full event rows.
+   const nodes=[...document.querySelectorAll('h1,h2,h3,h4,[role="heading"],strong,span,p,div')].slice(0,16000);
+   const target=nodes.find(el=>{
+    const value=clean((el.textContent||'').slice(0,140));
+    return value.length<140&&/^Event Log(?:\s*\([\d,]+\))?\b/i.test(value);
+   });
    if(target){
     target.scrollIntoView({block:'center',behavior:'instant'});
     return {found:true};
@@ -224,7 +259,7 @@ export async function selectBankEventLog(page,{selector='',viewportChecks=14}={}
   }
  }
  const flags=await teamPageSignals(page);
- if(flags.signin)throw new Error('Event Log requires sign-in or verification; collector did not bypass it.');
+ if(flags.verification||flags.signin)throw new Error('Event Log requires sign-in or verification; collector did not bypass it.');
  if(flags.team&&!flags.events)throw new Error('Team profile loaded but Event Log absent after scrolling '+
   '(members:'+!!flags.members+',balance:'+!!flags.balance+'). Check lazy loading.');
  if(flags.directory&&!flags.events)throw new Error('Team detail view unavailable after scrolling: directory visible without Event Log.');

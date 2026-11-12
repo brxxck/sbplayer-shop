@@ -13,7 +13,7 @@ const {parseMegaMoneyCents,formatMegaCents,parseMegaEventRow,prepareMegaEvents}=
 const {saveMegaCapture,megaCapturedBankSummary,noteMegaCaptureFailure}=await import('../src/mega-team-bank-event-store.js');
 const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
 const {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount}=await import('../src/mega-team-discord-matches.js');
-const {captureTeamBankPage,openBankTab,openEventLogSection,selectBankEventLog,revealTeamEventLog}=await import('../src/mega-team-page-collector.js');
+const {captureTeamBankPage,openBankTab,openEventLogSection,selectBankEventLog,revealTeamEventLog,megaCollectorPageDiagnostics}=await import('../src/mega-team-page-collector.js');
 const {MEGA_TEAM_ID,MEGA_TEAM_URL}=await import('../src/mega-team.js');
 after(()=>{db.close();rmSync(tmp,{recursive:true,force:true});});
 
@@ -231,6 +231,27 @@ test('scroll helper is bounded and does not manufacture a missing Event Log',asy
  assert.equal(await revealTeamEventLog(page,{checks:2,intervalMs:1}),false);
  assert.equal(passes,2);
 });
+test('Bank filter can be found through exact native button text without an accessible name',async()=>{
+ const empty={count:async()=>0,first:()=>({})};
+ const tab={isVisible:async()=>true,isEnabled:async()=>true,getAttribute:async()=>null,
+  click:async()=>{}};
+ const matching={count:async()=>1,first:()=>tab};
+ const page={
+  getByRole:()=>empty,
+  getByText:()=>empty,
+  locator:()=>({filter:({hasText})=>{
+   assert.equal(hasText.test('Bank'),true);
+   assert.equal(hasText.test('Bank Balance'),false);
+   return matching;
+  }})
+ };
+ assert.equal(await openBankTab(page),true);
+});
+test('diagnostic evaluation never echoes raw browser errors or private values',async()=>{
+ const page={evaluate:async()=>{throw new Error('session-key=SHOULD_NOT_BE_LOGGED');}};
+ assert.deepEqual(await megaCollectorPageDiagnostics(page),{diagnosticUnavailable:true});
+});
+
 test('all captured bank events remain browsable across 50-row pages with type/player filters',()=>{
  const batch=Array.from({length:127},(_,i)=>({
   eventId:'capture-history-'+String(i).padStart(4,'0'),
