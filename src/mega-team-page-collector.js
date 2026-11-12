@@ -25,8 +25,22 @@ export async function extractBankRows(page,{selector='',maxRows=MAX_ROWS}={}){
       'tr,li,[role="row"],[data-event-id],[data-testid*="event"],div')];
     const candidates=[];
     for(const el of elements){
-      const text=clean(el.innerText||el.textContent);
-      if(text.length<12||text.length>320||!pattern.test(text)||!timestamp.test(text))continue;
+      let text=clean(el.innerText||el.textContent);
+      if(text.length<12||text.length>320||!timestamp.test(text)||
+         !/Deposited|Withdrew|Withdrawn|Withdrawal/i.test(text))continue;
+      // Names and actions may occupy adjacent inline elements with no
+      // whitespace between them, as seen on the signed-out team page.
+      if(!pattern.test(text)){
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+        const segments=[];let part;
+        while((part=walker.nextNode())&&segments.length<60){
+          const value=clean(part.textContent);
+          if(value)segments.push(value);
+        }
+        const joined=clean(segments.join(' '));
+        if(pattern.test(joined))text=joined;
+      }
+      if(!pattern.test(text))continue;
       // Prevent treating an entire bank feed or nested wrapper as one event.
       const verbs=(text.match(/\b(?:Deposited|Withdrew|Withdrawn|Withdrawal)\s+\$?[\d,]+/gi)||[]).length;
       if(verbs!==1)continue;
@@ -258,20 +272,28 @@ export async function extractTeamOverview(page){
   const clean=x=>String(x||'').replace(/\s+/g,' ').trim();
   const body=document.body?.innerText||'';
   let bankBalance=null;
-  const match=body.match(/(?:Team Bank|Bank Balance|Team Balance)\s*[:\n]?\s*(\$[\d,]+(?:\.\d{1,2})?)/i);
+  // Keep compact units: a displayed "$40.3M" is NOT an exact "$40.30".
+  const match=body.match(/(?:Team Bank|Bank Balance|Team Balance)\s*[:\s]*(\$[\d,]+(?:\.\d{1,3})?[KMBT]?)(?![\w.])/i);
   if(match)bankBalance=match[1];
   let roster=[];
   const section=[...document.querySelectorAll('section,article,[data-testid]')].find(el=>{
    const h=el.querySelector('h1,h2,h3,h4');
-   return h&&/^(Team Members|Roster|Members)$/i.test(clean(h.textContent));
+   return h&&/^(Team Members|Roster|Members)(?:\s*\(\d+\))?$/i.test(clean(h.textContent));
   });
   if(section){
-   const items=[...section.querySelectorAll('tr,li,[role="row"],[data-player-name]')];
-   roster=items.map(el=>{
-    const tag=clean(el.getAttribute('data-player-name')||el.querySelector('[data-player-name]')?.getAttribute('data-player-name')||'');
-    const role=/(?:^|\s)(Leader|Officer)(?:$|\s)/i.exec(clean(el.innerText||''));
-    return tag?{gamertag:tag,role:role?role[1]:'Member'}:null;
-   }).filter(Boolean);
+   const names=new Map();
+   // Explicit player attributes or profile links only; appearing in a bank
+   // event alone does not mean the player is on the current roster.
+   const links=[...section.querySelectorAll('[data-player-name],a[href*="/player"]')];
+   for(const el of links){
+    const tag=clean(el.getAttribute('data-player-name')||
+      el.querySelector('[data-player-name]')?.getAttribute('data-player-name')||el.textContent);
+    if(!/^[a-z0-9_. #\-]{2,32}$/i.test(tag)||names.has(tag.toLowerCase()))continue;
+    const row=el.closest('tr,li,[role="row"]')||el.parentElement;
+    const role=/(?:^|\s)(Leader|Officer)(?:$|\s)/i.exec(clean(row?.innerText||''));
+    names.set(tag.toLowerCase(),{gamertag:tag,role:role?role[1]:'Member'});
+   }
+   roster=[...names.values()];
   }
   return {roster:roster.slice(0,300),bankBalance};
  });
