@@ -109,7 +109,7 @@ test('profile shows every assigned Discord role, correct colours and highest-fir
  assert.ok(page.indexOf('Mega Smp Staff')<page.indexOf('Prison Staff'),'higher-ranked Mega role appears first');
  assert.match(page,/--role-accent:#01b669/);
  assert.match(page,/--role-accent:#036870/);
- assert.ok(!page.includes('>\\@everyone<'),'universal guild role must not appear');
+ assert.ok(!page.includes('>@everyone<'),'universal guild role must not appear');
  const admin=await (await get('/u/'+ids.adminA,'member')).text();
  assert.ok(admin.includes('Administrator'));
  assert.ok(admin.includes('Mega Smp Staff'));
