@@ -8,7 +8,7 @@ import {config,root,validateConfig} from './config.js';
 import {db,one,all,run,transaction,getSetting,setSetting,upsertUser,ensureProfile} from './db.js';
 import {appendAudit,verifyAudit} from './audit.js';
 import {shouldAuditAction,VISIBLE_AUDIT_ACTIONS,collectAuditDiscordIds,readableAuditRows} from './audit-display.js';
-import {classify,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
+import {classify,hasVerifiedAdministratorPermission,manageableRoles,protectedRole,highestPosition,targetEligible,limitText,text,idOK,normalizeProfile,safeHttpUrl,suggestionStates,isFinal} from './logic.js';
 import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
@@ -162,16 +162,23 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ctx.member=actual;
       const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
       ctx.role=classify(actual,guild.owner_id,ctx.user.id,config,coowners);
-       // Discord-backed staff rank detection is navigation-only; real permissions stay server-verified.
-       ctx.staffNavigation=isStaffRole(ctx.role);
+       // Use *verified Discord role permissions* as an additional admin identity source.
+       // A real Discord Administrator must not lose staff-ticket access because
+       // ADMIN_ROLE_IDS is missing that particular role. Never trust role names alone.
        try {
          const guildRoles=await discord.getRoles();
+         if(ctx.role!=='owner'&&hasVerifiedAdministratorPermission(actual,guildRoles))
+           ctx.role='admin';
          ctx.promotionEligible=!!promotionEligibility(actual,guildRoles,config);
          const owned=new Set(actual.roles||[]);
-         // Reuse the existing SB Store team classifier: exclude Mega SMP, Prison and SBs-only ranks.
-         ctx.staffNavigation=ctx.staffNavigation||ctx.promotionEligible||
+         // Non-admin team roles affect navigation only, never privileged access.
+         ctx.staffNavigation=isStaffRole(ctx.role)||ctx.promotionEligible||
            guildRoles.some(r=>owned.has(r.id)&&['Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
-       }catch{ctx.promotionEligible=false;}
+       }catch{
+         // Bot role lookup failure must never grant additional permissions.
+         ctx.promotionEligible=false;
+         ctx.staffNavigation=isStaffRole(ctx.role);
+       }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       ctx.notificationCount=notificationCount(ctx.user.id);
       // Routine browsing, session refreshes and page loads must not fill the audit.
@@ -191,7 +198,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.1'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.5.2'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -1220,5 +1227,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.1 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.5.2 running at ${config.baseUrl}`));
 }
