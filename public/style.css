@@ -275,3 +275,36 @@
  .known-member-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
  .known-member-tab{justify-content:space-between;padding:10px}
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.3.5: all assigned Discord roles, ordered by Discord hierarchy and colour-coded. */
+.profile-page .profile-discord-roles{
+  margin:15px 0 17px;padding:16px 0;border-top:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);
+}
+.profile-page .profile-roles-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.profile-page .profile-roles-heading h2{
+  font-family:inherit;font-size:13px;line-height:1.4;letter-spacing:.01em;
+  color:#e1efff;font-weight:790;margin:0;
+}
+.profile-page .profile-roles-count{font-size:11px;color:#88a9cd}
+.profile-page .profile-roles-list{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.profile-page .profile-role-badge{
+  display:inline-flex;align-items:center;gap:7px;max-width:100%;min-height:29px;
+  padding:6px 11px;border-radius:999px;line-height:1.3;white-space:normal;
+  overflow-wrap:anywhere;text-align:left;font-weight:710;font-size:11px;
+  background:#11253e;border:1px solid var(--role-accent,#8296b5);color:#eff7ff;
+  background:color-mix(in srgb,var(--role-accent,#8296b5) 15%,#0c2039);
+  border-color:color-mix(in srgb,var(--role-accent,#8296b5) 65%,#36536e);
+}
+.profile-page .profile-role-dot{
+  width:9px;height:9px;flex:0 0 9px;display:inline-block;border-radius:50%;
+  background:var(--role-accent,#8296b5);
+  box-shadow:0 0 0 2px rgba(255,255,255,.07);
+}
+.profile-page .profile-roles-empty{font-size:12px;line-height:1.5;color:#8da9c8;margin:0}
+@media(max-width:610px){
+  .profile-page .profile-roles-list{gap:7px}
+  .profile-page .profile-role-badge{font-size:10.5px;padding:6px 9px}
+}
