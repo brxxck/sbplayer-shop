@@ -128,7 +128,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.6'}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.3.7'}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -654,9 +654,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       // Our Staff and the SBs x Scam Team Members are separate directories.
       // External Mega SMP/Prison roles remain under Known Members.
+      // Keep all Mega SMP / Prison staff variants out of the SB Store staff directory.
+      // Includes e.g. "Mega Smp Staff Trusted", not only the original Staff role.
       const knownRoleKind=name=>{
         const key=String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-        return key==='megasmpstaff'?'mega':key==='prisonstaff'?'prison':null;
+        if((key.startsWith('megasmp')||key.startsWith('megastaff'))&&key.includes('staff'))return 'mega';
+        if(key.startsWith('prison')&&key.includes('staff'))return 'prison';
+        return null;
       };
       const staffRoles=roles.filter(r=>config.adminIds.has(r.id)||config.reviewerIds.has(r.id)||config.ownerRoleIds.has(r.id)||config.teamRoleIds.has(r.id)||/(owner|co.?owner|admin|moderat|helper|staff|head.?staff|management|support)/i.test(r.name)||knownRoleKind(r.name));
       const byId=new Map(roles.map(r=>[r.id,r]));
@@ -997,5 +1001,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.6 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.3.7 running at ${config.baseUrl}`));
 }
