@@ -77,6 +77,57 @@ export function signedOutPreview(ctx){
    '<div class="hero-logo"><img src="/static/sb-logo.png" width="148" height="148" alt="SB Store logo" style="width:148px;height:148px;object-fit:cover"></div></div>');
 }
 
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Header-level social navigation works on desktop and in the compact mobile account menu.
+function socialHeaderAccount(ctx){
+  const u=ctx.user;
+  if(!u)return '<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>';
+  const profileUrl=ctx.role==='appeal-only'?'/':'/profile';
+  const identity='<a class="account-profile-link" href="'+profileUrl+'" aria-label="View my profile">'+avatar(u,'sm')+
+    '<span class="account-name"><b>'+esc(u.display_name)+'</b><small>@'+esc(u.username)+'</small></span></a>';
+  const signOut='<form method="post" action="/auth/logout">'+token(ctx)+
+    '<button type="submit" class="account-menu-logout">↪ Sign out</button></form>';
+  if(ctx.role==='appeal-only')return identity+'<form method="post" action="/auth/logout">'+token(ctx)+
+    '<button class="btn btn-quiet btn-xs" type="submit">Log out</button></form>';
+  const unread=Math.max(0,Number(ctx.notificationCount)||0);
+  const number=unread>99?'99+':String(unread);
+  const quick=[
+    ['feed','/feed','◉','Main Feed'],
+    ['members','/members','♧','Find Members'],
+    ['notifications','/notifications','♢','Notifications'],
+    ['saved','/saved','▤','Saved Posts']
+  ].map(([key,url,icon,label])=>
+    '<a class="top-social-link top-social-'+key+'" href="'+url+'" aria-label="'+label+
+    (key==='notifications'&&unread?' ('+unread+' unread)':'')+'" title="'+label+'">'+
+    '<span class="top-social-symbol" aria-hidden="true">'+icon+'</span>'+
+    (key==='notifications'&&unread?'<span class="top-social-badge">'+number+'</span>':'')+
+    '</a>').join('');
+  const own='/u/'+attr(u.id);
+  const menuLink=(href,icon,label)=>'<a href="'+href+'"><span aria-hidden="true">'+icon+'</span><span>'+label+'</span></a>';
+  const accountMenu='<details class="top-account-dropdown" data-account-dropdown>'+
+    '<summary title="Open your profile menu" aria-label="Open your profile menu">⌄</summary>'+
+    '<div class="top-account-menu">'+
+      '<div class="top-account-menu-head"><b>'+esc(u.display_name)+'</b><small>@'+esc(u.username)+'</small></div>'+
+      '<div class="top-account-menu-label">MY PROFILE</div>'+
+      menuLink('/profile','◉','View My Profile')+
+      menuLink('/profile/edit','✎','Edit Profile')+
+      menuLink(own+'?tab=posts','▣','My Posts')+
+      menuLink(own+'?tab=replies','♧','My Replies')+
+      menuLink(own+'?tab=media','▧','My Photos')+
+      menuLink(own+'?tab=likes','♥','Liked Posts')+
+      menuLink(own+'/followers','♧','Followers')+
+      menuLink(own+'/following','◌','Following')+
+      '<div class="top-account-menu-label">COMMUNITY</div>'+
+      menuLink('/feed','◉','Main Feed')+
+      menuLink('/feed?tab=following','↗','Following Feed')+
+      menuLink('/notifications','♢',unread?'Notifications · '+number+' new':'Notifications')+
+      menuLink('/saved','▤','Saved Posts')+
+      menuLink('/members','♧','Find Members')+
+      '<div class="top-account-menu-signout">'+signOut+'</div>'+
+    '</div></details>';
+  return '<nav class="top-social-shortcuts" aria-label="Social quick links">'+quick+'</nav>'+identity+accountMenu;
+}
+
 export function shell(ctx,title,content) {
   const user=ctx.user,role=ctx.role||'none';
   const staff=['reviewer','admin','owner'].includes(role),admin=['admin','owner'].includes(role);
@@ -91,7 +142,7 @@ export function shell(ctx,title,content) {
 ${user&&role!=='appeal-only'?`<div class="sidebar-title">MY SOCIAL</div><nav>${navLink('/profile','My Profile','◉',ctx)}${navLink('/notifications',unread?'Notifications ('+unread+')':'Notifications','♢',ctx)}${navLink('/saved','Saved Posts','▤',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}</nav>`:''}
 ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tickets','All Tickets','▣',ctx)}${navLink('/staff','Application Reviews','▤',ctx)}${admin?navLink('/staff/promotions','Promotion Reviews','♛',ctx):''}${admin?`${navLink('/admin/roles','Role Management','⬡',ctx)}${navLink('/admin/settings','Admin Settings','⚙',ctx)}${navLink('/admin/moderation','Moderation','⚑',ctx)}`:''}${role==='owner'?`${navLink('/owner/approvals','Final Approvals','✓',ctx)}${navLink('/owner/audit','Owner Audit Log','☷',ctx)}${navLink('/owner/owners','Owner Access','♜',ctx)}`:''}</nav>`:''}
 </div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/profile'}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
-<div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${user?`<a class="account-profile-link" href="${role==='appeal-only'?'/':'/profile'}" aria-label="View my profile">${avatar(user,'sm')}<span class="account-name"><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a><form method="post" action="/auth/logout">${token(ctx)}<button class="btn btn-quiet btn-xs" title="Sign out">Log out</button></form>`:`<a class="btn btn-primary btn-sm" href="/auth/login">Login with Discord</a>`}</div></header>
+<div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a><a href="/team">Meet the Team</a>':'<a href="/tickets/new">Submit Ticket</a>'+(staffNavigation?'':'<a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a>')+'<a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a>'}${staffNavigation?'<a href="/promotions">Apply for a Promotion</a>':''}${role==='appeal-only'?'':'<a href="/profile">My Profile</a><a href="/notifications">Notifications</a><a href="/saved">Saved</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
 <main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.5.0</span></footer></div></div></body></html>`;
 }
