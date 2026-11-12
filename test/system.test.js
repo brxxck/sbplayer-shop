@@ -442,6 +442,41 @@ test('suggestions show public yes/no totals but voter identities only to admins'
   assert.equal(one('SELECT status FROM suggestions WHERE id=?',s.id).status,'planned');
 });
 
+test('liking a feed post stays on the feed, preserves page, and supports in-place JSON toggles',async()=>{
+  assert.equal((await post('/feed/create','member2',{body:'A feed post for testing like toggles without navigation.'})).status,303);
+  const id=one('SELECT id FROM posts WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member2).id;
+  const feed=await (await get('/feed','member')).text();
+  assert.ok(feed.includes('id="post-'+id+'"'),'post has a stable anchor for the no-JS fallback');
+  assert.ok(feed.includes('action="/post/'+id+'/like" data-post-like'),'like form opts into JS enhancement');
+  assert.ok(feed.includes('name="feed_page" value="0"'),'form records feed pagination');
+  assert.match(feed,/data-like-count>/,'like count can update in place');
+  const fallback=await post('/post/'+id+'/like','member',{feed_page:'3'});
+  assert.equal(fallback.status,303);
+  assert.equal(fallback.headers.get('location'),'/feed?page=3#post-'+id,'no-JS like stays on the feed');
+  assert.equal(one('SELECT COUNT(*) n FROM post_likes WHERE post_id=?',id).n,1);
+  async function jsonLike(){
+    const session=sessions.get('member');
+    return fetch(base+'/post/'+id+'/like',{
+      method:'POST',
+      headers:{cookie:session.cookie,'content-type':'application/x-www-form-urlencoded',accept:'application/json'},
+      body:new URLSearchParams({_csrf:session.csrf,feed_page:'0'}),
+      redirect:'manual'
+    });
+  }
+  const unlike=await jsonLike();
+  assert.equal(unlike.status,200,'JS likes must not redirect to Post Details');
+  assert.match(unlike.headers.get('content-type'),/application\/json/);
+  assert.deepEqual(await unlike.json(),{post_id:id,liked:false,like_count:0});
+  const like=await jsonLike();
+  assert.equal(like.status,200);
+  assert.deepEqual(await like.json(),{post_id:id,liked:true,like_count:1});
+  const detail=await (await get('/post/'+id,'member')).text();
+  assert.ok(detail.includes('data-post-like'),'the same action still works on Post Details');
+  const normal=await post('/post/'+id+'/like','member',{});
+  assert.equal(normal.status,303);
+  assert.equal(normal.headers.get('location'),'/post/'+id,'ordinary detail-page forms retain their fallback');
+});
+
 test('posts, comments, profile custom settings, sections and privacy work',async()=>{
   assert.equal((await post('/feed/create','member',{body:'Hello from the community feed!'})).status,303);
   const p=one('SELECT * FROM posts ORDER BY id DESC LIMIT 1');

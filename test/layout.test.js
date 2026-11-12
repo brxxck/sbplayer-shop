@@ -22,8 +22,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.4\.3-staff-navigation/);
-  assert.match(page,/\/static\/app\.js\?v=1\.4\.3-staff-navigation/);
+  assert.match(page,/\/static\/style\.css\?v=1\.4\.4-feed-likes/);
+  assert.match(page,/\/static\/app\.js\?v=1\.4\.4-feed-likes/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -65,6 +65,15 @@ test('staff, mods and temp mods use promotion navigation; ordinary members keep 
       assert.ok(!discover.includes('href="/promotions"'),v.kind+' must not see the promotion shortcut');
     }
   }
+});
+
+test('client handles likes in place without losing feed scroll',()=>{
+  const script=readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
+  assert.match(script,/form\[data-post-like\]/);
+  assert.match(script,/event\.preventDefault\(\)/);
+  assert.match(script,/headers:\{accept:'application\/json'\}/);
+  assert.match(script,/count\.textContent=String\(result\.like_count\)/);
+  assert.match(script,/button\.classList\.toggle\('activated',result\.liked\)/);
 });
 
 test('stylesheet has responsive image constraints and hides desktop mobile brand',()=>{

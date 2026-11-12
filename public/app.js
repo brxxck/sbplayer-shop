@@ -83,3 +83,43 @@ for(const field of document.querySelectorAll('input[type="file"][name="evidence"
    line.textContent=count?(count+' file'+(count===1?'':'s')+' selected'):'';
  });
 }
+
+
+// V1.4.4: like/unlike directly in the feed. Never navigate away or reset scroll.
+for(const form of document.querySelectorAll('form[data-post-like]')){
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const button=form.querySelector('button[type="submit"]');
+    const heart=form.querySelector('[data-like-heart]');
+    const count=form.querySelector('[data-like-count]');
+    if(!button||!heart||!count||button.disabled)return;
+    button.disabled=true;
+    form.querySelector('[data-like-error]')?.remove();
+    try{
+      const response=await fetch(form.action,{
+        method:'POST',
+        headers:{accept:'application/json'},
+        body:new URLSearchParams(new FormData(form)),
+        credentials:'same-origin',
+        redirect:'follow'
+      });
+      if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))
+        throw new Error('Like request failed');
+      const result=await response.json();
+      if(typeof result.liked!=='boolean'||!Number.isSafeInteger(result.like_count)||result.like_count<0)
+        throw new Error('Invalid like response');
+      button.classList.toggle('activated',result.liked);
+      button.setAttribute('aria-pressed',String(result.liked));
+      button.setAttribute('aria-label',result.liked?'Unlike post':'Like post');
+      heart.textContent=result.liked?'♥':'♡';
+      count.textContent=String(result.like_count);
+    }catch{
+      const error=document.createElement('small');
+      error.dataset.likeError='';
+      error.setAttribute('role','alert');
+      error.textContent='Could not update like. Try again.';
+      error.className='muted tiny';
+      form.append(error);
+    }finally{button.disabled=false;}
+  });
+}
