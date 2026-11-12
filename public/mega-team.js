@@ -72,7 +72,7 @@
    if(count)count.textContent=String(data.totals.activeMembers);
    const coverage=root.querySelector('[data-mega-coverage]');
    if(coverage)coverage.textContent=data.totals.missing?
-    'Partial totals · '+data.totals.withBoth+'/'+data.totals.activeMembers+' members have both totals':
+    'Partial totals · '+data.totals.withBoth+'/'+data.totals.recordedMembers+' recorded members have both totals':
     'Complete recorded roster coverage · '+data.totals.withBoth+'/'+data.totals.activeMembers;
    const latest=root.querySelector('[data-mega-updated]');
    const sourceAt=data.sync?.last_source_at||0;
