@@ -16,7 +16,7 @@ const fakeRoles=[
   {id:ids.guild,name:'@everyone',position:0,permissions:'0',managed:false,color:0},
   {id:roles.admin,name:'Administrator',position:50,permissions:'8',managed:false,color:16711680},
   {id:roles.reviewer,name:'Reviewer',position:25,permissions:'0',managed:false,color:22445},
-  {id:roles.tempMod,name:'Helper',position:10,permissions:'0',managed:false,color:23376},
+  {id:roles.helper,name:'Helper',position:10,permissions:'0',managed:false,color:23376},
   {id:roles.vip,name:'VIP',position:9,permissions:'0',managed:false,color:33299},
   {id:roles.manage,name:'Role Manager',position:8,permissions:String(1n<<28n),managed:false,color:2222222},
   {id:roles.bot,name:'SB Bot',position:90,permissions:String(1n<<28n),managed:true,color:442211},
