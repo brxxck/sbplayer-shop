@@ -494,13 +494,41 @@ test('profile image upload validates real image bytes and remains private to acc
   unlinkSync(storedFile);
 });
 
-test('all staff access events retained and audit hash chain still valid',async()=>{
+test('only meaningful changes and private-ticket reads are audited, while hashes stay valid',async()=>{
   const logs=all('SELECT * FROM owner_audit_log ORDER BY id');
-  assert.ok(logs.some(x=>x.action==='staff.page.read'));
-  assert.ok(logs.some(x=>x.action==='staff.request.attempt'));
   assert.ok(logs.some(x=>x.action==='owner.access.granted'));
-  assert.ok(logs.some(x=>x.action==='role.change.blocked'));
   assert.ok(logs.some(x=>x.action==='application.role.assigned'));
+  assert.ok(logs.some(x=>x.action==='application.access'));
+  assert.ok(logs.some(x=>x.action==='role.change.success'));
+  for(const action of ['staff.page.read','staff.request.attempt','owner.audit.view','owner.audit.export',
+    'moderation.queue.view','roles.dashboard.view','review.queue.view','role.change.blocked',
+    'staff.login','staff.logout','settings.view','security.access.denied']){
+      assert.ok(!logs.some(x=>x.action===action),'no routine or failed-attempt audit: '+action);
+  }
+  const before=logs.length;
+  for(let i=0;i<3;i++){
+    assert.equal((await get('/','owner')).status,200);
+    assert.equal((await get('/team','owner')).status,200);
+    assert.equal((await get('/owner/audit','owner')).status,200);
+    assert.equal((await get('/staff','owner')).status,200);
+  }
+  assert.equal(one('SELECT COUNT(*) c FROM owner_audit_log').c,before,'routine browsing adds zero events');
+  assert.equal(verifyAudit(db).ok,true);
+});
+
+test('audit displays usernames for stored actors, user IDs in targets/details, and CSV keeps original IDs',async()=>{
+  const record=one("SELECT * FROM owner_audit_log WHERE actor_id=? AND action='role.change.success' ORDER BY id DESC LIMIT 1",ids.adminA);
+  assert.ok(record,'there should be an audited staff role change');
+  const page=await (await get('/owner/audit','owner')).text();
+  assert.ok(page.includes('@admina'),'human-readable audit actor username');
+  assert.ok(page.includes('title="Discord user ID: '+ids.adminA+'"'),'raw ID remains in audit tooltip');
+  assert.ok(!page.includes('<b>'+ids.adminA+'</b>'),'actor cell does not show raw Discord ID');
+  assert.ok(page.includes('Changes &amp; ticket access'));
+  const csv=await (await get('/owner/audit/export','owner')).text();
+  assert.ok(csv.includes('actor_username,target_display,details_display'));
+  assert.ok(csv.includes('role.change.success'));
+  assert.ok(csv.includes(ids.adminA),'raw actor ID retained for forensic export');
+  assert.ok(csv.includes('@admina'),'username added for human readability');
   assert.equal(verifyAudit(db).ok,true);
 });
 
