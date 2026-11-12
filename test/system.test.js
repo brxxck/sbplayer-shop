@@ -5,7 +5,7 @@ import {mkdtempSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,dirname,basename} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sbs-app-test-'));
-const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012'};
+const ids={guild:'100000000000000001',owner:'100000000000000002',adminA:'100000000000000003',adminB:'100000000000000004',adminC:'100000000000000005',reviewer:'100000000000000006',member:'100000000000000007',member2:'100000000000000008',bot:'100000000000000009',member3:'100000000000000010',member4:'100000000000000012',member5:'100000000000000013',member6:'100000000000000014'};
 const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'200000000000000003',vip:'200000000000000004',bot:'200000000000000005',manage:'200000000000000006'};
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
@@ -47,7 +47,7 @@ async function post(path,who,values={}){
 const answers={position:'Helper',age_bracket:'18+',timezone:'GMT',availability:'I am usually active through the evenings and weekends.',experience:'I have helped moderate several online communities in the past.',motivation:'I want to support members and improve the community experience.',scenario:'I would ask them to stop arguing and move the dispute into a private support ticket.'};
 
 test('login as each permission level, and enforce owner-only audit',async()=>{
-  for(const x of ['owner','adminA','adminB','adminC','reviewer','member','member2','member3','member4'])await login(x);
+  for(const x of ['owner','adminA','adminB','adminC','reviewer','member','member2','member3','member4','member5','member6'])await login(x);
   assert.equal((await get('/owner/audit','member')).status,403);
   assert.equal((await get('/owner/audit','adminA')).status,403);
   assert.equal((await get('/admin/roles','reviewer')).status,403);
@@ -103,7 +103,6 @@ test('private ticket replies remain private; @here pings are throttled and test 
 
 test('one admin approval does not finalize; two distinct admins approve and Discord role assigned',async()=>{
   const app=one('SELECT * FROM applications WHERE user_id=?',ids.member);
-  assert.equal((await post(`/staff/applications/${app.id}/decide`,'owner',{choice:'accept'})).status,403,'unk.sb cannot be counted as an admin recommender');
   let r=await post(`/staff/applications/${app.id}/decide`,'adminA',{choice:'accept',note:'Ready for the team'});
   assert.equal(r.status,303);assert.equal(one('SELECT status FROM applications WHERE id=?',app.id).status,'reviewing');assert.equal(additions,0);
   r=await post(`/staff/applications/${app.id}/decide`,'adminA',{choice:'accept',note:'Duplicate vote'});assert.equal(r.status,303);
@@ -134,6 +133,57 @@ test('two matching admin denials finalize without assigning Discord roles',async
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'denied');
   assert.equal(memberMap.get(ids.member2).roles.includes(roles.helper),false);
+});
+
+test('unk.sb may vote Deny as one of two admins and must separately finalize Deny',async()=>{
+  assert.equal((await post('/apply','member5',answers)).status,303);
+  const a=one('SELECT * FROM applications WHERE user_id=?',ids.member5);
+  const beforePage=await (await get(`/staff/applications/${a.id}`,'owner')).text();
+  assert.match(beforePage,/Vote Deny/,'owner sees the same admin voting controls');
+  assert.doesNotMatch(beforePage,/This application is finalized\./,'a reviewing application must not display finalized');
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'owner',{choice:'deny',note:'I recommend denial'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,1);
+  let page=await (await get(`/staff/applications/${a.id}`,'owner')).text();
+  assert.match(page,/Your admin vote:/);
+  assert.match(page,/Waiting for two matching admin votes/);
+  assert.doesNotMatch(page,/Final Deny/,'final authorization stays locked with one vote');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'deny'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing','the owner cannot finalize before two votes');
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminA',{choice:'deny'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing','two votes are only a recommendation');
+  assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,2);
+  assert.ok(one('SELECT 1 FROM admin_decisions WHERE application_id=? AND admin_id=?',a.id,ids.owner),'owner vote is stored');
+  assert.ok(one('SELECT 1 FROM admin_decisions WHERE application_id=? AND admin_id=?',a.id,ids.adminA),'second admin vote is stored');
+  page=await (await get(`/staff/applications/${a.id}`,'owner')).text();
+  assert.match(page,/Final Deny/);
+  assert.doesNotMatch(page,/Final Accept/,'a denial recommendation cannot directly accept without two Accept votes');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'adminA',{action:'deny'})).status,403);
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'deny',note:'Separate final rejection'})).status,303);
+  const decided=one('SELECT * FROM applications WHERE id=?',a.id);
+  assert.equal(decided.status,'denied');assert.equal(decided.finalized_by,ids.owner);
+  assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=?',a.id).action,'deny');
+  assert.equal(memberMap.get(ids.member5).roles.includes(roles.helper),false);
+});
+
+test('unk.sb can cast second Accept vote but staff role requires a separate final Accept',async()=>{
+  assert.equal((await post('/apply','member6',answers)).status,303);
+  const a=one('SELECT * FROM applications WHERE user_id=?',ids.member6);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'accept'})).status,303);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'owner',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,2);
+  assert.equal(memberMap.get(ids.member6).roles.includes(roles.helper),false);
+  const page=await (await get(`/staff/applications/${a.id}`,'owner')).text();
+  assert.match(page,/Final Accept/);
+  assert.match(page,/Final Deny/);
+  assert.equal((await post(`/staff/applications/${a.id}/decide`,'owner',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,2,'owner can vote only once');
+  assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
+  const decided=one('SELECT * FROM applications WHERE id=?',a.id);
+  assert.equal(decided.status,'accepted');assert.equal(decided.finalized_by,ids.owner);
+  assert.equal(memberMap.get(ids.member6).roles.includes(roles.helper),true);
+  assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=?',a.id).action,'approve');
 });
 
 test('unk.sb can override an acceptance recommendation to denial without granting a role',async()=>{
