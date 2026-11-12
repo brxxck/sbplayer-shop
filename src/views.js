@@ -55,7 +55,7 @@ const accepts=adminVotes.filter(x=>x.choice==='accept').length,denies=adminVotes
 return shell(ctx,`Application #${app.id}`,`${titlebar(`TICKET #${app.id}`,`Review <span class="gradient">${esc(app.display_name)}</span>`,`@${app.username} · ${when(app.created_at)}`,tag(app.status))}
 <div class="review-grid"><section class="panel padded"><div class="panel-heading"><h2>Applicant responses</h2><a href="/u/${attr(app.user_id)}" class="quiet-link">View profile →</a></div>${[['Position',app.position],['Age range',app.age_bracket],['Timezone',app.timezone],['Availability',app.availability],['Experience',app.experience],['Why staff?',app.motivation],['Scenario',app.scenario]].map(([k,v])=>`<div class="answer"><b>${esc(k)}</b><p>${lines(v)}</p></div>`).join('')}</section>
 <div class="stack">
-${admin?`<section class="panel padded"><h2>Admin decision</h2><p class="muted tiny">Requires two separate admins voting the same way. Reviewer votes never determine the final outcome.</p><div class="vote-summary"><div class="accept-label">✓ ${accepts} Accept</div><div class="deny-label">✕ ${denies} Deny</div></div>${!final&&!myAdminVote&&!ownerRecommendation&&ctx.user.id!==ctx.config.finalApproverId?`<form method="post" action="/staff/applications/${app.id}/decide">${token(ctx)}<label>Optional private decision note<textarea name="note" maxlength="1500" rows="3" placeholder="Reasoning for other admins"></textarea></label><div class="choice-row"><button class="btn btn-success" name="choice" value="accept">Vote Accept</button><button class="btn btn-danger" name="choice" value="deny">Vote Deny</button></div></form>`:myAdminVote?`<div class="notice-box">Your admin vote: <b>${esc(myAdminVote.choice)}</b> · ${when(myAdminVote.created_at)}</div>` :ownerRecommendation?`<div class="notice-box">Two matching admin votes recorded: <b>${esc(ownerRecommendation)}</b>. Awaiting unk.sb final approval.</div>`:'<div class="notice-box">This application is finalized.</div>'}
+${admin?`<section class="panel padded"><h2>Admin decision</h2><p class="muted tiny">Requires two separate admins voting the same way. Reviewer votes never determine the final outcome.</p><div class="vote-summary"><div class="accept-label">✓ ${accepts} Accept</div><div class="deny-label">✕ ${denies} Deny</div></div>${!final&&!myAdminVote&&!ownerRecommendation?`<form method="post" action="/staff/applications/${app.id}/decide">${token(ctx)}<label>Optional private decision note<textarea name="note" maxlength="1500" rows="3" placeholder="Reasoning for other admins"></textarea></label><div class="choice-row"><button class="btn btn-success" name="choice" value="accept">Vote Accept</button><button class="btn btn-danger" name="choice" value="deny">Vote Deny</button></div></form>`:myAdminVote?`<div class="notice-box">Your admin vote: <b>${esc(myAdminVote.choice)}</b> · ${when(myAdminVote.created_at)}. Final authorization is a separate action.</div>` :ownerRecommendation?`<div class="notice-box">Two matching admin votes recorded: <b>${esc(ownerRecommendation)}</b>. Awaiting unk.sb final approval.</div>`:final?'<div class="notice-box">This application is finalized.</div>':'<div class="notice-box">Waiting for two matching admin votes.</div>'}
 ${final?`<p>Final outcome: ${tag(app.status)}</p>`:''}
 ${app.status==='accepted'?`<div class="notice-box"><b>Discord role:</b> ${tag(app.role_sync_status)}<p class="tiny">${esc(app.role_sync_error||'Assigned through the bot when possible.')}</p>${app.role_sync_status!=='assigned'?`<form method="post" action="/staff/applications/${app.id}/sync">${token(ctx)}<button class="btn btn-outline btn-sm">Retry role delivery</button></form>`:''}</div>`:''}
 ${!final?`<form method="post" action="/staff/applications/${app.id}/interview">${token(ctx)}<button class="btn btn-outline btn-sm">Mark as interviewing</button></form>`:''}
@@ -94,16 +94,17 @@ export function ownerFinalPanel(ctx,app,recommendation){
  const final=['accepted','denied'].includes(app.status);
  return `<section class="panel padded owner-review-panel">
    <h2>unk.sb — Final application approval</h2>
-   <p class="muted">Two admins must recommend the same outcome. No acceptance, denial or Discord role delivery occurs until the designated final approver authorizes it.</p>
+   <p class="muted">Two different admins must agree. Your own admin vote can count as one, but acceptance, denial and Discord role delivery still require your separate final authorization.</p>
    ${final?`<div class="notice-box">Final outcome: ${tag(app.status)}</div>`:
      !matched?`<div class="notice-box">Final approval is locked. Configure FINAL_APPROVER_USER_ID in Railway with unk.sb's numeric Discord user ID, and ensure the account has owner access.</div>`:
-     !recommendation?`<div class="notice-box">Waiting for two matching admin votes.</div>`:
+     !recommendation?`<div class="notice-box">Waiting for two matching admin votes. You can cast an admin vote above, then return here after a second admin agrees.</div>`:
      `<div class="notice-box">Admin recommendation: <b>${esc(recommendation)}</b> · Final authorization required.</div>
        <form method="post" action="/owner/applications/${app.id}/action">${token(ctx)}
        <label>Decision note<textarea name="note" maxlength="2000" rows="3" placeholder="Optional explanation for the audit"></textarea></label>
-       <div class="choice-row"><button class="btn btn-success" name="action" value="approve">Approve recommendation</button>
-       <button class="btn btn-danger" name="action" value="deny">Override: Deny</button>
-       <button class="btn btn-outline" name="action" value="return">Return for re-review</button></div></form>`}
+       <div class="choice-row">${recommendation==='accepted'?'<button class="btn btn-success" name="action" value="approve">Final Accept</button>':''}
+       <button class="btn btn-danger" name="action" value="deny">Final Deny</button>
+       <button class="btn btn-outline" name="action" value="return">Return for re-review</button></div>
+       ${recommendation==='denied'?'<p class="muted tiny">Acceptance requires two matching Accept votes; use Return for re-review if you disagree.</p>':''}</form>`}
    </section>`;
 }
 export function ownerApprovals(ctx,{apps=[],enabled=false}){
