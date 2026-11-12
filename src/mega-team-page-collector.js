@@ -145,42 +145,77 @@ async function alreadyShowingBankRows(page,selector){
 // Only expose allowlisted booleans in errors; no page contents, cookies or user data.
 async function teamPageSignals(page){
  try{
-  return await page.evaluate(()=>{
+  return await page.evaluate(teamId=>{
    const main=document.querySelector('main')||document.body;
-   const text=String(main?.innerText||'').slice(0,30000);
+   const text=String(main?.innerText||'').slice(0,60000);
    return {
-    team:text.includes('SBsxScam'),
+    team:text.includes(teamId),
     events:/\bEvent Log\b/i.test(text),
     bank:/\bBank\b/i.test(text),
+    members:/\bMembers\s*\(\d+\)/i.test(text),
+    balance:/\bBank Balance\b/i.test(text),
     signin:/sign in (?:with microsoft|to (?:view|see|access))|login required/i.test(text),
     directory:/browse the top teams/i.test(text)
    };
-  });
- }catch{return {team:false,events:false,bank:false,signin:false,directory:false};}
+  },MEGA_TEAM_ID);
+ }catch{return {team:false,events:false,bank:false,members:false,balance:false,signin:false,directory:false};}
 }
 
 // SPA hydration can delay both parent and child controls. Bound the retries and
 // distinguish a missing team detail view from an interactive tab failure.
-export async function selectBankEventLog(page,{selector=''}={}){
+// The public SBsxScam Event Log sits below members/team details. Traverse
+// the visible document like a reader to activate the page's lazy rendering.
+export async function revealTeamEventLog(page,{checks=14,intervalMs=500}={}){
+ const count=Math.min(Math.max(1,Math.trunc(checks)||1),24);
+ for(let step=0;step<count;step++){
+  const result=await page.evaluate(({step,total})=>{
+   const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
+   const headings=[...document.querySelectorAll('h1,h2,h3,h4,[role="heading"]')];
+   const target=headings.find(el=>/^Event Log(?:\s*\([\d,]+\))?$/i.test(clean(el.textContent)));
+   if(target){
+    target.scrollIntoView({block:'center',behavior:'instant'});
+    return {found:true};
+   }
+   const root=document.scrollingElement||document.documentElement;
+   const height=Math.max(root.scrollHeight,document.body?.scrollHeight||0);
+   const max=Math.max(0,height-window.innerHeight);
+   const next=Math.min(max,Math.max(root.scrollTop+window.innerHeight*.85,max*(step+1)/total));
+   window.scrollTo({top:next,behavior:'instant'});
+   return {found:false};
+  },{step,total:count}).catch(()=>({found:false}));
+  if(result?.found){await delay(350);return true;}
+  await delay(intervalMs);
+ }
+ return false;
+}
+
+export async function selectBankEventLog(page,{selector='',viewportChecks=14}={}){
  const waits=[0,600,1000,1500,1900];
- let eventLogOpened=false;
+ let parentOpened=false,scrolled=false;
  for(let step=0;step<waits.length;step++){
   if(waits[step])await delay(waits[step]);
   if(await openBankTab(page))return true;
-  if(!eventLogOpened&&(step===0||step===2)){
-   eventLogOpened=await openEventLogSection(page);
-   if(eventLogOpened){
+  if(!parentOpened&&(step===0||step===2)){
+   parentOpened=await openEventLogSection(page);
+   if(parentOpened){
     await delay(650);
     if(await openBankTab(page))return true;
    }
   }
   if(await alreadyShowingBankRows(page,selector))return true;
+  if(!scrolled&&step===0){
+   scrolled=true;
+   await revealTeamEventLog(page,{checks:viewportChecks});
+   if(await openBankTab(page))return true;
+  }
  }
  const flags=await teamPageSignals(page);
- if(flags.signin)throw new Error('InPvP team Event Log requires sign-in; authenticate the collector browser profile.');
- if(flags.directory&&!flags.events)throw new Error('Team detail view unavailable: directory loaded without Event Log. Check session/team URL.');
- throw new Error('Bank tab missing after Event Log navigation (team:'+!!flags.team+
-  ',events:'+!!flags.events+',bank:'+!!flags.bank+'). Check session/page layout.');
+ if(flags.signin)throw new Error('Event Log requires sign-in or verification; collector did not bypass it.');
+ if(flags.team&&!flags.events)throw new Error('Team profile loaded but Event Log absent after scrolling '+
+  '(members:'+!!flags.members+',balance:'+!!flags.balance+'). Check lazy loading.');
+ if(flags.directory&&!flags.events)throw new Error('Team detail view unavailable after scrolling: directory visible without Event Log.');
+ throw new Error('Bank tab missing after scrolling to Event Log (team:'+!!flags.team+
+  ',events:'+!!flags.events+',bank:'+!!flags.bank+'). Check public page layout.');
 }
 
 async function scrollEventLog(page){
