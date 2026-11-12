@@ -8,7 +8,7 @@ export const SUPPORT_CATEGORIES=Object.freeze({
 });
 export const CATEGORY_LABELS=SUPPORT_CATEGORIES;
 export const categoryLabel=key=>SUPPORT_CATEGORIES[key]||'Support Ticket';
-export const categoryExists=key=>Object.hasOwn(SUPPORT_CATEGORIES,key);
+export const categoryExists=key=>key!=='application'&&Object.hasOwn(SUPPORT_CATEGORIES,key);
 export const supportTicket=id=>one(`SELECT t.*,u.username,u.display_name,u.avatar FROM support_tickets t
  JOIN users u ON u.id=t.user_id WHERE t.id=?`,id);
 export const supportMessages=id=>all(`SELECT m.*,u.username,u.display_name,u.avatar
