@@ -3,6 +3,13 @@
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.7.7 — Fix InPvP browser-session pairing
+
+- Fixed the InPvP localStorage name validator incorrectly rejecting normal keys containing letters and digits due to an escaped regular expression. This caused \`Pairing failed: Invalid InPvP storage entry.\` during the **local** handoff.
+- Storage keys such as \`user\`, \`accessToken\`, and \`auth0.state\` are now accepted; control characters remain rejected. If a value really exceeds 64 KiB, the user gets a separate, non-secret size error.
+- Microsoft cookies and non-InPvP browser origins are still excluded; the owner-only 10-minute pairing code, encryption-at-rest, and read-only five-minute collector remain unchanged.
+- Update the website source **both on Railway and locally**; old local ZIPs retain the incorrect validator. Generate a fresh one-time code if the previous one has expired. Tests include realistic storage names and malformed entries.
+
 ## V1.7.6 — Private InPvP login pairing and encrypted automatic team-data session
 
 - Private owner/co-owner route: `/owner/mega/session`. Never appears in public navigation.
