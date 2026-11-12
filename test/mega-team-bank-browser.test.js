@@ -11,6 +11,8 @@ process.env.DB_PATH=join(tmp,'events.sqlite');
 const {db,run}=await import('../src/db.js');
 const {parseMegaMoneyCents,formatMegaCents,parseMegaEventRow,prepareMegaEvents}=await import('../src/mega-team-bank-event-parser.js');
 const {saveMegaCapture,megaCapturedBankSummary,noteMegaCaptureFailure}=await import('../src/mega-team-bank-event-store.js');
+const {megaCapturedBankHistory}=await import('../src/mega-team-bank-history.js');
+const {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unlinkMegaDiscordAccount}=await import('../src/mega-team-discord-matches.js');
 const {captureTeamBankPage}=await import('../src/mega-team-page-collector.js');
 const {MEGA_TEAM_ID,MEGA_TEAM_URL}=await import('../src/mega-team.js');
 after(()=>{db.close();rmSync(tmp,{recursive:true,force:true});});
@@ -105,4 +107,65 @@ test('read-only capture uses the exact team URL and bank tab only',async()=>{
  await assert.rejects(()=>captureTeamBankPage(fakePage,{
   url:'https://inpvp.net/megasmp/teams?team=Other&gamemode=megasmp&id='+MEGA_TEAM_ID
  }),/Only the configured/);
+});
+
+
+test('all captured bank events remain browsable across 50-row pages with type/player filters',()=>{
+ const batch=Array.from({length:127},(_,i)=>({
+  eventId:'capture-history-'+String(i).padStart(4,'0'),
+  text:'Nov 9 11:17 PM Player'+String(i).padStart(4,'0')+' '+(i%2?'Withdrew':'Deposited')+' $'+(100+i)
+ }));
+ const saved=saveMegaCapture(batch,{expectedCount:127});
+ assert.equal(saved.inserted,127);
+ const first=megaCapturedBankHistory({season:'current'});
+ assert.equal(first.page,1);
+ assert.equal(first.rows.length,50);
+ assert.equal(first.hasNext,true);
+ assert.equal(first.total,132,'other previously captured events remain in the historical archive');
+ assert.equal(first.pages,3);
+ const middle=megaCapturedBankHistory({season:'current',page:2});
+ assert.equal(middle.rows.length,50);
+ assert.equal(middle.page,2);
+ const last=megaCapturedBankHistory({season:'current',page:3});
+ assert.equal(last.rows.length,32);
+ assert.equal(last.hasNext,false);
+ assert.equal(last.hasPrevious,true);
+ const missingPage=megaCapturedBankHistory({season:'current',page:999});
+ assert.equal(missingPage.page,3,'out-of-range pages are safely clamped');
+ assert.equal(first.coverage,'captured_only','displaying every saved event must not claim full lifetime history');
+ assert.equal(megaCapturedBankHistory({season:'current',gamertag:'Player0001'}).total,1);
+ assert.ok(megaCapturedBankHistory({season:'current',kind:'withdrawal'}).rows.every(e=>e.kind==='withdrawal'));
+ assert.ok(first.rows.every(e=>/^\d+\.\d{2}$/.test(e.amount)));
+ assert.throws(()=>megaCapturedBankHistory({season:'current',kind:'HACK'}),/Unknown transaction type/);
+ assert.throws(()=>megaCapturedBankHistory({season:'unknown'}),/Unknown team season/);
+});
+test('Minecraft and Discord account links are season-scoped and never change bank totals',()=>{
+ const owner='100000000000000002',member='100000000000000007';
+ run('INSERT OR IGNORE INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  owner,'owner','Owner',Date.now());
+ run('INSERT OR IGNORE INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  member,'member7','Community Member',Date.now());
+ const before=megaCapturedBankSummary().deposited;
+ const candidates=megaDiscordMatchCandidates('current');
+ assert.ok(candidates.includes('GermanBurgers'));
+ assert.ok(candidates.includes('Player0001'));
+ const linked=linkMegaDiscordAccount({season:'current',gamertag:'GermanBurgers',discordId:member,actorId:owner});
+ assert.equal(linked.changed,true);
+ assert.equal(linked.previousId,null);
+ const again=linkMegaDiscordAccount({season:'current',gamertag:'germanburgers',discordId:member,actorId:owner});
+ assert.equal(again.changed,false,'case-insensitive Gamertag has only one link');
+ assert.equal(megaDiscordMatches('current').length,1);
+ assert.equal(megaDiscordMatches('current')[0].discordId,member);
+ linkMegaDiscordAccount({season:'current',gamertag:'Player0001',discordId:member,actorId:owner});
+ assert.equal(megaDiscordMatches('current').length,2,'one Discord user can own multiple Minecraft accounts');
+ assert.equal(megaCapturedBankSummary().deposited,before,'account matching must not alter bank totals');
+ const history=megaCapturedBankHistory({season:'current',gamertag:'GermanBurgers'});
+ assert.equal(history.rows[0].discordId,member,'history player rows include the owner-entered Discord match');
+ assert.equal(history.rows[0].discordUsername,'member7');
+ assert.throws(()=>linkMegaDiscordAccount({season:'current',gamertag:'UnknownPlayer',discordId:member,actorId:owner}),/absent/);
+ assert.throws(()=>linkMegaDiscordAccount({season:'current',gamertag:'GermanBurgers',discordId:'123',actorId:owner}),/verified/);
+ const unlinked=unlinkMegaDiscordAccount({season:'current',gamertag:'GermanBurgers'});
+ assert.equal(unlinked.changed,true);
+ assert.equal(unlinkMegaDiscordAccount({season:'current',gamertag:'GermanBurgers'}).changed,false);
+ assert.equal(megaCapturedBankHistory({season:'current',gamertag:'GermanBurgers'}).rows[0].discordId,null);
 });
