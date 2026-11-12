@@ -196,7 +196,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!t)missing();
       if(forStaff&&!isStaffRole(ctx.role))forbidden();
       if(ctx.role==='appeal-only' && (t.category!=='ban_appeal'||t.user_id!==ctx.user.id))missing();
-      if(!await accessibleSupportTicket(ctx,t,discord,config))missing();
+      if(!await accessibleSupportTicket(ctx,t,discord,config,{staffView:forStaff}))missing();
     }
     if(pathname==='/tickets/new'&&req.method==='GET') {
       if(ctx.role==='appeal-only')return redirect(res,'/tickets/new/ban_appeal');
@@ -237,6 +237,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
         const resolved=await resolveStaffReport(discord,values.staff_username,config,ctx.guild.owner_id,coowners);
         visibility=resolved.visibility;reportedId=resolved.reportedId;reportReason=resolved.reason;
+        if(reportedId===ctx.user.id)invalid('You cannot submit a staff report about your own account.');
       }
       const stored=saveTicketEvidence(evidence);
       let id;
