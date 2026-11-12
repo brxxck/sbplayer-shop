@@ -16,7 +16,7 @@ const fakeRoles=[
   {id:ids.guild,name:'@everyone',position:0,permissions:'0',managed:false,color:0},
   {id:roles.admin,name:'Administrator',position:50,permissions:'8',managed:false,color:16711680},
   {id:roles.reviewer,name:'Reviewer',position:25,permissions:'0',managed:false,color:22445},
-  {id:roles.helper,name:'Helper',position:10,permissions:'0',managed:false,color:23376},
+  {id:roles.tempMod,name:'Helper',position:10,permissions:'0',managed:false,color:23376},
   {id:roles.vip,name:'VIP',position:9,permissions:'0',managed:false,color:33299},
   {id:roles.manage,name:'Role Manager',position:8,permissions:String(1n<<28n),managed:false,color:2222222},
   {id:roles.bot,name:'SB Bot',position:90,permissions:String(1n<<28n),managed:true,color:442211},
@@ -306,8 +306,8 @@ test('one admin approval does not finalize; two distinct admins approve and Disc
   assert.equal((await post(`/owner/applications/${app.id}/action`,'owner',{action:'approve',note:'Approved by unk.sb'})).status,303);
   const updated=one('SELECT * FROM applications WHERE id=?',app.id);
   assert.equal(updated.finalized_by,ids.owner);
-  assert.equal(updated.status,'accepted');assert.equal(updated.role_sync_status,'assigned');assert.equal(updated.role_sync_role,roles.helper);assert.equal(additions,1);
-  assert.ok(memberMap.get(ids.member).roles.includes(roles.helper));
+  assert.equal(updated.status,'accepted');assert.equal(updated.role_sync_status,'assigned');assert.equal(updated.role_sync_role,roles.tempMod);assert.equal(additions,1);
+  assert.ok(memberMap.get(ids.member).roles.includes(roles.tempMod));
   assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',app.id).c,2);
   const dash=await (await get('/dashboard','member')).text();assert.ok(dash.includes('accepted'));
 });
@@ -321,7 +321,7 @@ test('two matching admin denials finalize without assigning Discord roles',async
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'denied');
-  assert.equal(memberMap.get(ids.member2).roles.includes(roles.helper),false);
+  assert.equal(memberMap.get(ids.member2).roles.includes(roles.tempMod),false);
 });
 
 test('unk.sb may vote Deny as one of two admins and must separately finalize Deny',async()=>{
@@ -352,7 +352,7 @@ test('unk.sb may vote Deny as one of two admins and must separately finalize Den
   const decided=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(decided.status,'denied');assert.equal(decided.finalized_by,ids.owner);
   assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=?',a.id).action,'deny');
-  assert.equal(memberMap.get(ids.member5).roles.includes(roles.helper),false);
+  assert.equal(memberMap.get(ids.member5).roles.includes(roles.tempMod),false);
 });
 
 test('unk.sb can cast second Accept vote but staff role requires a separate final Accept',async()=>{
@@ -362,7 +362,7 @@ test('unk.sb can cast second Accept vote but staff role requires a separate fina
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'owner',{choice:'accept'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
   assert.equal(one('SELECT COUNT(*) c FROM admin_decisions WHERE application_id=?',a.id).c,2);
-  assert.equal(memberMap.get(ids.member6).roles.includes(roles.helper),false);
+  assert.equal(memberMap.get(ids.member6).roles.includes(roles.tempMod),false);
   const page=await (await get(`/staff/applications/${a.id}`,'owner')).text();
   assert.match(page,/Final Accept/);
   assert.match(page,/Final Deny/);
@@ -371,7 +371,7 @@ test('unk.sb can cast second Accept vote but staff role requires a separate fina
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   const decided=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(decided.status,'accepted');assert.equal(decided.finalized_by,ids.owner);
-  assert.equal(memberMap.get(ids.member6).roles.includes(roles.helper),true);
+  assert.equal(memberMap.get(ids.member6).roles.includes(roles.tempMod),true);
   assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=?',a.id).action,'approve');
 });
 
@@ -384,7 +384,7 @@ test('unk.sb can override an acceptance recommendation to denial without grantin
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'deny',note:'Not ready to join staff'})).status,303);
   const current=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(current.status,'denied');assert.equal(current.finalized_by,ids.owner);
-  assert.equal(memberMap.get(ids.member4).roles.includes(roles.helper),false);
+  assert.equal(memberMap.get(ids.member4).roles.includes(roles.tempMod),false);
   assert.equal(one('SELECT action FROM owner_review_actions WHERE application_id=? ORDER BY id DESC LIMIT 1',a.id).action,'deny');
 });
 
@@ -544,12 +544,70 @@ test('Discord role delivery failure is visible, logged and retryable by an admin
   let current=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(current.status,'accepted');assert.equal(current.role_sync_status,'failed');
   assert.match(current.role_sync_error,/temporary failure/);
-  assert.equal(memberMap.get(ids.member3).roles.includes(roles.helper),false);
+  assert.equal(memberMap.get(ids.member3).roles.includes(roles.tempMod),false);
   assert.equal((await post(`/staff/applications/${a.id}/sync`,'adminA',{})).status,303);
   current=one('SELECT * FROM applications WHERE id=?',a.id);
   assert.equal(current.role_sync_status,'assigned');
-  assert.equal(memberMap.get(ids.member3).roles.includes(roles.helper),true);
+  assert.equal(memberMap.get(ids.member3).roles.includes(roles.tempMod),true);
   assert.ok(all('SELECT action FROM owner_audit_log WHERE target=?',''+ids.member3).some(x=>x.action==='application.role.failed'));
+  assert.equal(verifyAudit(db).ok,true);
+});
+
+test('V1.4 promotion tickets are role-gated and require two distinct admins',async()=>{
+  for(const who of ['member7','member8','member9'])await login(who);
+  assert.equal((await get('/promotions/new','member')).status,403);
+  assert.equal((await post('/promotions/new','member',{reason:'I want promotion to higher staff rank and have years of experience.'})).status,403);
+  assert.equal((await get('/promotions/new','member7')).status,200);
+  assert.equal((await get('/promotions/new','member8')).status,200);
+  assert.equal((await get('/promotions/new','member9')).status,403,'existing Staff is not promotion-eligible');
+  assert.equal((await get('/staff/promotions','reviewer')).status,403);
+  assert.equal((await get('/staff/promotions','adminA')).status,200);
+  const reason='I have been actively moderating the community and responding to member tickets reliably.';
+  assert.equal((await post('/promotions/new','member7',{reason})).status,303);
+  const p=one('SELECT * FROM promotion_tickets WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member7);
+  assert.equal(p.from_label,'Mod - temp');assert.equal(p.to_label,'Mod');
+  assert.equal((await post('/promotions/new','member7',{reason})).status,303);
+  assert.equal(one('SELECT COUNT(*) n FROM promotion_tickets WHERE user_id=?',ids.member7).n,1);
+  assert.equal((await get('/promotions/'+p.id,'member8')).status,404);
+  assert.equal((await get('/staff/promotions/'+p.id,'reviewer')).status,403);
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','member7',{choice:'accept'})).status,403);
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','adminA',{choice:'accept',note:'Excellent activity'})).status,303);
+  assert.equal(one('SELECT status FROM promotion_tickets WHERE id=?',p.id).status,'reviewing');
+  assert.equal(memberMap.get(ids.member7).roles.includes(roles.mod),false);
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','adminA',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT COUNT(*) n FROM promotion_decisions WHERE ticket_id=?',p.id).n,1);
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','adminB',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT status FROM promotion_tickets WHERE id=?',p.id).status,'accepted');
+  assert.equal(one('SELECT role_sync_status FROM promotion_tickets WHERE id=?',p.id).role_sync_status,'assigned');
+  assert.equal(memberMap.get(ids.member7).roles.includes(roles.mod),true);
+  assert.equal(memberMap.get(ids.member7).roles.includes(roles.tempMod),false);
+  const count=additions;
+  assert.equal((await post('/staff/promotions/'+p.id+'/retry','adminA',{})).status,303);
+  assert.equal(additions,count,'retries must not duplicate role assignments');
+  assert.equal((await get('/promotions/new','member7')).status,200,'new Mod is eligible for Staff');
+  assert.equal((await post('/promotions/new','member7',{reason})).status,303);
+  const next=one('SELECT * FROM promotion_tickets WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member7);
+  assert.equal(next.to_label,'Staff');
+  assert.equal((await post('/staff/promotions/'+next.id+'/decide','adminA',{choice:'deny'})).status,303);
+  assert.equal((await post('/staff/promotions/'+next.id+'/decide','adminB',{choice:'deny'})).status,303);
+  assert.equal(one('SELECT status FROM promotion_tickets WHERE id=?',next.id).status,'denied');
+  assert.equal(memberMap.get(ids.member7).roles.includes(roles.storeStaff),false);
+  assert.equal(verifyAudit(db).ok,true);
+});
+
+test('V1.4 Mod to Staff promotion retries safely after Discord delivery failure',async()=>{
+  assert.equal((await post('/promotions/new','member8',{reason:'I consistently moderate and want to take on a greater responsibility in the community.'})).status,303);
+  const p=one('SELECT * FROM promotion_tickets WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member8);
+  assert.equal(p.from_label,'Mod');assert.equal(p.to_label,'Staff');
+  failNextRole=true;
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','adminA',{choice:'accept'})).status,303);
+  assert.equal((await post('/staff/promotions/'+p.id+'/decide','adminB',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT role_sync_status FROM promotion_tickets WHERE id=?',p.id).role_sync_status,'failed');
+  assert.equal(memberMap.get(ids.member8).roles.includes(roles.storeStaff),false);
+  assert.equal((await post('/staff/promotions/'+p.id+'/retry','adminA',{})).status,303);
+  assert.equal(one('SELECT role_sync_status FROM promotion_tickets WHERE id=?',p.id).role_sync_status,'assigned');
+  assert.equal(memberMap.get(ids.member8).roles.includes(roles.storeStaff),true);
+  assert.equal(memberMap.get(ids.member8).roles.includes(roles.mod),false);
   assert.equal(verifyAudit(db).ok,true);
 });
 
