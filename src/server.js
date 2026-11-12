@@ -182,6 +182,175 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     // All routes below this point are server-member-only.
     await member();
+
+    // V1.3.1 support tickets: one permission check is reused by listing, page and attachment routes.
+    function denyAppealOnlyOtherTypes(category) {
+      if(ctx.role==='appeal-only'&&category!=='ban_appeal')forbidden('Non-members can submit Ban Appeals only.');
+    }
+    const supportTicketMatch=/^\/tickets\/(\d+)$/.exec(pathname);
+    const staffSupportMatch=/^\/staff\/tickets\/(\d+)$/.exec(pathname);
+    const supportReplyMatch=/^\/(staff\/)?tickets\/(\d+)\/reply$/.exec(pathname);
+    const attachmentMatch=/^\/tickets\/attachments\/(\d+)$/.exec(pathname);
+    async function requireSupportAccess(t,forStaff=false) {
+      if(!t)missing();
+      if(forStaff&&!isStaffRole(ctx.role))forbidden();
+      if(ctx.role==='appeal-only' && (t.category!=='ban_appeal'||t.user_id!==ctx.user.id))missing();
+      if(!await accessibleSupportTicket(ctx,t,discord,config))missing();
+    }
+    if(pathname==='/tickets/new'&&req.method==='GET') {
+      if(ctx.role==='appeal-only')return redirect(res,'/tickets/new/ban_appeal');
+      return html(supportView.chooseTicket(ctx));
+    }
+    const createTicketMatch=/^\/tickets\/new\/([a-z_]+)$/.exec(pathname);
+    if(createTicketMatch&&['GET','POST'].includes(req.method)){
+      const category=createTicketMatch[1];
+      if(!categoryExists(category))missing();
+      denyAppealOnlyOtherTypes(category);
+      if(req.method==='GET')return html(supportView.newTicket(ctx,{category}));
+      rate(ctx,category==='ban_appeal'?'ban_appeal.create':'support.create',category==='ban_appeal'?3:6,86400000);
+      const {fields,files}=await form();
+      const values={};
+      if(category==='bug_report')values.description=formValue(fields,'description',3000,10);
+      if(category==='player_report'){
+        values.reported_player=formValue(fields,'reported_player',150,2);
+        values.rule_broken=formValue(fields,'rule_broken',150,2);
+        values.description=formValue(fields,'description',3000,10);
+      }
+      if(category==='reward_claim')values.prize=formValue(fields,'prize',150,2);
+      if(category==='staff_report'){
+        values.staff_username=formValue(fields,'staff_username',150,2);
+        values.description=formValue(fields,'description',3000,10);
+      }
+      if(category==='ban_appeal'){
+        values.minecraft_username=formValue(fields,'minecraft_username',150,2);
+        values.ban_reason=formValue(fields,'ban_reason',150,2);
+        values.appeal_reason=formValue(fields,'appeal_reason',3000,10);
+        if(one("SELECT 1 FROM support_tickets WHERE user_id=? AND category='ban_appeal' AND status!='resolved' LIMIT 1",ctx.user.id))
+          return warn('/tickets/mine','You already have an active Ban Appeal. Please use its conversation to add information.');
+      }
+      const evidence=Array.isArray(files.evidence)?files.evidence:[];
+      if(['player_report','staff_report'].includes(category)&&!evidence.length)invalid('Evidence is required for Player and Staff Reports.');
+      if(evidence.length>5)invalid('Upload at most five files.');
+      let visibility='staff',reportedId='',reportReason='';
+      if(category==='staff_report'){
+        const coowners=new Set(all('SELECT user_id FROM owner_allowlist').map(x=>x.user_id));
+        const resolved=await resolveStaffReport(discord,values.staff_username,config,ctx.guild.owner_id,coowners);
+        visibility=resolved.visibility;reportedId=resolved.reportedId;reportReason=resolved.reason;
+      }
+      const stored=saveTicketEvidence(evidence);
+      let id;
+      try{id=createSupportTicket({userId:ctx.user.id,category,fields:values,reportedId,visibility,attachments:stored,ip:ctx.ip,role:ctx.role});}
+      catch(error){deleteTicketEvidence(stored);throw error;}
+      const privateReport=category==='staff_report';
+      const delivered=await discord.notify({
+        title:categoryLabel(category)+' — New Ticket #'+id,
+        description:privateReport?'Confidential staff report. Open the restricted website ticket to view it.':'A new support ticket is ready for review.',
+        fields:[{name:'Ticket',value:config.baseUrl+'/staff/tickets/'+id}],
+        target:privateReport?(visibility==='owner'?'ownerReport':'adminReport'):'default',
+        pingHere:!privateReport
+      });
+      logAction(ctx,'support_ticket.webhook','support_ticket:'+id,{category,visibility,reportReason:privateReport?reportReason:undefined,delivered});
+      return success('/tickets/'+id,'Your ticket was submitted successfully.');
+    }
+    if(pathname==='/tickets/mine'&&req.method==='GET'){
+      const supports=mySupportTickets(ctx.user.id)
+        .filter(t=>ctx.role!=='appeal-only'||t.category==='ban_appeal')
+        .map(t=>({...t,href:'/tickets/'+t.id}));
+      const apps=ctx.role==='appeal-only'?[]:ownApplications(ctx.user.id)
+        .map(a=>({...a,category:'application',unread:a.unread_replies||0,href:'/dashboard/applications/'+a.id}));
+      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps].sort((a,b)=>b.updated_at-a.updated_at)}));
+    }
+    if(attachmentMatch&&req.method==='GET'){
+      const att=one('SELECT * FROM support_ticket_attachments WHERE id=?',idFrom(attachmentMatch[1]));
+      if(!att)missing();
+      const t=supportTicket(att.ticket_id);
+      await requireSupportAccess(t);
+      const file=safeTicketFile(att.stored_path);
+      if(!file)missing();
+      return respond(res,200,readFileSync(file),att.mime_type,{
+        'content-disposition':'attachment; filename="ticket-evidence.'+att.stored_path.split('.').at(-1)+'"',
+        'x-content-type-options':'nosniff','cache-control':'no-store'
+      });
+    }
+    if((supportTicketMatch||staffSupportMatch)&&req.method==='GET'){
+      const forStaff=!!staffSupportMatch;
+      if(forStaff)await authorize('staff');
+      const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
+      await requireSupportAccess(t,forStaff);
+      if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
+      return html(supportView.supportTicketPage(ctx,{
+        ticket:t,messages:supportMessages(id),attachments:supportAttachments(id),staff:forStaff
+      }));
+    }
+    if(supportReplyMatch&&req.method==='POST'){
+      const forStaff=!!supportReplyMatch[1];
+      if(forStaff)await authorize('staff');
+      rate(ctx,'support.reply',12,60000);
+      const id=idFrom(supportReplyMatch[2]),t=supportTicket(id);
+      await requireSupportAccess(t,forStaff);
+      const {fields,files}=await form();
+      const body=formValue(fields,'body',2000,1);
+      const evidence=Array.isArray(files.evidence)?files.evidence:[];
+      if(evidence.length>5)invalid('Upload at most five files.');
+      const isApplicant=t.user_id===ctx.user.id&&!forStaff;
+      const stored=saveTicketEvidence(evidence);
+      try{writeSupportMessage({ticketId:id,userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip,isApplicant,attachments:stored});}
+      catch(error){deleteTicketEvidence(stored);throw error;}
+      // Confidential reports never notify a broader staff channel.
+      if(isApplicant){
+        const privateReport=t.category==='staff_report';
+        const pingHere=privateReport?false:reserveSupportPing(id,300000);
+        const delivered=await discord.notify({
+          title:'New Ticket Reply — '+categoryLabel(t.category)+' #'+id,
+          description:privateReport?'New reply on a confidential staff report.':'An applicant replied to a ticket.',
+          fields:[{name:'Ticket',value:config.baseUrl+'/staff/tickets/'+id}],
+          target:privateReport?(t.visibility==='owner'?'ownerReport':'adminReport'):'default',
+          pingHere
+        });
+        logAction(ctx,'support_ticket.reply_webhook','support_ticket:'+id,{delivered,pingHere});
+      }
+      return success(forStaff?'/staff/tickets/'+id:'/tickets/'+id,'Reply sent.');
+    }
+    if(pathname==='/staff/tickets'&&req.method==='GET'){
+      await authorize('staff');
+      const scope=url.searchParams.get('status')==='all'?'all':'active';
+      const available=await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
+      const apps=scope==='all'
+        ?all('SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.updated_at DESC LIMIT 150')
+        :all("SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
+      const tickets=[
+        ...available.map(t=>({...t,href:'/staff/tickets/'+t.id,displayId:'T-'+t.id})),
+        ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id}))
+      ].sort((a,b)=>b.updated_at-a.updated_at);
+      return html(supportView.staffTicketQueue(ctx,{tickets,status:scope}));
+    }
+    const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
+    if(staffStatusMatch&&req.method==='POST'){
+      await authorize('staff');rate(ctx,'support.status',20,3600000);
+      const id=idFrom(staffStatusMatch[1]),t=supportTicket(id);
+      await requireSupportAccess(t,true);
+      const {fields}=await form();
+      if(!['open','reviewing','resolved'].includes(fields.status))invalid('Invalid status');
+      updateSupportStatus({ticketId:id,userId:ctx.user.id,role:ctx.role,ip:ctx.ip,status:fields.status});
+      return success('/staff/tickets/'+id,'Ticket status updated.');
+    }
+    if(pathname==='/staff/chat/messages'&&req.method==='GET'){
+      await authorize('staff');rate(ctx,'staff.chat.read',45,60000);
+      const after=Number(url.searchParams.get('after')||0);
+      if(!Number.isSafeInteger(after)||after<0)invalid();
+      return respond(res,200,JSON.stringify({messages:staffChatAfter(after).map(m=>({
+        id:m.id,author_id:m.author_id,display_name:m.display_name,username:m.username,avatar:m.avatar,
+        body:m.body,created_at:m.created_at
+      }))}),'application/json; charset=utf-8');
+    }
+    if(pathname==='/staff/chat/send'&&req.method==='POST'){
+      await authorize('staff');rate(ctx,'staff.chat.send',15,60000);
+      const {fields}=await form();
+      const body=formValue(fields,'body',1500,1);
+      sendStaffChat({userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+      return success('/','Message sent to staff chat.');
+    }
+
     if(pathname==='/dashboard'&&req.method==='GET')return html(view.dashboard(ctx,ownApplications(ctx.user.id)));
     let ownTicketMatch=/^\/dashboard\/applications\/(\d+)$/.exec(pathname);
     if(ownTicketMatch&&req.method==='GET'){
