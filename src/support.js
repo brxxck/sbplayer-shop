@@ -4,7 +4,7 @@ import {appendAudit} from './audit.js';
 
 export const SUPPORT_CATEGORIES=Object.freeze({
   bug_report:'Bug Report',player_report:'Player Report',reward_claim:'Reward Claim',
-  staff_report:'Staff Report',ban_appeal:'Ban Appeal'
+  staff_report:'Staff Report',ban_appeal:'Ban Appeal',application:'Staff Application'
 });
 export const CATEGORY_LABELS=SUPPORT_CATEGORIES;
 export const categoryLabel=key=>SUPPORT_CATEGORIES[key]||'Support Ticket';
@@ -48,13 +48,17 @@ export function createSupportTicket({userId,category,fields,reportedId='',visibi
    return id;
  });
 }
-export function writeSupportMessage({ticketId,userId,role,body,ip,isApplicant}) {
+export function writeSupportMessage({ticketId,userId,role,body,ip,isApplicant,attachments=[]}) {
  return transaction(()=>{
    const t=one('SELECT * FROM support_tickets WHERE id=?',ticketId);
    if(!t)throw new Error('Ticket not found');
    const stamp=Date.now();
    const rec=run('INSERT INTO support_ticket_messages(ticket_id,author_id,author_role,body,created_at) VALUES(?,?,?,?,?)',
      ticketId,userId,role,body,stamp);
+   const messageId=Number(rec.lastInsertRowid);
+   for(const file of attachments)run(
+     'INSERT INTO support_ticket_attachments(ticket_id,message_id,original_name,stored_path,mime_type,file_size,created_at) VALUES(?,?,?,?,?,?,?)',
+     ticketId,messageId,file.name,file.path,file.mime,file.size,stamp);
    run(`UPDATE support_tickets SET status=CASE WHEN ? AND status='resolved' THEN 'open' ELSE status END,
      resolved_at=CASE WHEN ? AND status='resolved' THEN NULL ELSE resolved_at END,
      updated_at=? WHERE id=?`,isApplicant?1:0,isApplicant?1:0,stamp,ticketId);
