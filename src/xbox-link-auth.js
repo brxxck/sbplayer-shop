@@ -133,23 +133,27 @@ export function createXboxLinkAuth({
   if(firstUserClaim&&String(firstUserClaim)!==uhs)
    throw new Error('Microsoft/Xbox account identity mismatch.');
   const claimXuid=validXuid(claim[0].xid)?String(claim[0].xid):null;
-  let verified;
+  let profileResponse=null;
   try{
-   const profile=await jsonRequest(fetcher,XBOX_PROFILE_URL,{
+   profileResponse=await jsonRequest(fetcher,XBOX_PROFILE_URL,{
     method:'GET',headers:{
      Authorization:'XBL3.0 x='+uhs+';'+xsts.Token,
      'x-xbl-contract-version':'2',Accept:'application/json'
     }
    });
-   verified=xboxProfile(profile,claimXuid);
   }catch{
-   // Some Xbox titles have XSTS identity claims but no Profile API access.
-   // A verified XSTS claim is an acceptable alternate source; no user-entered IGN.
-   const fallbackName=validGamertag(claim[0].gtg);
-   if(!claimXuid||!fallbackName)
-    throw new Error('Xbox did not provide a verified gamertag. Check app Xbox service access.');
-   verified={xuid:claimXuid,gamertag:fallbackName};
+   // Some Xbox apps are not provisioned for profile access. In that case
+   // server-issued XSTS claims may still supply both stable ID and Gamertag.
   }
+  // A successfully returned but *conflicting* Xbox profile must fail closed;
+  // do not mask it with fallback XSTS claims.
+  const verified=profileResponse?
+   xboxProfile(profileResponse,claimXuid):
+   (()=>{const name=validGamertag(claim[0].gtg);
+     if(!claimXuid||!name)
+      throw new Error('Xbox did not provide a verified gamertag. Check app Xbox service access.');
+     return {xuid:claimXuid,gamertag:name};})();
+
   return {cancelled:false,gamertag:verified.gamertag,
    identityKey:identityOf(verified.xuid,identityKey),verifiedAt:clock()};
  }
