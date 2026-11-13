@@ -85,12 +85,9 @@ export function createMegaTop10Poller({
    try{
      const capture=await withPage(page=>captureTopTeamDetails(page,target));
      const result=saveTopTeamDetails(target.id,capture);
-     onLog('Team '+target.name+' captured: roster '+
-       (capture.memberStatus==='observed'?result.members:'unavailable')+
-       ', bank log '+(['observed','empty_visible_log'].includes(capture.eventStatus)?
-         capture.eventStatus:'unavailable')+
-       ', '+result.eventsObserved+' visible events, '+result.eventsAdded+
-       ' newly saved.');
+     onLog('Team '+target.name+': player list '+
+       (result.members?result.members+' observed names':'not exposed by source')+
+       '. Bank-event collection remains exclusive to the SBsxScam dashboard.');
      return true;
    }catch(error){
      noteTopTeamFailure(target.id,safeError(error));
