@@ -105,8 +105,8 @@ export async function collectFullTeamRoster(page,{
  if(typeof teamId!=='string'||!validTeamUrl(page.url(),teamId))
   throw new Error('Member collection started outside the expected team.');
  const known=new Map();
- let expected=Number.isSafeInteger(reportedCount)&&reportedCount>=0&&reportedCount<=300?
-  reportedCount:null;
+ const confirmedTotal=Number.isSafeInteger(reportedCount)&&reportedCount>=0&&reportedCount<=300;
+ let expected=confirmedTotal?reportedCount:null;
  const limit=Math.min(50,Math.max(1,Math.trunc(maxActions)||1));
  let tabOpened=false,noProgress=0,lastAction='none',readable=false;
  for(let i=0;i<limit;i++){
@@ -135,7 +135,8 @@ export async function collectFullTeamRoster(page,{
  if(!validTeamUrl(page.url(),teamId))
   throw new Error('Members navigation left the expected InPvP team.');
  const roster=[...known.values()];
- const complete=expected!==null&&roster.length===expected&&readable;
+ // A per-page count must not be mistaken for the total number on the team.
+ const complete=confirmedTotal&&expected!==null&&roster.length===expected&&readable;
  return {roster,rosterComplete:complete,memberStatus:
   complete?'complete':roster.length?'partial':'unavailable',
   memberCount:expected,seen:roster.length,visibleSection:readable,
