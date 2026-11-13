@@ -11,6 +11,7 @@ Object.assign(process.env,{
   DISCORD_BOT_TOKEN:'fake',DISCORD_GUILD_ID:'100000000000000001',BASE_URL:'https://sbstore.info'
 });
 const {home,avatar}=await import('../src/views.js');
+const {chooseTicket}=await import('../src/support-views.js');
 const {evidenceGallery,evidenceViewerDialog}=await import('../src/evidence-views.js');
 const {createServer}=await import('../src/server.js');
 const {db}=await import('../src/db.js');
@@ -343,7 +344,8 @@ test('clean UI uses compact headings and keeps meaningful field labels',async()=
  assert.doesNotMatch(publicHome,/WELCOME TO THE COMMUNITY/);
  const memberShell=landing(signed);
  assert.doesNotMatch(memberShell,/href="\/team-applications\/apply"/);
- assert.match(chooseTicket({...signed,teamApplicationEligible:true}),/href="\/team-applications\/apply"[\\s\\S]*?Join SBsxScam/);
+ assert.ok(chooseTicket({...signed,teamApplicationEligible:true}).includes('href="/team-applications/apply"'));
+ assert.ok(chooseTicket({...signed,teamApplicationEligible:true}).includes('Join SBsxScam'));
  assert.doesNotMatch(memberShell,/<span class="muted">Community<\/span><span class="sep">/);
  assert.ok(!memberShell.includes('Community Portal V1.10.0'));
  const staffForm=apply(signedCtx,{open:true,active:null,cooldown:false,xboxLink:{gamertag:'SBisOnTop'}});
