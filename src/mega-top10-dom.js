@@ -23,7 +23,7 @@ function normalizedRow(raw){
   views:number(norm(raw.views)),
   bankText:money.test(norm(raw.bankText))?norm(raw.bankText):null,
   level:level.test(norm(raw.level))?Number(norm(raw.level)):null,
-  discovery:typeof raw.discovery==='string'?raw.discovery:'text'
+  discovery:typeof raw.discovery==='string'?raw.discovery:(raw.selector?'table':'text')
  };
 }
 function fromCells(cells){
