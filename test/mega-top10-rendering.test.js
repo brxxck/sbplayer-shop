@@ -1,7 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const temp=mkdtempSync(join(tmpdir(),'sbs-top10-rendering-'));
@@ -110,4 +110,10 @@ test('leaderboard failure exposes numeric readiness signals without user text',a
   }
  );
  assert.equal(tries,22,'page hydration retry is bounded');
+});
+
+test('five-minute bank capture retries rather than silently skipping when Top 10 browser is busy',()=>{
+ const worker=readFileSync(new URL('../scripts/mega-bank-browser-worker.js',import.meta.url),'utf8');
+ assert.match(worker,/if\(top10\.busy\)\{[\s\S]*?bankRetryTimer=setTimeout/);
+ assert.match(worker,/if\(bankRetryTimer\)clearTimeout\(bankRetryTimer\)/);
 });
