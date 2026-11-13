@@ -62,6 +62,16 @@ db.exec([
  "CREATE TABLE IF NOT EXISTS mega_top_events (team_id TEXT NOT NULL REFERENCES mega_top_teams(team_id),event_key TEXT NOT NULL,gamertag TEXT NOT NULL COLLATE NOCASE,kind TEXT NOT NULL CHECK(kind IN ('deposit','withdrawal')),amount_cents INTEGER NOT NULL CHECK(amount_cents>0),display_time TEXT NOT NULL,first_seen_at INTEGER NOT NULL,last_seen_at INTEGER NOT NULL,PRIMARY KEY(team_id,event_key))",
  "CREATE INDEX IF NOT EXISTS idx_mega_top_events_player ON mega_top_events(team_id,gamertag)"
 ].join(';')+';');
+// Non-destructive, idempotent columns for separately verified member and
+// bank-log coverage; never overwrite existing snapshots or user-entered data.
+const columns=new Set(all("PRAGMA table_info('mega_top_teams')").map(x=>x.name));
+for(const [column,definition] of [
+ ['member_status',"TEXT NOT NULL DEFAULT 'unavailable'"],
+ ['event_status',"TEXT NOT NULL DEFAULT 'unavailable'"],
+ ['event_pages','INTEGER NOT NULL DEFAULT 0']
+]){
+ if(!columns.has(column))db.exec('ALTER TABLE mega_top_teams ADD COLUMN '+column+' '+definition);
+}
 run('INSERT OR IGNORE INTO mega_top_status(id) VALUES(1)');
 for(const [name,id] of KNOWN_TEAM_LINKS)
  run('INSERT OR IGNORE INTO mega_top_teams(team_id,name,team_url) VALUES(?,?,?)',id,name,canonicalTeamLink(name,id));
@@ -79,7 +89,7 @@ export function top10Leaderboard(){
 }
 export function topTeamById(id){
  if(typeof id!=='string'||!(UUID.test(id)||NUMERIC.test(id)))return null;
- return one("SELECT team_id AS id,name,team_url AS url,rank,bank_text AS bankText,bank_cents AS bankCents,bank_approx AS approximate,level,views,member_count AS memberCount,roster_json AS rosterJson,rank_observed_at AS rankObservedAt,detail_observed_at AS detailObservedAt,detail_attempt_at AS detailAttemptAt,detail_error AS detailError,source FROM mega_top_teams WHERE team_id=?",id)||null;
+ return one("SELECT team_id AS id,name,team_url AS url,rank,bank_text AS bankText,bank_cents AS bankCents,bank_approx AS approximate,level,views,member_count AS memberCount,roster_json AS rosterJson,rank_observed_at AS rankObservedAt,detail_observed_at AS detailObservedAt,detail_attempt_at AS detailAttemptAt,detail_error AS detailError,member_status AS memberStatus,event_status AS eventStatus,event_pages AS eventPages,source FROM mega_top_teams WHERE team_id=?",id)||null;
 }
 
 export function saveTop10Leaderboard(rows,{at=Date.now()}={}){
@@ -155,7 +165,15 @@ export function saveTopTeamDetails(teamId,capture,{at=Date.now()}={}){
    const gamertag=validGamertag(p?.gamertag);
    if(!gamertag||unique.has(gamertag.toLowerCase()))throw new Error('Invalid or duplicated team roster.');
    unique.add(gamertag.toLowerCase());
-   return {gamertag,role:['Leader','Officer','Member'].includes(p.role)?p.role:'Member'};
+   const reported=/^\$[\d,]+(?:\.\d{1,3})?[KMBT]?$/i;
+   const net=/^-?\$[\d,]+(?:\.\d{1,3})?[KMBT]?$/i;
+   const dep=String(p.reportedDepositsText||'').trim();
+   const withdrew=String(p.reportedWithdrawalsText||'').trim();
+   const netText=String(p.reportedNetText||'').trim();
+   return {gamertag,role:['Leader','Officer','Member'].includes(p.role)?p.role:'Member',
+     ...(reported.test(dep)?{reportedDepositsText:dep}:{}),
+     ...(reported.test(withdrew)?{reportedWithdrawalsText:withdrew}:{}),
+     ...(net.test(netText)?{reportedNetText:netText}:{})};
  });
  const rows=Array.isArray(capture.events)?capture.events:[];
  if(rows.length>500)throw new Error('Too many observed bank event rows.');
@@ -176,10 +194,15 @@ export function saveTopTeamDetails(teamId,capture,{at=Date.now()}={}){
      'bank_approx=CASE WHEN ? IS NOT NULL THEN ? ELSE bank_approx END,'+
      'level=COALESCE(?,level),views=COALESCE(?,views),member_count=COALESCE(?,member_count),'+
      'roster_json=CASE WHEN ? THEN ? ELSE roster_json END,'+
-     'detail_observed_at=?,detail_attempt_at=?,detail_error=? WHERE team_id=?',
+     'detail_observed_at=?,detail_attempt_at=?,detail_error=?,'+
+     'member_status=?,event_status=?,event_pages=? WHERE team_id=?',
      money.text,money.cents,money.text,money.approximate?1:0,
      nint(capture.level,100000),nint(capture.views,1000000000),memberCount,
-     roster.length?1:0,JSON.stringify(roster),at,at,'',teamId);
+     roster.length?1:0,JSON.stringify(roster),at,at,'',
+     roster.length?'observed':'unavailable',
+     ['observed','empty_visible_log'].includes(capture.eventStatus)?
+       capture.eventStatus:'unavailable',
+     nint(capture.eventPages,20)||0,teamId);
    let inserted=0;
    for(const event of events){
      const prev=one('SELECT gamertag,kind,amount_cents,display_time FROM mega_top_events WHERE team_id=? AND event_key=?',
@@ -212,6 +235,8 @@ export function topTeamDetails(id){
    const totals=byName.get(m.gamertag.toLowerCase())||null;
    byName.delete(m.gamertag.toLowerCase());
    return {gamertag:m.gamertag,role:m.role,rosterObserved:true,
+     reportedDepositsText:m.reportedDepositsText||null,reportedWithdrawalsText:m.reportedWithdrawalsText||null,
+     reportedNetText:m.reportedNetText||null,
      depositsCents:totals?.deposits??null,withdrawalsCents:totals?.withdrawals??null,
      netCents:totals?totals.deposits-totals.withdrawals:null,eventCount:totals?.eventCount||0};
  });
