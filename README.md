@@ -1,7 +1,17 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.8.3
+# SB's & Cam's Store — Community Portal V1.8.4
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.8.4 — Automatic Discord profile matching from InPvP member lists
+
+- Every captured Minecraft member name enters a **staggered, read-only public InPvP profile scan queue** (20-second scheduler, sharing the existing Chromium browser with the Top 10 reader). Example: \`https://inpvp.net/mineville/profile/SBisOnTop\` shows a voluntarily linked Discord badge such as \`@unk.sb\`. A public profile is checked only after it appears in a verified team roster.
+- Source extraction only uses the normal page header and linked Discord badge; it never reads OAuth tokens, browser storage, passwords, hidden server APIs or untrusted profile biographies. InPvP documentation says the Discord username field is voluntarily linked by the profile owner.
+- Matches require a **current Discord guild member** whose actual Discord username exactly matches the InPvP handle, or an exact linked Discord ID (if exposed by InPvP). Nicknames, display names, fuzzy matches, bots and pending/nonmember accounts cannot link automatically.
+- Once matched, the verified Discord member gets a **normal public website profile** if one does not already exist; no login session, role, or staff privilege is created. A Minecraft name then links to \`/u/<Discord ID>\` throughout the team and bank-history UI.
+- Store automatic links separately from owner-entered global/season links; **owner overrides have priority**. Owner unlink disables further auto linking for that name; owner can re-enable it from \`/mega-team/links\`. All successful automatic links are tamper-evidently audited and labeled as InPvP-sourced in the owner UI.
+- Backoff on profile unavailable/undisclosed Discord IDs; never guess identities from follower lists or free-text mentions. Refresh old automatic associations daily without overwriting conflicting Discord IDs.
+- Retain existing Railway database mount, encrypted InPvP session, five-minute SBsxScam bank collector, Top 10 balance data and ranked teams. Live InPvP badge markup and actual matching must be confirmed after Railway deployment.
 
 ## V1.8.3 — Team bank balances and complete member-name capture
 
