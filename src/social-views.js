@@ -18,7 +18,7 @@ function target(n){
 }
 export function notifications(ctx,{items=[]}={}){
   const unread=items.filter(n=>!n.read_at).length;
-  const action='<form method="post" action="/notifications/read">'+token(ctx)+'<button class="btn btn-outline btn-sm" type="submit">'+icon('check-check',{size:16})+' Mark all as read</button></form>';
+  const action='<form method="post" action="/notifications/read">'+token(ctx)+'<button class="btn btn-outline btn-sm" type="submit">'+icon('check-check',{size:16})+' Mark all read</button></form>';
   const list=items.map(n=>{
     const name=esc(n.nickname||n.display_name||n.username);
     const classes='social-notification panel'+(!n.read_at?' unread':'');
@@ -32,21 +32,21 @@ export function notifications(ctx,{items=[]}={}){
         '<span class="muted tiny">Read</span>')+'</article>';
   }).join('');
   return shell(ctx,'Notifications','<div class="social-page">'+
-    titlebar('YOUR ACTIVITY','Social <span class="gradient">notifications.</span>',
-      'Likes, follows, replies and reposts from your community.',unread?action:'')+
+    titlebar('YOUR ACTIVITY','<span class="gradient">Notifications.</span>',
+      '',unread?action:'')+
     '<div class="social-notifications-list">'+
-    (list||'<div class="panel empty">No activity yet. Follow members and start posting to connect with the community.</div>')+
+    (list||'<div class="panel empty">No notifications yet.</div>')+
     '</div></div>');
 }
 export function savedPosts(ctx,{posts=[],page=0}={}){
   const html=posts.length?posts.map(p=>postCard(ctx,p,{fromSaved:true})).join(''):
-    '<div class="panel empty">No saved posts yet. Use the Save button beneath any post to collect it here.</div>';
+    '<div class="panel empty">No saved posts yet.</div>';
   const prev=page?'<a class="btn btn-outline btn-sm" href="/saved?page='+(page-1)+'">← Newer</a>':'';
   const next=posts.length===20?'<a class="btn btn-outline btn-sm" href="/saved?page='+(page+1)+'">Older →</a>':'';
   return shell(ctx,'Saved Posts','<div class="social-page">'+
-    titlebar('PRIVATE COLLECTION','Your <span class="gradient">saved posts.</span>',
-      'Only you can see this collection. Save or unsave posts without leaving the page.',
-      '<a class="btn btn-outline" href="/feed">'+icon('newspaper',{size:17})+' Browse Main Feed</a>')+
+    titlebar('PRIVATE COLLECTION','Saved <span class="gradient">posts.</span>',
+      'Private to you.',
+      '<a class="btn btn-outline" href="/feed">'+icon('newspaper',{size:17})+' Browse feed</a>')+
     '<div class="social-post-list">'+html+'</div><div class="pager">'+prev+next+'</div></div>');
 }
 export function connections(ctx,{person,profile={},which='followers',items=[],self=false}={}){
@@ -60,7 +60,7 @@ export function connections(ctx,{person,profile={},which='followers',items=[],se
   return shell(ctx,label,'<div class="social-page">'+
     '<a class="support-back" href="/u/'+encodeURIComponent(person.id)+'">'+icon('arrow-left',{size:16})+' Back to profile</a>'+
     titlebar('COMMUNITY CONNECTIONS',esc(owner)+' <span class="gradient">'+label.toLowerCase()+'.</span>',
-      self?'People connected to your profile.':'Visible connections for this community member.')+
+      '')+
     '<nav class="social-tabs" aria-label="Connection lists">'+
     '<a class="social-tab '+(which==='followers'?'active':'')+'" href="/u/'+encodeURIComponent(person.id)+'/followers">Followers</a>'+
     '<a class="social-tab '+(which==='following'?'active':'')+'" href="/u/'+encodeURIComponent(person.id)+'/following">Following</a></nav>'+

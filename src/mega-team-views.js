@@ -119,7 +119,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   observedDeposits-observedWithdrawals:null;
  const sourceHint='Partial observed bank activity; not lifetime contributions';
  const summary='<section class="mega-stats" aria-label="MegaSMP financial summary">'+
-  summaryCard('balance','Reported team bank',data.bank?.balance??null,'From '+esc(sourceLabel(data.bank?.source)),'wallet')+
+  summaryCard('balance','Reported team bank',data.bank?.balance??null,'Source: '+esc(sourceLabel(data.bank?.source)),'wallet')+
   summaryCard('deposits',data.totals.deposited==null?'Observed deposits':'Recorded deposits',
     data.totals.deposited??observedDeposits,data.totals.deposited==null?sourceHint:'Partial if players lack records','arrow-down-to-line')+
   summaryCard('withdrawals',data.totals.withdrawn==null?'Observed withdrawals':'Recorded withdrawals',
@@ -134,40 +134,39 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<tr><td colspan="4">No individually recorded transactions. Imported cumulative totals do not include transaction dates.</td></tr>';
  return '<div class="mega-dashboard" data-mega-dashboard data-season="'+attr(data.season.season)+'">'+
   '<section class="mega-hero panel"><div class="mega-hero-heading"><div>'+
-  '<span class="eyebrow">'+icon('shield-check',{size:17})+' MEGASMP TEAM</span>'+
-  '<h2>SBsxScam <span>dashboard</span></h2>'+
-  '<p>Track the game roster, recorded contributions, withdrawals and season history.</p></div>'+
+  '<h2>Team <span>overview</span></h2>'+
+  '</div>'+
   '<a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="'+attr(data.teamUrl)+'">'+
-  icon('external-link',{size:17})+' Official InPvP team page</a></div>'+
+  icon('external-link',{size:17})+' Open on InPvP</a></div>'+
   '<div class="mega-status-line"><span data-mega-syncstatus>'+esc(syncLabel)+'</span><span data-mega-capturestatus>'+esc(captureText)+'</span>'+
-  '<span data-mega-updated>Latest known source: '+date(sourceUpdated||data.bank?.as_of)+'</span></div>'+
-  '<p class="mega-disclaimer">Recorded and observed figures remain separate. Observed bank activity may be partial, and a captured player is not proof of current membership. Refresh displays stored records; browser collection requires a separately configured worker.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
+  '<span data-mega-updated>Updated: '+date(sourceUpdated||data.bank?.as_of)+'</span></div>'+
+  '<p class="mega-disclaimer">Captured figures can be incomplete and do not prove current membership. Manual totals stay separate. Updates need a configured collector.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
   '</section>'+
   '<div class="mega-toolbar"><form method="get" action="/mega-team" class="mega-season-select">'+
-  '<label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View season</button></form>'+
-  '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh displayed data</button>'+
+  '<label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View</button></form>'+
+  '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh</button>'+
   '<span class="mega-muted" data-mega-timestamp aria-live="polite"></span></div>'+
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
   '<nav class="mega-section-links" aria-label="MegaSMP dashboard sections"><a href="#mega-members">Members</a>'+
   '<a href="#mega-leaderboard">Leaderboard</a><a href="#mega-bank-history">Bank activity</a>'+
-  '<a href="/team/mega/history?season='+encodeURIComponent(data.season.season)+'">Full bank history</a>'+
-  '<a href="#mega-observed">Captured bank events</a><a href="#mega-discord-roster">Discord members</a>'+
-  (ctx.role==='owner'?'<a href="/team/mega/matches?season='+encodeURIComponent(data.season.season)+'">Match Discord accounts</a>':'')+'</nav>'+
+  '<a href="/team/mega/history?season='+encodeURIComponent(data.season.season)+'">Bank history</a>'+
+  '<a href="#mega-observed">Captured events</a><a href="#mega-discord-roster">Discord members</a>'+
+  (ctx.role==='owner'?'<a href="/team/mega/matches?season='+encodeURIComponent(data.season.season)+'">Match accounts</a>':'')+'</nav>'+
   '<section class="mega-section" id="mega-members"><div class="mega-section-head"><div><h3>In-game team roster</h3>'+
-  '<p>Player Gamertags from recorded or imported data. Discord role holders are listed separately.</p></div>'+
+  '<p>Recorded players; Discord roles shown separately.</p></div>'+
   '<span class="mega-source-badge"><span data-mega-count>'+full.length+'</span> recorded</span></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>PLAYER</th><th>DEPOSITED</th><th>WITHDRAWN</th><th>NET</th></tr></thead>'+
   '<tbody data-mega-rows>'+rows+'</tbody></table></div></section>'+
   '<section class="mega-section" id="mega-leaderboard"><div class="mega-section-head"><div><h3>Contribution leaderboard</h3>'+
-  '<p>Ranked by recorded or captured deposits. Observed totals may be incomplete.</p></div></div>'+
+  '<p>Deposit totals may be incomplete.</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>RANK</th><th>GAMERTAG</th><th>DEPOSITED</th></tr></thead>'+
   '<tbody data-mega-leaderboard>'+rank+'</tbody></table></div></section>'+
   '<section class="mega-section" id="mega-bank-history"><div class="mega-section-head"><div><h3>Recorded bank activity</h3>'+
-  '<p>Owner-entered transaction records (not a complete InPvP transaction history).</p></div></div>'+
+  '<p>Manual entries, not full InPvP history.</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>DATE</th><th>PLAYER</th><th>TYPE</th><th>AMOUNT</th></tr></thead>'+
   '<tbody data-mega-history>'+history+'</tbody></table></div></section>'+
   '<section class="mega-section" id="mega-observed"><div class="mega-section-head"><div><h3>Captured bank activity</h3>'+
-  '<p>Read-only InPvP observations; not added to manual or authorized cumulative totals. History may be incomplete.</p></div>'+
+  '<p>Captured events; separate from manual totals and possibly incomplete.</p></div>'+
   '<span class="mega-source-badge">'+Number(data.captured?.totalEvents||0)+' saved events</span></div>'+
   '<div class="mega-stats">'+
   summaryCard('captured-deposits','Observed deposits',data.captured?.deposited??null,'Captured events only','arrow-down-to-line')+

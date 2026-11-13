@@ -72,11 +72,11 @@ const fakeImage={bytes:png,name:'proof.png'};
 
 test('role-aware homepages, correct ticket categories, Discord identity and placeholders',async()=>{
  const member=await (await get('/','member')).text();
- assert.match(member,/MEMBER DASHBOARD/);
+ assert.match(member,/Welcome back/);
  assert.match(member,/Submit a Ticket/);
  assert.doesNotMatch(member,/staff-chat-messages/);
  const staff=await (await get('/','reviewer')).text();
- assert.match(staff,/STAFF WORKSPACE/);
+ assert.match(staff,/Staff command/);
  assert.match(staff,/staff-chat-messages/);
  assert.match(staff,/Customize Profile/);
  const picker=await (await get('/tickets/new','member')).text();

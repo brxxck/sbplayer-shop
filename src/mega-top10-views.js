@@ -46,17 +46,17 @@ export function megaHubPage(ctx,{listing,megaContent}){
  const own=mainTeam(listing),rank=listing.live&&own?.rank?'#'+own.rank:'Unverified';
  const intro=titlebar('MEGASMP PORTAL',
    'SBsxScam <span class="gradient">MegaSMP.</span> <a href="/mega-team/leaderboard" class="mega-title-place" data-mega-title-rank>'+esc(rank)+'</a>',
-   'Live team rankings and independently observed bank statistics from InPvP.')+
-   '<div class="mega-top-hero panel"><div><span class="eyebrow">OUR TEAM POSITION</span>'+
+   'Captured team rankings and bank data.')+
+   '<div class="mega-top-hero panel"><div>'+
    '<a href="/mega-team/leaderboard" class="mega-top-rank" data-mega-sb-rank>'+
    esc(rank)+' '+icon('arrow-up-right',{size:24})+'</a>'+
-   '<p>Open the Top 10 leaderboard to see the current standings. Rank is shown only after verification.</p></div>'+
+   '<p>Rank shown when verified.</p></div>'+
    '<div class="mega-top-actions"><a class="btn btn-primary" href="/mega-team/leaderboard">'+
-   icon('trophy',{size:17})+' View Top 10 teams</a>'+
+   icon('trophy',{size:17})+' Top 10</a>'+
    '<a class="btn btn-outline" href="/mega-team/teams/'+attr(MEGA_TEAM_ID)+'">'+
-   icon('users',{size:17})+' Team details</a>'+
+   icon('users',{size:17})+' Team</a>'+
    (ctx.role==='owner'?'<a class="btn btn-outline" href="/mega-team/links">'+
-    icon('user-round-check',{size:17})+' Link Minecraft profiles</a>':'')+
+    icon('user-round-check',{size:17})+' Link profiles</a>':'')+
    '</div></div>'+statusText(listing);
  return shell(ctx,'MegaSMP Team','<div class="mega-top-page" data-top10-board>'+
    intro+megaContent+'</div>');
@@ -64,18 +64,18 @@ export function megaHubPage(ctx,{listing,megaContent}){
 export function megaLeaderboardPage(ctx,listing){
  const intro=titlebar('MEGASMP LEADERBOARD',
    'Top <span class="gradient">10 teams.</span>',
-   'Latest team placements, reported bank balances and all currently visible player names.');
+   'Rankings, bank balances and rosters.');
  const notice=!listing.live?
   '<p class="mega-top-notice">The first live Top 10 capture is not yet available. Teams below are previously provided reference links; their rankings are intentionally unverified.</p>':
   '<p class="mega-top-notice">Only the latest successfully captured source ranking is shown. InPvP may update less frequently than the one-minute checks; these standings can be delayed.</p>';
  return shell(ctx,'MegaSMP Top 10',
   '<div class="mega-top-page" data-top10-board>'+
   intro+'<div class="mega-top-actions"><a href="/mega-team" class="btn btn-outline">'+
-  icon('arrow-left',{size:17})+' SBsxScam dashboard</a>'+
+  icon('arrow-left',{size:17})+' SBsxScam</a>'+
   '<a href="https://inpvp.net/megasmp/teams" target="_blank" rel="noopener noreferrer" class="btn btn-outline">'+
-  icon('external-link',{size:17})+' Official leaderboard</a></div>'+
+  icon('external-link',{size:17})+' InPvP leaderboard</a></div>'+
   statusText(listing)+notice+topTable(listing)+
-  '<p class="muted tiny">Rankings are checked every minute when collection is enabled. Team member lists are checked separately, one team at a time. Unavailable player names are not guessed.</p>'+
+  '<p class="muted tiny">Rankings and rosters refresh separately. Missing names are not estimated.</p>'+
   '</div>');
 }
 function playerName(name,linked){

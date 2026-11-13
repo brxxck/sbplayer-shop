@@ -197,7 +197,7 @@ test('staff and SBs application submissions require Discord AND Microsoft/Xbox v
   assert.equal(one('SELECT COUNT(*) n FROM applications WHERE user_id=?',ids.member).n,0);
   const team=await get('/team-applications/apply','member');
   assert.equal(team.status,200);
-  assert.match(await team.text(),/Account verification required/);
+  assert.match(await team.text(),/Verify your accounts/);
   const deniedTeam=await post('/team-applications/apply','member',{
     daily_earnings:'500',net_worth:'1000',play_days:'5',play_hours:'3',timezone:'GMT',
     skill_pvp:'on',bank_contribution:'yes',income_method:'I farm crops each day',
@@ -470,7 +470,7 @@ test('MegaSMP dashboard preserves rosters, manually recorded money, source prove
  const {activeMegaSeason,MEGA_TEAM_ID}=await import('../src/mega-team.js');
  const season=activeMegaSeason();
  const initial=await (await get('/mega-team','member')).text();
- assert.match(initial,/MEGASMP PORTAL/,'MegaSMP is its own standalone page');
+ assert.match(initial,/data-top10-board/,'MegaSMP is its own standalone page');
  assert.ok(initial.includes('SBsxScam'));
  assert.ok(initial.includes('No in-game roster imported yet'),'unverified Discord team roles are not presented as a verified game roster');
  assert.ok(initial.includes('Discord team roster'),'Discord fallback is clearly labelled');
@@ -598,7 +598,7 @@ test('captured event history and verified owner Discord matching are permission-
  assert.equal(megaCapturedBankHistory({season}).total,123);
  assert.equal(megaCapturedBankHistory({season,page:3}).rows.length,23);
  const first=await (await get('/team/mega/history?season='+encodeURIComponent(season),'member')).text();
- assert.ok(first.includes('Captured bank events'));
+ assert.ok(first.includes('Saved bank events.'));
  assert.ok(first.includes('Page 1 of 3'));
  assert.ok(first.includes('PARTIAL / UNVERIFIED HISTORY'));
  assert.ok(first.includes('Captured0000'));
@@ -667,7 +667,7 @@ test('members submit private applications; optional reviewers vote once then tic
   }
   let r=await post('/apply','member',answers);assert.equal(r.status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);assert.equal(a.status,'pending');
-  let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes(`Application Reviews`) && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs
+  let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes('class="page-heading"') && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs
   assert.ok(html.includes(`/staff/applications/${a.id}`));
   r=await post(`/staff/applications/${a.id}/review`,'reviewer',{choice:'accept',note:'Thoughtful answer and good attitude.'});assert.equal(r.status,303);
   html=await (await get('/staff','reviewer')).text();assert.ok(!html.includes(`/staff/applications/${a.id}`));

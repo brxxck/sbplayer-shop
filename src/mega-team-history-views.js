@@ -73,16 +73,16 @@ export function megaHistoryPage(ctx,data){
   '<button class="btn btn-outline" type="submit">'+icon('search',{size:17})+' Filter</button></form>';
  const owner=ctx.role==='owner'?
   '<a class="btn btn-primary" href="'+attr(link('/team/mega/matches',{season:data.season}))+'">'+
-  icon('user-round-check',{size:17})+' Match Minecraft and Discord</a>':'';
+  icon('user-round-check',{size:17})+' Match accounts</a>':'';
  const body=titlebar('MEGASMP BANK HISTORY','Captured <span class="gradient">transactions.</span>',
-   'Every saved Bank Event Log entry, including older pages — no 100-event display cap.')+
+   'Saved bank events.')+
    '<div class="mega-history-container"><div class="mega-history-actions">'+
    '<a class="btn btn-outline" href="'+attr(link('/mega-team',{season:data.season}))+'">'+
    icon('arrow-left',{size:17})+' Team dashboard</a>'+owner+'</div>'+
    '<div class="mega-history-alert" role="status">'+icon('triangle-alert',{size:18})+' '+
    esc(coverage)+'</div>'+
    '<p class="muted tiny">Last successful capture: '+time(data.status?.last_success)+
-   '. Captured-order pages may not be strictly chronological when InPvP only exposes displayed timestamps. This event log is separate from manually recorded contributions; totals are not added together.</p>'+
+   '. Displayed times may be approximate. Manual contributions are separate.</p>'+
    totals+filter+
    '<div class="table-wrap panel"><table class="mega-table mega-history-table"><thead><tr>'+
    '<th>DISPLAYED TIME</th><th>MINECRAFT / DISCORD</th><th>TYPE</th><th>AMOUNT</th><th>IDENTITY</th>'+
