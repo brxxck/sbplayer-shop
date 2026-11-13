@@ -6,6 +6,7 @@ import {db,all,one,run,transaction} from './db.js';
 import {appendAudit} from './audit.js';
 import {validGamertag,activeMegaSeason} from './mega-team.js';
 import {megaDiscordMatches} from './mega-team-discord-matches.js';
+import {allVerifiedXboxGamertags} from './xbox-gamertag-links.js';
 
 db.exec([
  "CREATE TABLE IF NOT EXISTS mega_player_profile_links (gamertag TEXT NOT NULL COLLATE NOCASE PRIMARY KEY,discord_user_id TEXT NOT NULL REFERENCES users(id),linked_by TEXT NOT NULL REFERENCES users(id),linked_at INTEGER NOT NULL)",
@@ -34,6 +35,8 @@ export function allMegaPlayerProfileLinks({season=activeMegaSeason()}={}){
  const result=new Map(automatic.map(m=>[m.gamertag.toLowerCase(),m]));
  for(const item of legacy)result.set(item.gamertag.toLowerCase(),item);
  for(const item of global)result.set(item.gamertag.toLowerCase(),item);
+ // A holder-verified Xbox identity supersedes historical guessed/manual associations.
+ for(const item of allVerifiedXboxGamertags())result.set(item.gamertag.toLowerCase(),item);
  return [...result.values()].sort((a,b)=>a.gamertag.localeCompare(b.gamertag));
 }
 export function megaPlayerProfileLink(name,{season=activeMegaSeason()}={}){

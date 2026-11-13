@@ -81,6 +81,33 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/members?q=mem','member')).status,200);
 });
 
+test('Xbox gamertag profile integration is disabled cleanly until configured',async()=>{
+ const p=await get('/profile/edit','member');
+ assert.equal(p.status,200);
+ const html=await p.text();
+ assert.match(html,/Connected Accounts/);
+ assert.match(html,/Xbox linking is not configured yet/);
+ assert.doesNotMatch(html,/action="\/profile\/microsoft\/start"/);
+ const otherPage=await get('/u/'+ids.member2,'member');
+ assert.equal(otherPage.status,200);
+ assert.doesNotMatch(await otherPage.text(),/Verified Xbox gamertag:/);
+ const start=await post('/profile/microsoft/start','member',{});
+ assert.equal(start.status,303);
+ assert.match(start.headers.get('location'),/Xbox.*not.*configured/i);
+ const missingCsrf=await fetch(base+'/profile/microsoft/unlink',{
+  method:'POST',headers:{cookie:sessions.get('member').cookie,
+   'content-type':'application/x-www-form-urlencoded'},
+  body:new URLSearchParams({}),redirect:'manual'
+ });
+ assert.equal(missingCsrf.status,403);
+ const unlink=await post('/profile/microsoft/unlink','member',{});
+ assert.equal(unlink.status,303);
+ assert.match(unlink.headers.get('location'),/No.*Xbox.*gamertag/);
+ const callback=await get('/profile/microsoft/callback?state=unknown&code=one','member');
+ assert.equal(callback.status,303);
+ assert.match(callback.headers.get('location'),/verification.*failed/i);
+});
+
 test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
   const path='/owner/mega/session';
   for(const who of ['member','adminA','reviewer'])
