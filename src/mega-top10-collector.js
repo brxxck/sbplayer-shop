@@ -3,8 +3,7 @@
 // Supports native HTML tables, accessible rows, CSS grid and displayed text.
 import {TOP10_URL,verifyTeamLink,canonicalTeamLink} from './mega-top10-store.js';
 import {parseTop10Snapshot} from './mega-top10-dom.js';
-import {extractTeamMembers} from './mega-top10-roster.js';
-import {validGamertag} from './mega-team.js';
+import {collectFullTeamRoster} from './mega-top10-member-pages.js';
 
 const sleep=ms=>new Promise(done=>setTimeout(done,ms));
 const pause=(page,ms)=>typeof page.waitForTimeout==='function'?page.waitForTimeout(ms):sleep(ms);
@@ -145,47 +144,29 @@ export async function captureTopTeamDetails(page,team){
     opened.searchParams.get('id')!==target.id)
    throw new Error('Team page redirected away from the approved InPvP team.');
  await pause(page,650);
- // Only the roster is needed on other teams' pages. The separate SBsxScam
- // dashboard retains its dedicated, already-working bank-event collector.
  const detail=await page.evaluate(()=>{
-  const body=document.body?.innerText||'';
-  const count=/\b(?:Members|Team Members)\s*\(([\d,]+)\)/i.exec(body);
-  return {memberCount:count?Number(count[1].replaceAll(',','')):null};
+  const body=String(document.body?.innerText||'');
+  const count=/\b(?:Team\s+)?Members\s*\(([\d,]+)\)/i.exec(body)||
+    /\b(?:Team\s+)?Members\s*:\s*([\d,]+)\b/i.exec(body)||
+    /\b([\d,]+)\s+(?:Team\s+)?Members\b/i.exec(body);
+  const bank=/(?:Team Bank|Bank Balance|Team Balance)\s*[:\s]*(\$[\d,]+(?:\.\d{1,3})?[KMBT]?)(?![\w.])/i.exec(body);
+  return {memberCount:count?Number(count[1].replaceAll(',','')):null,
+   bankText:bank?.[1]||null};
  });
- let roster=[];
- try{
-  const parsed=await extractTeamMembers(page);
-  roster=parsed.roster||[];
-  // Responsive pages can hide member cards behind a normal visible tab.
-  // Do not force actions, use undocumented APIs, or infer names from bank rows.
-  if(!roster.length){
-   const groups=[
-    page.getByRole('tab',{name:/^(?:Team )?Members(?:\s*\(\d+\))?$/i}),
-    page.getByRole('button',{name:/^(?:Team )?Members(?:\s*\(\d+\))?$/i})
-   ];
-   for(const group of groups){
-    if(!(await group.count().catch(()=>0)))continue;
-    const control=group.first();
-    if(!await control.isVisible().catch(()=>false))continue;
-    if(!await control.isEnabled().catch(()=>false))continue;
-    try{
-     await control.click({timeout:4000});
-     await pause(page,400);
-     const next=await extractTeamMembers(page);
-     if(next.roster?.length){roster=next.roster;break;}
-    }catch{/* A noninteractive/hidden member view is not an empty roster. */}
-   }
-  }
- }catch{/* Missing visible member data is not a verified zero. */}
- const after=new URL(page.url());
- if(after.protocol!=='https:'||after.hostname!=='inpvp.net'||
-    after.searchParams.get('id')!==team.id)
-   throw new Error('Member read navigated away from the approved InPvP team.');
+ // The official leaderboard already provides a bank balance. The team page
+ // gives us another read when it exposes a labeled balance directly.
+ // Do not interpret a player's wallet or a transaction amount as team bank.
+ const members=await collectFullTeamRoster(page,{
+  teamId:team.id,reportedCount:detail.memberCount,maxActions:36
+ });
  return {
   id:team.id,
-  roster:roster.filter(x=>validGamertag(x.gamertag)),
-  memberCount:detail.memberCount,
-  bankText:null,level:null,views:null,events:[],
-  memberStatus:roster.length?'observed':'unavailable'
+  roster:members.roster,
+  rosterComplete:members.rosterComplete,
+  memberStatus:members.memberStatus,
+  memberCount:members.memberCount??detail.memberCount,
+  bankText:detail.bankText,
+  level:null,views:null,events:[],
+  pagesScanned:Math.min(36,Number(members.lastAction!=='none')+1)
  };
 }
