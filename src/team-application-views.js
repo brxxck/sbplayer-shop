@@ -19,7 +19,7 @@ export function teamApplyPage(ctx,{xboxLink=null,active=null,history=[],alreadyM
   history.map(a=>'<tr><td>#'+a.id+'</td><td>'+esc(a.minecraft_ign)+'</td><td>'+when(a.created_at)+'</td><td>'+tag(a.status)+'</td><td><a class="table-link" href="/team-applications/'+a.id+'">View</a></td></tr>').join('')+
   '</tbody></table></div></section>':'';
  let body='';
- if(alreadyMember)body='<section class="panel padded"><h2>You already belong to SBs</h2><p>You're already an SBs member.</p></section>';
+ if(alreadyMember)body='<section class="panel padded"><h2>You already belong to SBs</h2><p>You are already an SBs member.</p></section>';
  else if(active)body='<section class="panel padded"><h2>Application already submitted</h2><p>Your application is '+tag(active.status)+'.</p><a class="btn btn-primary" href="/team-applications/'+active.id+'">View application #'+active.id+' →</a></section>';
  else if(!open)body='<section class="panel padded"><h2>Applications are closed</h2><p>Recruitment is currently closed.</p></section>';
  else if(!identity)body=requirement(xboxLink);
