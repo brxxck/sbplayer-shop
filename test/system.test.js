@@ -108,6 +108,50 @@ test('Xbox gamertag profile integration is disabled cleanly until configured',as
  assert.match(callback.headers.get('location'),/verification.*failed/i);
 });
 
+test('configured Xbox menu posts to Microsoft OAuth with explicitly allowlisted CSP redirect',async()=>{
+ const envNames=['XBOX_LINK_CLIENT_ID','XBOX_LINK_CLIENT_SECRET','XBOX_LINK_ACCOUNT_KEY'];
+ const old=Object.fromEntries(envNames.map(k=>[k,process.env[k]]));
+ let extraServer;
+ try{
+  Object.assign(process.env,{
+   XBOX_LINK_CLIENT_ID:'11111111-1111-1111-1111-111111111111',
+   XBOX_LINK_CLIENT_SECRET:'fixture-client-secret-value',
+   XBOX_LINK_ACCOUNT_KEY:'fixture-integration-key-longer-than-32-characters'
+  });
+  // Second server reads the configured values; no real Microsoft calls occur.
+  extraServer=createServer({discord:fake,testLogin:true});
+  await new Promise(resolve=>extraServer.listen(0,'127.0.0.1',resolve));
+  const host='http://127.0.0.1:'+extraServer.address().port;
+  const memberSession=sessions.get('member');
+  const home=await fetch(host+'/',{headers:{cookie:memberSession.cookie},redirect:'manual'});
+  assert.equal(home.status,200);
+  assert.match(await home.text(),/class="top-account-menu-xbox"[\s\S]*?action="\/profile\/microsoft\/start"/);
+  const csp=home.headers.get('content-security-policy')||'';
+  assert.match(csp,/form-action 'self' https:\/\/login\.microsoftonline\.com;/);
+  assert.doesNotMatch(csp,/form-action[^;]*\*/,'form redirects must not be wildcarded');
+  const response=await fetch(host+'/profile/microsoft/start',{
+   method:'POST',redirect:'manual',
+   headers:{cookie:memberSession.cookie,'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({_csrf:memberSession.csrf})
+  });
+  assert.equal(response.status,303);
+  const oauth=new URL(response.headers.get('location'));
+  assert.equal(oauth.origin,'https://login.microsoftonline.com');
+  assert.equal(oauth.pathname,'/consumers/oauth2/v2.0/authorize');
+  assert.equal(oauth.searchParams.get('scope'),'xboxlive.signin');
+  assert.ok(oauth.searchParams.get('state'));
+  const wrong=await fetch(host+'/profile/microsoft/start',{
+   method:'POST',redirect:'manual',
+   headers:{cookie:memberSession.cookie,'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({_csrf:'invalid'})
+  });
+  assert.equal(wrong.status,403,'starting OAuth requires a valid CSRF token');
+ }finally{
+  if(extraServer?.listening)await new Promise(resolve=>extraServer.close(resolve));
+  for(const k of envNames){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
+ }
+});
+
 test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
   const path='/owner/mega/session';
   for(const who of ['member','adminA','reviewer'])
