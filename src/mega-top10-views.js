@@ -45,7 +45,7 @@ function topTable(listing){
 export function megaHubPage(ctx,{listing,megaContent}){
  const own=mainTeam(listing),rank=listing.live&&own?.rank?'#'+own.rank:'Unverified';
  const intro=titlebar('MEGASMP PORTAL',
-   'SBsxScam <span class="gradient">MegaSMP.</span>',
+   'SBsxScam <span class="gradient">MegaSMP.</span> <a href="/mega-team/leaderboard" class="mega-title-place" data-mega-title-rank>'+esc(rank)+'</a>',
    'Live team rankings and independently observed bank statistics from InPvP.')+
    '<div class="mega-top-hero panel"><div><span class="eyebrow">OUR TEAM POSITION</span>'+
    '<a href="/mega-team/leaderboard" class="mega-top-rank" data-mega-sb-rank>'+
