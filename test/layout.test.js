@@ -23,8 +23,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.9\.0-xbox-ign/);
-  assert.match(page,/\/static\/app\.js\?v=1\.9\.0-xbox-ign/);
+  assert.match(page,/\/static\/style\.css\?v=1\.9\.1-xbox-menu/);
+  assert.match(page,/\/static\/app\.js\?v=1\.9\.1-xbox-menu/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -37,6 +37,25 @@ test('signed-in avatars specify safe dimensions and mobile header remains CSS-co
   assert.match(page,/class="mobile-brand"[^>]+>[\s\S]*width="36" height="36"/);
   assert.match(avatar(signed.user,'xxl'),/width="106" height="106"/);
   assert.match(avatar(signed.user,'unrecognized'),/width="43" height="43"/);
+});
+
+test('Microsoft link appears under account identity and above My Profile in the dropdown',()=>{
+ const ready=home({...signed,xboxConfigured:true,xboxLink:null});
+ const begin=ready.indexOf('class="top-account-menu-head"');
+ const link=ready.indexOf('class="top-account-menu-xbox"',begin);
+ const label=ready.indexOf('class="top-account-menu-label">MY PROFILE',link);
+ assert.ok(begin>0 && link>begin && label>link,'link sits between profile identity and MY PROFILE');
+ assert.match(ready,/class="top-account-menu-xbox"[\s\S]*?<form method="post" action="\/profile\/microsoft\/start">/);
+ assert.match(ready,/name="_csrf" value="fake"/,'menu form uses authenticated CSRF token');
+ assert.match(ready,/class="top-account-menu-xbox-button"[^>]*>[\s\S]*?Link Microsoft \/ Xbox/);
+ const linked=home({...signed,xboxConfigured:true,xboxLink:{gamertag:'SBisOnTop'}});
+ assert.match(linked,/Connected: SBisOnTop/);
+ assert.match(linked,/Verify Microsoft \/ Xbox/);
+ const unavailable=home({...signed,xboxConfigured:false,xboxLink:null});
+ assert.match(unavailable,/Microsoft linking not configured/);
+ assert.doesNotMatch(unavailable,/action="\/profile\/microsoft\/start"/,'disabled configuration cannot start a login');
+ const appeals=home({...signed,role:'appeal-only',xboxConfigured:true});
+ assert.doesNotMatch(appeals,/action="\/profile\/microsoft\/start"/,'non-members cannot begin Xbox linking');
 });
 
 test('evidence galleries use authenticated routes, safe filenames, accessible controls and privacy-friendly previews',()=>{
@@ -78,8 +97,8 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
 
 test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  const page=home(signed);
- assert.match(page,/\/static\/mega-team\.js\?v=1\.9\.0-xbox-ign/);
- assert.match(page,/\/static\/mega-top10\.js\?v=1\.9\.0-xbox-ign/);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.9\.1-xbox-menu/);
+ assert.match(page,/\/static\/mega-top10\.js\?v=1\.9\.1-xbox-menu/);
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {megaTeamPanel}=await import('../src/mega-team-views.js');
  const dashboard=megaDashboard();
