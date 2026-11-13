@@ -3,8 +3,8 @@
 // Supports native HTML tables, accessible rows, CSS grid and displayed text.
 import {TOP10_URL,verifyTeamLink,canonicalTeamLink} from './mega-top10-store.js';
 import {parseTop10Snapshot} from './mega-top10-dom.js';
-import {extractTeamOverview,extractBankRows,openBankTab,openEventLogSection,
-  revealTeamEventLog} from './mega-team-page-collector.js';
+import {extractTeamOverview,captureVisibleBankEventRows} from './mega-team-page-collector.js';
+import {extractTeamMembers} from './mega-top10-roster.js';
 import {validGamertag} from './mega-team.js';
 
 const sleep=ms=>new Promise(done=>setTimeout(done,ms));
@@ -180,25 +180,52 @@ export async function captureTopTeamDetails(page,team){
    return {memberCount:count?Number(count[1].replaceAll(',','')):null,
      level:labeled('Level'),views:labeled('Views'),roster:members};
  });
- let events=[];
- // Bounded, visible Bank Event Log reading. Missing events are not proof of zero.
+ // Read the explicitly labeled Members view before touching the Event Log.
+ // InPvP can render its members in CSS cards or a separate tab rather than
+ // in semantic <section> or <table> elements.
+ let membership={roster:[],hasMemberSection:false};
  try{
-   await revealTeamEventLog(page,{checks:6,intervalMs:350});
-   await openEventLogSection(page);
-   await openBankTab(page);
-   await pause(page,350);
-   events=await extractBankRows(page,{maxRows:500});
+   membership=await extractTeamMembers(page);
+   if(!membership.roster.length){
+     await page.evaluate(()=>{
+       const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
+       const heading=/^(?:Team\s+)?Members(?:\s*\([\d,]+\))?$|^Roster$/i;
+       const nodes=[...document.querySelectorAll('h2,h3,h4,[role="heading"],button,[role="tab"],strong,span')];
+       const node=nodes.find(el=>clean(el.textContent).length<60&&heading.test(clean(el.textContent)));
+       node?.scrollIntoView({block:'center',behavior:'instant'});
+     });
+     await pause(page,500);
+     membership=await extractTeamMembers(page);
+   }
+ }catch{membership={roster:[],hasMemberSection:false};}
+ let events=[],eventStatus='unavailable',eventPages=0;
+ try{
+   const observed=await captureVisibleBankEventRows(page,{
+     teamId:team.id,maxRows:500,maxScrolls:14,maxPages:5
+   });
+   events=observed.rows;
+   eventPages=observed.pagesVisited||0;
+   eventStatus=events.length?'observed':'empty_visible_log';
  }catch{
-   events=[];
+   // Team overview and member cards may still be available even if
+   // bank tabs are unrendered or restricted. Never claim 0 transactions.
+   eventStatus='unavailable';
  }
- // The saved page may show roster, bank or level even when Bank events are not
- // available. Do not replace good records with missing/null values.
- const roster=(detail.roster?.length?detail.roster:overview.roster)||[];
+ // Page navigation must remain within the team being collected.
+ const after=new URL(page.url());
+ if(after.protocol!=='https:'||after.hostname!=='inpvp.net'||
+    after.searchParams.get('id')!==team.id)
+   throw new Error('Team-detail collection navigated away from approved team.');
+ const roster=(membership.roster?.length?membership.roster:
+   detail.roster?.length?detail.roster:overview.roster)||[];
  const bankText=overview.bankBalance||null;
  if(!roster.length&&!events.length&&bankText===null&&
    detail.memberCount===null&&detail.level===null&&detail.views===null)
    throw new Error('InPvP detail not available; existing saved observations retained.');
  return {id:team.id,roster:roster.filter(x=>validGamertag(x.gamertag)),
    memberCount:detail.memberCount,bankText,
-   level:detail.level,views:detail.views,events};
+   level:detail.level,views:detail.views,events,
+   memberStatus:roster.length?'observed':'unavailable',
+   eventStatus,eventPages};
+
 }
