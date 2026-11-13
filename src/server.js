@@ -248,6 +248,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          ctx.staffNavigation=isStaffRole(ctx.role);
        }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
+      ctx.teamRecruiter=isAdminRole(ctx.role)||sbsTeamMembership(actual.roles||[]).leader;
       ctx.notificationCount=notificationCount(ctx.user.id);
       // Xbox menu status is available on every authenticated page, including Home.
       ctx.xboxConfigured=xboxLinkAuth.configured;
