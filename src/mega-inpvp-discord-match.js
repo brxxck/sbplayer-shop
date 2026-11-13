@@ -3,7 +3,7 @@
 // of a current Discord guild member. Never use nicknames, display names or bio
 // mentions for automatic account linking.
 import {getGuildMember,searchMembers} from './discord.js';
-import {one} from './db.js';
+import {one,upsertUser,ensureProfile} from './db.js';
 
 const validId=id=>/^[0-9]{15,22}$/.test(String(id||''));
 const validHandle=x=>/^[a-z0-9._]{2,32}$/.test(String(x||''));
@@ -50,6 +50,13 @@ export async function matchInPvPDiscordToGuild(badge,{
  }
 }
 
-export function registeredWebsiteMember(discordId){
- return validId(discordId)&&!!one('SELECT 1 FROM users WHERE id=?',String(discordId));
+export function ensureLinkedWebsiteProfile(member){
+ const user=member?.user||member;
+ if(!user||!validId(user.id)||user.bot||member?.pending||
+    !validHandle(String(user.username||'').toLowerCase()))return false;
+ // A verified Discord guild identity may have no previous website login.
+ // Create only a public profile record, never a login session or privilege.
+ upsertUser(member);
+ ensureProfile(String(user.id));
+ return !!one('SELECT 1 FROM users WHERE id=?',String(user.id));
 }
