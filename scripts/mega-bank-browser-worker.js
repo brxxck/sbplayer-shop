@@ -13,6 +13,7 @@ import {noteMegaCaptureFailure} from '../src/mega-team-bank-event-store.js';
 import {saveMegaBrowserCapture} from '../src/mega-team-browser-snapshot.js';
 import {createMegaSessionVault} from '../src/mega-session-vault.js';
 import {sanitizeInPvPStorageState} from '../src/mega-session-state.js';
+import {createMegaTop10Poller} from '../src/mega-top10-runner.js';
 
 const args=new Set(process.argv.slice(2));
 const allowed=process.env.MEGA_TEAM_BROWSER_AUTOMATION_ALLOWED==='true';
@@ -41,8 +42,9 @@ if(!allowed){
       });
     const screenshotPath=resolve(dirname(config.dbPath),'mega-bank-last-failure.png');
     let busy=false,stopped=false,timer=null;
+    const top10=createMegaTop10Poller({browser,encryptedMode,vault,mainBusy:()=>busy});
     async function collect(){
-      if(busy||stopped)return;
+      if(busy||top10.busy||stopped)return;
       busy=true;
       let context=null,page=null,originalState=null,revision=null,success=false;
       const transport={failedRequests:0,httpErrors:0,pageErrors:0};
@@ -130,11 +132,13 @@ if(!allowed){
       }else{
         await collect();
         if(!args.has('--once')){
+          top10.start();
           timer=setInterval(()=>{void collect();},TEAM_REFRESH_MS);
           console.log('[Mega bank] read-only capture scheduled every five minutes.');
           const shutdown=async()=>{
             if(stopped)return;stopped=true;
             if(timer)clearInterval(timer);
+            await top10.stop();
             while(busy)await new Promise(done=>setTimeout(done,250));
             await browser.close();
           };

@@ -14,13 +14,27 @@
   const td=document.createElement('td');if(cls)td.className=cls;
   td.textContent=label;row.append(td);
  };
+ const linkedPlayer=(name,members)=>{
+  const person=members.find(m=>m.gamertag?.toLowerCase()===String(name||'').toLowerCase());
+  const id=person?.linkedDiscord?.id;
+  return /^\d{15,22}$/.test(String(id||''))?'/u/'+id:null;
+ };
+ const playerCell=(row,name,members)=>{
+  const td=document.createElement('td'),href=linkedPlayer(name,members);
+  const element=document.createElement(href?'a':'span');
+  if(href){element.href=href;element.className='mega-top-team-link';}
+  element.textContent=name;td.append(element);row.append(td);
+ };
  function rebuildRows(data){
   const rows=root.querySelector('[data-mega-rows]'),rank=root.querySelector('[data-mega-leaderboard]'),history=root.querySelector('[data-mega-history]');
   if(rows){
    const fragment=document.createDocumentFragment();
    for(const m of data.members||[]){
     const tr=document.createElement('tr'),td=document.createElement('td');
-    const title=document.createElement('b');title.textContent=m.gamertag;
+    const href=linkedPlayer(m.gamertag,data.members||[]);
+    const title=document.createElement(href?'a':'b');
+    if(href){title.href=href;title.className='mega-top-team-link';}
+    title.textContent=m.gamertag;
     const sub=document.createElement('small');sub.textContent=(m.role||'Member')+' · '+source(m.source)+(m.status==='former'?' · Former':'');
     td.append(title,sub);
     if(m.linkedDiscord&&/^\d{15,22}$/.test(String(m.linkedDiscord.id||''))){
@@ -37,10 +51,13 @@
    rows.replaceChildren(fragment);
   }
   if(rank){
-   const active=(data.members||[]).filter(m=>m.status==='active').sort((a,b)=>(b.deposits??b.observedDeposits??-1)-(a.deposits??a.observedDeposits??-1)||a.gamertag.localeCompare(b.gamertag));
+   const active=(data.members||[]).filter(m=>m.status!=='former'&&(m.deposits!=null||m.observedDeposits!=null))
+     .sort((a,b)=>Number(b.deposits??b.observedDeposits??-1)-Number(a.deposits??a.observedDeposits??-1)||a.gamertag.localeCompare(b.gamertag));
    const fragment=document.createDocumentFragment();
    for(const [i,m] of active.entries()){
-    const tr=document.createElement('tr');cell(tr,'#'+(i+1));cell(tr,m.gamertag);cell(tr,money(m.deposits??m.observedDeposits),'mega-number');
+    const tr=document.createElement('tr');cell(tr,'#'+(i+1));
+    playerCell(tr,m.gamertag,data.members||[]);
+    cell(tr,money(m.deposits??m.observedDeposits),'mega-number');
     fragment.append(tr);
    }
    if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No ranked contributions yet.');fragment.append(empty);}
@@ -50,7 +67,7 @@
    const fragment=document.createDocumentFragment();
    for(const t of data.transactions||[]){
     const tr=document.createElement('tr');
-    cell(tr,date(t.occurred_at));cell(tr,t.gamertag);cell(tr,t.kind==='deposit'?'Deposit':'Withdrawal');
+    cell(tr,date(t.occurred_at));playerCell(tr,t.gamertag,data.members||[]);cell(tr,t.kind==='deposit'?'Deposit':'Withdrawal');
     cell(tr,money(t.amount),'mega-number');fragment.append(tr);
    }
    if(!fragment.childNodes.length){const empty=document.createElement('tr');cell(empty,'No individual transactions recorded yet.');fragment.append(empty);}
@@ -59,7 +76,8 @@
   const observed=root.querySelector('[data-mega-observed]');
   if(observed){const fragment=document.createDocumentFragment();
    for(const event of data.capturedTransactions||[]){
-    const row=document.createElement('tr');cell(row,event.time||'Unknown time');cell(row,event.gamertag);
+    const row=document.createElement('tr');cell(row,event.time||'Unknown time');
+    playerCell(row,event.gamertag,data.members||[]);
     cell(row,event.kind);cell(row,event.amount==null?'Not recorded':'$'+event.amount,'mega-number');fragment.append(row);
    }
    if(!fragment.childNodes.length){const row=document.createElement('tr');cell(row,'No browser-captured bank events yet.');fragment.append(row);}
@@ -80,8 +98,15 @@
    if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw new Error('Refresh failed');
    const data=await response.json();
    if(data?.teamId!=='5638a504-3347-43fc-89d6-424dad53b7f6'||data.season?.season!==season)throw new Error('Unexpected team data');
+   const hasObserved=Number(data.captured?.totalEvents||0)>0;
+   const obsDeposits=hasObserved?Number(data.captured?.deposited):null;
+   const obsWithdrawals=hasObserved?Number(data.captured?.withdrawn):null;
+   const obsNet=hasObserved&&Number.isFinite(obsDeposits)&&Number.isFinite(obsWithdrawals)?
+     obsDeposits-obsWithdrawals:null;
    for(const [key,amount] of Object.entries({balance:data.bank?.balance??null,
-      deposits:data.totals.deposited,withdrawals:data.totals.withdrawn,net:data.totals.net})){
+      deposits:data.totals.deposited??obsDeposits,
+      withdrawals:data.totals.withdrawn??obsWithdrawals,
+      net:data.totals.net??obsNet})){
     const element=root.querySelector('[data-mega-value="'+key+'"]');if(element)element.textContent=short(amount);
    }
    for(const [key,amount] of Object.entries({'captured-deposits':data.captured?.deposited,'captured-withdrawals':data.captured?.withdrawn})){
