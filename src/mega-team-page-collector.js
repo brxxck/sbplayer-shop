@@ -168,7 +168,7 @@ async function alreadyShowingBankRows(page,selector){
 // Only expose allowlisted booleans in errors; no page contents, cookies or user data.
 // Privacy-safe page diagnostics: never return text content, player names,
 // cookies, URLs with query strings, or raw network errors.
-export async function megaCollectorPageDiagnostics(page,teamId=MEGA_TEAM_ID){
+export async function megaCollectorPageDiagnostics(page){
  try{
   return await page.evaluate(teamId=>{
    const body=String(document.body?.innerText||'');
@@ -191,11 +191,11 @@ export async function megaCollectorPageDiagnostics(page,teamId=MEGA_TEAM_ID){
     verification:/verify you are human|captcha|security challenge/i.test(body),
     loginPrompt:/login required|sign in to (?:view|access)/i.test(body)
    };
-  },teamId);
+  },MEGA_TEAM_ID);
  }catch{return {diagnosticUnavailable:true};}
 }
-async function teamPageSignals(page,{teamId=MEGA_TEAM_ID}={}){
- const snapshot=await megaCollectorPageDiagnostics(page,teamId);
+async function teamPageSignals(page){
+ const snapshot=await megaCollectorPageDiagnostics(page);
  return {
   team:!!snapshot.team,events:!!(snapshot.bodyEventLog??snapshot.events),
   bank:!!snapshot.bankControls||!!snapshot.balance,
@@ -238,7 +238,7 @@ export async function revealTeamEventLog(page,{checks=14,intervalMs=500}={}){
  return false;
 }
 
-export async function selectBankEventLog(page,{selector='',viewportChecks=14,teamId=MEGA_TEAM_ID}={}){
+export async function selectBankEventLog(page,{selector='',viewportChecks=14}={}){
  const waits=[0,600,1000,1500,1900];
  let parentOpened=false,scrolled=false;
  for(let step=0;step<waits.length;step++){
@@ -258,7 +258,7 @@ export async function selectBankEventLog(page,{selector='',viewportChecks=14,tea
    if(await openBankTab(page))return true;
   }
  }
- const flags=await teamPageSignals(page,{teamId});
+ const flags=await teamPageSignals(page);
  if(flags.verification||flags.signin)throw new Error('Event Log requires sign-in or verification; collector did not bypass it.');
  if(flags.team&&!flags.events)throw new Error('Team profile loaded but Event Log absent after scrolling '+
   '(members:'+!!flags.members+',balance:'+!!flags.balance+'). Check lazy loading.');
@@ -299,52 +299,6 @@ async function nextPage(page){
     }
   }
   return false;
-}
-
-// Bounded read-only event pagination for teams other than SBsxScam.
-// Reuses the navigation and scroll strategy of the working bank collector.
-export async function captureVisibleBankEventRows(page,{
- teamId=MEGA_TEAM_ID,selector='',maxRows=500,maxScrolls=14,maxPages=5
-}={}){
- const target=new URL(page.url());
- if(target.protocol!=='https:'||target.hostname!=='inpvp.net'||
-    target.searchParams.get('id')!==teamId)
-   throw new Error('Bank Event Log is not on the approved team page.');
- await selectBankEventLog(page,{selector,viewportChecks:18,teamId});
- const rows=new Map();
- let pagesVisited=0,scrolls=0;
- for(let pageIndex=0;pageIndex<Math.min(6,maxPages);pageIndex++){
-  pagesVisited++;
-  let noGrowth=0;
-  for(let step=0;step<Math.min(22,maxScrolls);step++){
-   scrolls++;
-   const visible=await extractBankRows(page,{selector,maxRows:Math.min(500,maxRows)});
-   const previous=rows.size;
-   const withinViewport=new Map();
-   for(const row of visible){
-    const text=String(row?.text||'').replace(/\s+/g,' ').trim();
-    if(!text||text.length>320)continue;
-    const ordinal=(withinViewport.get(text)||0)+1;
-    withinViewport.set(text,ordinal);
-    const key=row.eventId?'id:'+row.eventId:'text:'+text+':'+ordinal;
-    if(!rows.has(key))rows.set(key,row);
-    if(rows.size>=maxRows)break;
-   }
-   if(rows.size>=maxRows)break;
-   noGrowth=rows.size===previous?noGrowth+1:0;
-   const moved=await scrollEventLog(page);
-   if((!moved.scrolled||moved.atEnd)&&noGrowth>=2)break;
-   await delay(220);
-  }
-  if(rows.size>=maxRows||!await nextPage(page))break;
-  const url=new URL(page.url());
-  if(url.protocol!=='https:'||url.hostname!=='inpvp.net'||
-     url.searchParams.get('id')!==teamId)
-    throw new Error('Bank event pagination left the approved team page.');
-  await delay(400);
- }
- return {rows:[...rows.values()].slice(0,maxRows),
-  pagesVisited,scrolls,selected:true,historyComplete:false};
 }
 
 // Read only labeled team information, never infer membership from bank activity.
