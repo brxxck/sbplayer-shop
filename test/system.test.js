@@ -93,7 +93,7 @@ test('Xbox gamertag profile integration is disabled cleanly until configured',as
  assert.doesNotMatch(await otherPage.text(),/Verified Xbox gamertag:/);
  const start=await post('/profile/microsoft/start','member',{});
  assert.equal(start.status,303);
- assert.match(start.headers.get('location'),/Xbox.*not.*configured/i);
+ assert.equal(start.headers.get('location'),'/profile/microsoft/result?status=not_configured');
  const missingCsrf=await fetch(base+'/profile/microsoft/unlink',{
   method:'POST',headers:{cookie:sessions.get('member').cookie,
    'content-type':'application/x-www-form-urlencoded'},
@@ -140,7 +140,7 @@ test('Xbox account menu navigates to Microsoft via GET, bypassing form-action re
   assert.equal(oauth.origin,'https://login.microsoftonline.com');
   assert.equal(oauth.pathname,'/consumers/oauth2/v2.0/authorize');
   assert.equal(oauth.searchParams.get('scope'),'xboxlive.signin');
-  assert.equal(oauth.searchParams.get('redirect_uri'),'https://sbstore.info/profile/microsoft/callback');
+  assert.equal(oauth.searchParams.get('redirect_uri'),config.baseUrl+'/profile/microsoft/callback');
   assert.ok(oauth.searchParams.get('state'));
   assert.equal(oauth.searchParams.get('code_challenge_method'),'S256');
   const foreign=await fetch(host+'/profile/microsoft/start',{
