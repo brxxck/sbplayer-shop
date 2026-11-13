@@ -712,3 +712,7 @@
  .mega-top-actions .btn{width:100%;justify-content:center}
  .mega-top-hero{display:grid}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.mega-title-place{display:inline-flex;align-items:center;margin-left:10px;font-size:clamp(15px,2vw,23px);color:#80c5ff;text-decoration:none;white-space:nowrap}
+.mega-title-place:hover{text-decoration:underline;color:#fff}
