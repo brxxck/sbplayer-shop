@@ -27,13 +27,17 @@ function pager(data){
    item(Math.min(pages,page+1),'Next',!data.hasNext)+'</nav>';
 }
 function memberLink(row){
- const player='<a href="'+attr(link('/team/mega/history',{season:row.season||'current',player:row.gamertag}))+
-   '" class="mega-history-gamertag">'+esc(row.gamertag)+'</a>';
- const discord=row.discordId?
+ const matched=/^\d{15,22}$/.test(String(row.discordId||''));
+ const filtered=link('/team/mega/history',{season:row.season||'current',player:row.gamertag});
+ const href=matched?'/u/'+row.discordId:filtered;
+ const player='<a href="'+attr(href)+'" class="mega-history-gamertag"'+
+   (matched?' title="Open linked Discord website profile"':'')+'>'+esc(row.gamertag)+'</a>';
+ const discord=matched?
    '<a href="/u/'+attr(row.discordId)+'" class="mega-matched-discord">'+
    icon('user-round-check',{size:15})+' @'+esc(row.discordUsername||row.discordName||row.discordId)+'</a>':
    '<span class="mega-history-unmatched">Discord not matched</span>';
- return '<span class="mega-history-person">'+player+discord+'</span>';
+ return '<span class="mega-history-person">'+player+discord+
+   (matched?'<a href="'+attr(filtered)+'" class="quiet-link">Filter bank events</a>':'')+'</span>';
 }
 export function megaHistoryPage(ctx,data){
  const seasons=data.seasons||[];
@@ -73,7 +77,7 @@ export function megaHistoryPage(ctx,data){
  const body=titlebar('MEGASMP BANK HISTORY','Captured <span class="gradient">transactions.</span>',
    'Every saved Bank Event Log entry, including older pages — no 100-event display cap.')+
    '<div class="mega-history-container"><div class="mega-history-actions">'+
-   '<a class="btn btn-outline" href="'+attr(link('/team',{tab:'mega',season:data.season}))+'">'+
+   '<a class="btn btn-outline" href="'+attr(link('/mega-team',{season:data.season}))+'">'+
    icon('arrow-left',{size:17})+' Team dashboard</a>'+owner+'</div>'+
    '<div class="mega-history-alert" role="status">'+icon('triangle-alert',{size:18})+' '+
    esc(coverage)+'</div>'+
