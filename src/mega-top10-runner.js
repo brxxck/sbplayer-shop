@@ -6,6 +6,11 @@ import {TOP10_LIST_POLL_MS,TOP10_TEAM_SPACING_MS,
   allTop10KnownTeams,saveTop10Leaderboard,top10NextDue,noteTop10Failure,
   noteTopTeamAttempt,noteTopTeamFailure,saveTopTeamDetails} from './mega-top10-store.js';
 import {captureTop10Leaderboard,captureTopTeamDetails} from './mega-top10-collector.js';
+import {captureInPvPProfileDiscord} from './mega-inpvp-discord-collector.js';
+import {matchInPvPDiscordToGuild,registeredWebsiteMember} from './mega-inpvp-discord-match.js';
+import {enqueueMegaProfileCandidates,nextMegaProfileScan,markMegaProfileScan,
+  autoLinkMegaProfile} from './mega-player-profile-links.js';
+import {topTeamDetails} from './mega-top10-store.js';
 
 const safeDiagnostic=e=>{
  const d=e?.safeDiagnostic;
@@ -38,7 +43,7 @@ export function createMegaTop10Poller({
  onLog=message=>console.log('[Mega Top10] '+message)
 }={}){
  if(!browser)throw new Error('Browser required for MegaSMP Top 10 collector.');
- let busy=false,stopping=false,listTimer=null,detailTimer=null;
+ let busy=false,stopping=false,listTimer=null,detailTimer=null,profileTimer=null;
  async function withPage(work){
    let context=null,page=null;
    try{
@@ -85,6 +90,7 @@ export function createMegaTop10Poller({
    try{
      const capture=await withPage(page=>captureTopTeamDetails(page,target));
      const result=saveTopTeamDetails(target.id,capture);
+     enqueueMegaProfileCandidates(capture.roster||[]);
      onLog('Team '+target.name+': player list '+
        (result.members?result.members+' observed names':'not exposed by source')+
        '. Bank-event collection remains exclusive to the SBsxScam dashboard.');
@@ -95,20 +101,68 @@ export function createMegaTop10Poller({
      return false;
    }finally{busy=false;}
  }
+ async function updateOneProfile(){
+   if(busy||mainBusy()||stopping)return false;
+   const next=nextMegaProfileScan();
+   if(!next)return false;
+   busy=true;
+   let status='unavailable';
+   try{
+     const badge=await withPage(page=>
+       captureInPvPProfileDiscord(page,next.gamertag));
+     if(badge.status!=='found'){
+       status=['no-discord','not-found','verification','redirected','ambiguous']
+         .includes(badge.status)?badge.status.replace('-','_'):'unavailable';
+       return false;
+     }
+     const match=await matchInPvPDiscordToGuild(badge);
+     if(match.status!=='matched'){
+       status=['ambiguous','discord_not_found','api_unavailable']
+         .includes(match.status)?match.status:'unavailable';
+       return false;
+     }
+     if(!registeredWebsiteMember(match.discordId)){
+       status='not_registered';
+       return false;
+     }
+     const saved=autoLinkMegaProfile({
+       gamertag:next.gamertag,discordId:match.discordId,
+       discordHandle:match.discordHandle,profileUrl:badge.profileUrl
+     });
+     status=saved.status==='suppressed'?'already_linked':saved.status;
+     if(saved.changed)onLog('InPvP profile Discord badge automatically linked to an existing website account.');
+     return saved.status==='linked';
+   }catch{
+     // Never print personal profile text, Discord identities or browser state.
+     status='unavailable';
+     return false;
+   }finally{
+     markMegaProfileScan(next.gamertag,status);
+     busy=false;
+   }
+ }
  function start(){
-   if(stopping||listTimer||detailTimer)return;
+   if(stopping||listTimer||detailTimer||profileTimer)return;
+   // Existing saved rosters should be considered as well as new captures.
+   for(const team of allTop10KnownTeams()){
+     const detail=topTeamDetails(team.id);
+     enqueueMegaProfileCandidates((detail?.members||[]).filter(p=>p.rosterObserved));
+   }
    // First full SBsxScam capture is already scheduled by the parent worker.
    // Start ranking discovery now and stagger all other teams over five minutes.
    void updateList();
    listTimer=setInterval(()=>{void updateList();},TOP10_LIST_POLL_MS);
    detailTimer=setInterval(()=>{void updateOneTeam();},TOP10_TEAM_SPACING_MS);
+   // One public player profile at a time, staggered behind bank and team reads.
+   profileTimer=setInterval(()=>{void updateOneProfile();},20000);
  }
  async function stop(){
    stopping=true;
    if(listTimer)clearInterval(listTimer);
    if(detailTimer)clearInterval(detailTimer);
-   listTimer=null;detailTimer=null;
+   if(profileTimer)clearInterval(profileTimer);
+   listTimer=null;detailTimer=null;profileTimer=null;
    while(busy)await new Promise(resolve=>setTimeout(resolve,100));
  }
- return {start,stop,updateList,updateOneTeam,get busy(){return busy;}};
+ return {start,stop,updateList,updateOneTeam,updateOneProfile,get busy(){return busy;}};
 }
