@@ -207,7 +207,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(config.production)res.setHeader('strict-transport-security','max-age=31536000; includeSubDomains');
     const url=new URL(req.url||'/','http://localhost');
     const pathname=url.pathname;
-    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,notificationCount:0,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
+    const ctx={pathname,user:null,role:'none',session:null,member:null,guild:null,promotionEligible:false,staffNavigation:false,teamApplicationEligible:false,notificationCount:0,csrf:'',ip:ipOf(req),config,notice:url.searchParams.get('notice')||'',noticeType:url.searchParams.get('type')||''};
     const c=cookies(req.headers.cookie);
     if(c.sid){const session=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(session){ctx.session=session;ctx.user=one('SELECT * FROM users WHERE id=?',session.user_id);ctx.csrf=session.csrf;}}
     // Share the member's uploaded avatar with the global header; Discord avatar remains fallback.
@@ -241,11 +241,16 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          const owned=new Set(actual.roles||[]);
          // Non-admin team roles affect navigation only, never privileged access.
          ctx.staffNavigation=isStaffRole(ctx.role)||ctx.promotionEligible||
-           guildRoles.some(r=>owned.has(r.id)&&['Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
+           guildRoles.some(r=>owned.has(r.id)&&['Ownership','Administration','Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
+         const sbsMembership=sbsTeamMembership(actual.roles||[]);
+         // No recruitment for existing SBs players or existing SB Store staff.
+         // Only a successful Discord role lookup can grant application eligibility.
+         ctx.teamApplicationEligible=!ctx.staffNavigation&&!sbsMembership.member&&!sbsMembership.leader;
        }catch{
          // Bot role lookup failure must never grant additional permissions.
          ctx.promotionEligible=false;
          ctx.staffNavigation=isStaffRole(ctx.role);
+         ctx.teamApplicationEligible=false;
        }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       ctx.teamRecruiter=isAdminRole(ctx.role)||sbsTeamMembership(actual.roles||[]).leader;
@@ -270,7 +275,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.10.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.10.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -589,6 +594,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!canReviewTeam())forbidden('Only verified SBs team leaders and website admins can review team applications.');
     }
     if(pathname==='/team-applications/apply'&&req.method==='GET'){
+      if(!ctx.teamApplicationEligible)forbidden('SBsxScam applications are only available to non-staff members who are not already on the team.');
       return html(teamApplicationViews.teamApplyPage(ctx,{
         xboxLink:xboxLinkForUser(ctx.user.id),
         active:activeTeamApplication(ctx.user.id),
@@ -598,6 +604,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }));
     }
     if(pathname==='/team-applications/apply'&&req.method==='POST'){
+      if(!ctx.teamApplicationEligible)forbidden('SBsxScam applications are only available to non-staff members who are not already on the team.');
       rate(ctx,'team.application.submit',3,3600000);
       const {fields}=await form();
       const linked=linkedXboxOrReject();
@@ -1874,5 +1881,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.10.1 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.10.2 running at ${config.baseUrl}`));
 }

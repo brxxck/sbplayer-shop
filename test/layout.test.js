@@ -11,6 +11,7 @@ Object.assign(process.env,{
   DISCORD_BOT_TOKEN:'fake',DISCORD_GUILD_ID:'100000000000000001',BASE_URL:'https://sbstore.info'
 });
 const {home,avatar}=await import('../src/views.js');
+const {chooseTicket}=await import('../src/support-views.js');
 const {evidenceGallery,evidenceViewerDialog}=await import('../src/evidence-views.js');
 const {createServer}=await import('../src/server.js');
 const {db}=await import('../src/db.js');
@@ -23,8 +24,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.10\.1-clean-ui/);
-  assert.match(page,/\/static\/app\.js\?v=1\.10\.1-clean-ui/);
+  assert.match(page,/\/static\/style\.css\?v=1\.10\.2-ticket-applications/);
+  assert.match(page,/\/static\/app\.js\?v=1\.10\.2-ticket-applications/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -97,8 +98,8 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
 
 test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  const page=home(signed);
- assert.match(page,/\/static\/mega-team\.js\?v=1\.10\.1-clean-ui/);
- assert.match(page,/\/static\/mega-top10\.js\?v=1\.10\.1-clean-ui/);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.10\.2-ticket-applications/);
+ assert.match(page,/\/static\/mega-top10\.js\?v=1\.10\.2-ticket-applications/);
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {megaTeamPanel}=await import('../src/mega-team-views.js');
  const dashboard=megaDashboard();
@@ -125,35 +126,40 @@ test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  assert.doesNotMatch(script,/inpvp\.net\/api/,'the browser must not scrape InPvP');
 });
 
-test('staff, mods and temp mods use promotion navigation; ordinary members keep applications',()=>{
-  const user={id:'100000000000000002',username:'sbs-user',display_name:'SB'};
-  const variants=[
-    {role:'member',staffNavigation:false,kind:'ordinary member',promote:false},
-    {role:'member',staffNavigation:true,kind:'Staff',promote:true},
-    {role:'member',staffNavigation:true,kind:'Mod',promote:true},
-    {role:'member',promotionEligible:true,kind:'Temp Mod',promote:true},
-    {role:'reviewer',kind:'Reviewer staff',promote:true},
-    {role:'admin',kind:'Admin',promote:true},
-    {role:'owner',kind:'Owner',promote:true}
-  ];
-  for(const v of variants){
-    const page=home({...blank,...v,user,csrf:'fixture'});
-    const discover=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
-    const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
-    if(v.promote){
-      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(!discover.includes('href="'+link+'"'),v.kind+' must not see '+link+' in sidebar');
-      for(const link of ['/tickets/mine','/dashboard'])assert.ok(!mobile.includes('href="'+link+'"'),v.kind+' must not see '+link+' in mobile navigation');
-      assert.equal((discover.match(/href="\/promotions"/g)||[]).length,1,v.kind+' gets one promotion link');
-      assert.ok(discover.includes('Apply for a Promotion'),v.kind+' should see promotion shortcut');
-      assert.ok(mobile.includes('<a href="/promotions">Apply for a Promotion</a>'),v.kind+' should have mobile promotion shortcut');
-    }else{
-      for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(discover.includes('href="'+link+'"'),v.kind+' keeps '+link+' in sidebar');
-      for(const link of ['/tickets/mine','/dashboard'])assert.ok(mobile.includes('href="'+link+'"'),v.kind+' keeps '+link+' in mobile navigation');
-      assert.ok(!discover.includes('href="/promotions"'),v.kind+' must not see the promotion shortcut');
-    }
+test('promotion and SBsxScam application links live only in the role-appropriate ticket picker',()=>{
+ const user={id:'100000000000000002',username:'sbs-user',display_name:'SB'};
+ const variants=[
+  {role:'member',kind:'ordinary member',teamApplicationEligible:true,promotionEligible:false,staffNavigation:false},
+  {role:'member',kind:'existing SBs member',teamApplicationEligible:false,promotionEligible:false,staffNavigation:false},
+  {role:'member',kind:'Temp Mod',teamApplicationEligible:false,promotionEligible:true,staffNavigation:true},
+  {role:'member',kind:'Mod',teamApplicationEligible:false,promotionEligible:true,staffNavigation:true},
+  {role:'member',kind:'Staff',teamApplicationEligible:false,promotionEligible:false,staffNavigation:true},
+  {role:'reviewer',kind:'Reviewer',teamApplicationEligible:false,promotionEligible:false,staffNavigation:true},
+  {role:'admin',kind:'Admin',teamApplicationEligible:false,promotionEligible:false,staffNavigation:true},
+  {role:'owner',kind:'Owner',teamApplicationEligible:false,promotionEligible:false,staffNavigation:true}
+ ];
+ for(const item of variants){
+  const context={...blank,...item,user,csrf:'fixture'};
+  const page=home(context);
+  const discover=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
+  const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
+  for(const route of ['/promotions','/team-applications/apply']){
+   assert.ok(!discover.includes('href="'+route+'"'),item.kind+' has no separate desktop tab '+route);
+   assert.ok(!mobile.includes('href="'+route+'"'),item.kind+' has no separate mobile tab '+route);
   }
+  if(item.staffNavigation){
+   assert.ok(!discover.includes('href="/apply"'),item.kind+' does not get a new staff application shortcut');
+  }else{
+   assert.ok(discover.includes('href="/apply"'),item.kind+' keeps staff applications');
+  }
+  const picker=chooseTicket(context);
+  assert.equal(picker.includes('href="/promotions/new"'),item.promotionEligible,
+   'promotion card matches verified Temp Mod/Mod eligibility for '+item.kind);
+  assert.equal(picker.includes('href="/team-applications/apply"'),item.teamApplicationEligible,
+   'team recruitment card matches non-staff, non-team membership for '+item.kind);
+  assert.ok(picker.includes('View My Tickets'),item.kind+' retains ticket history');
+ }
 });
-
 
 test('full social toolbar appears beside profile name with desktop icons and mobile account menu',()=>{
   const member={...signed,role:'member',notificationCount:7};
@@ -337,7 +343,9 @@ test('clean UI uses compact headings and keeps meaningful field labels',async()=
  assert.doesNotMatch(publicHome,/ONE COMMUNITY\. ONE PLACE/);
  assert.doesNotMatch(publicHome,/WELCOME TO THE COMMUNITY/);
  const memberShell=landing(signed);
- assert.match(memberShell,/href="\/team-applications\/apply"[^>]*>[\s\S]*?Join SBs/);
+ assert.doesNotMatch(memberShell,/href="\/team-applications\/apply"/);
+ assert.ok(chooseTicket({...signed,teamApplicationEligible:true}).includes('href="/team-applications/apply"'));
+ assert.ok(chooseTicket({...signed,teamApplicationEligible:true}).includes('Join SBsxScam'));
  assert.doesNotMatch(memberShell,/<span class="muted">Community<\/span><span class="sep">/);
  assert.ok(!memberShell.includes('Community Portal V1.10.0'));
  const staffForm=apply(signedCtx,{open:true,active:null,cooldown:false,xboxLink:{gamertag:'SBisOnTop'}});

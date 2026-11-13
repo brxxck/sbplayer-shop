@@ -244,30 +244,52 @@ test('collector diagnostic screenshots require verified website owner access',as
  rmSync(file,{force:true});
 });
 
-test('verified SB Store Staff, Mod and Temp Mod Discord roles use promotion navigation',async()=>{
-  for(const who of ['member7','member8','member9'])await login(who);
-  const promotedNavUsers=['owner','adminA','reviewer','member6','member7','member8','member9'];
-  for(const who of promotedNavUsers){
-    const response=await get('/',who);
-    assert.equal(response.status,200);
-    const page=await response.text();
-    const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
-    assert.ok(nav.includes('Apply for a Promotion'),who+' should have promotion tab');
-    assert.equal((nav.match(/href="\/promotions"/g)||[]).length,1,who+' gets one promotion tab');
-    assert.ok(!nav.includes('href="/tickets/mine"'),who+' should not have My Tickets tab');
-    assert.ok(!nav.includes('href="/dashboard"'),who+' should not have My Applications tab');
-    assert.ok(!nav.includes('href="/apply"'),who+' should not have Apply for Staff tab');
+test('ticket picker shows promotion only to Temp Mods/Mods and team recruitment only to non-staff',async()=>{
+ for(const who of ['member7','member8','member9'])await login(who);
+ const promotionEligible=new Set(['member7','member8']);
+ const teamEligible=new Set(['member','member5']); // External Mega/Prison staff is not store staff.
+ const staff=new Set(['owner','adminA','reviewer','member6','member7','member8','member9']);
+ const allUsers=['owner','adminA','reviewer','member','member2','member3','member4','member5','member6','member7','member8','member9'];
+ for(const who of allUsers){
+  const response=await get('/',who);
+  assert.equal(response.status,200);
+  const page=await response.text();
+  const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
+  const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
+  for(const tab of ['/promotions','/team-applications/apply']){
+   assert.ok(!nav.includes('href="'+tab+'"'),who+' should not have a separate desktop application tab');
+   assert.ok(!mobile.includes('href="'+tab+'"'),who+' should not have a separate mobile application tab');
   }
-  // An external Mega SMP/Prison/SBs role must not be mistaken for SB Store Staff.
-  for(const who of ['member','member2','member3','member4']){
-    const page=await (await get('/',who)).text();
-    const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
-    for(const link of ['/tickets/mine','/dashboard','/apply'])assert.ok(nav.includes('href="'+link+'"'),who+' should retain '+link);
-    assert.ok(!nav.includes('Apply for a Promotion'),who+' should not see promotion tab');
-  }
-  assert.equal((await get('/promotions/new','member6')).status,403,'Staff cannot create promotion tickets beyond Staff');
-  assert.equal((await get('/promotions/new','member7')).status,200,'Temp Mod can submit promotion requests');
-  assert.equal((await get('/promotions/new','member8')).status,200,'Mod can submit promotion requests');
+  assert.equal(nav.includes('href="/apply"'),!staff.has(who),who+' keeps correct staff application navigation');
+  const pickerResponse=await get('/tickets/new',who);
+  assert.equal(pickerResponse.status,200);
+  const picker=await pickerResponse.text();
+  assert.equal(picker.includes('href="/promotions/new"'),promotionEligible.has(who),
+    who+' should see Promotion Ticket only when holding eligible Temp Mod or Mod role without Staff');
+  assert.equal(picker.includes('href="/team-applications/apply"'),teamEligible.has(who),
+    who+' should see Join SBsxScam only when neither staff nor an SBs team member');
+  assert.ok(picker.includes('href="/tickets/mine"'),who+' can still open ticket history');
+ }
+ assert.equal((await get('/promotions/new','member6')).status,403,'Staff cannot apply for promotion beyond Staff');
+ assert.equal((await get('/promotions/new','member7')).status,200,'Temp Mod can apply for promotion');
+ assert.equal((await get('/promotions/new','member8')).status,200,'Mod can apply for promotion');
+ assert.equal((await get('/promotions/new','member9')).status,403,'Staff also holding Mod must not get the promotion form');
+ for(const who of ['owner','adminA','reviewer','member2','member3','member4','member6','member7','member8','member9']){
+  assert.equal((await get('/team-applications/apply',who)).status,403,
+    who+' must not load the SBsxScam application form directly');
+ }
+ for(const who of ['member','member5'])
+  assert.equal((await get('/team-applications/apply',who)).status,200,who+' can access team application route');
+ // A verified Xbox link must not bypass the existing-staff restriction.
+ saveXboxLink({userId:ids.member6,identityKey:'f'.repeat(64),gamertag:'StaffXbox123'});
+ const response=await post('/team-applications/apply','member6',{
+  daily_earnings:'5000000',net_worth:'20000000',play_days:'5',play_hours:'3',timezone:'GMT',
+  skill_pvp:'on',bank_contribution:'yes',income_method:'I operate several crop farms',
+  motivation:'I would like to join and support the SBsxScam team.',
+  contribution:'I can help with grinding and daily bank deposits.'
+ });
+ assert.equal(response.status,403,'verified Store Staff cannot bypass recruitment restrictions with a direct POST');
+ assert.equal(one('SELECT COUNT(*) AS c FROM team_applications WHERE user_id=?',ids.member6).c,0);
 });
 
 test('Our Staff keeps actual store staff and Known Members separates Mega SMP / Prison tabs',async()=>{
