@@ -94,7 +94,7 @@ export function megaTeamDetailsPage(ctx,{team,links=[],currentSeason='current'})
     'Observed information from the team’s InPvP page; incomplete or unavailable fields remain explicitly marked.');
  const fields=[['Leaderboard position',rank],['Team bank',team.bankText||moneyCents(team.bankCents)],
    ['Level',number(team.level)],['Views',number(team.views)],
-   ['Displayed member count',number(team.memberCount)],['Observed bank events',number(team.eventCount)]];
+   ['Displayed member count',number(team.memberCount)],['Captured bank events',team.eventCount?number(team.eventCount):'Not yet captured']];
  const tiles='<div class="mega-top-kpis">'+fields.map(([label,value])=>
    '<div class="mega-stat panel"><span class="mega-stat-label">'+esc(label)+'</span>'+
    '<strong>'+esc(value)+'</strong></div>').join('')+'</div>';
@@ -105,17 +105,27 @@ export function megaTeamDetailsPage(ctx,{team,links=[],currentSeason='current'})
      (m.rosterObserved?'<small>Observed on team roster</small>':
       '<small>Bank activity only · membership not confirmed</small>')+'</td>'+
      '<td>'+esc(m.role||'Not verified')+'</td>'+
-     '<td class="mega-number">'+(recorded?moneyCents(m.depositsCents):'Not recorded')+'</td>'+
-     '<td class="mega-number">'+(recorded?moneyCents(m.withdrawalsCents):'Not recorded')+'</td>'+
-     '<td class="mega-number">'+(recorded?signedMoneyCents(m.netCents):'Not recorded')+'</td>'+
+     '<td class="mega-number">'+(m.reportedDepositsText?
+       esc(m.reportedDepositsText)+'<small>Reported by InPvP</small>':
+       recorded?moneyCents(m.depositsCents)+'<small>Captured events only</small>':'Not recorded')+'</td>'+
+     '<td class="mega-number">'+(m.reportedWithdrawalsText?
+       esc(m.reportedWithdrawalsText)+'<small>Reported by InPvP</small>':
+       recorded?moneyCents(m.withdrawalsCents)+'<small>Captured events only</small>':'Not recorded')+'</td>'+
+     '<td class="mega-number">'+(m.reportedNetText?
+       esc(m.reportedNetText)+'<small>Reported by InPvP</small>':
+       recorded?signedMoneyCents(m.netCents)+'<small>Captured events only</small>':'Not recorded')+'</td>'+
      '<td class="mega-number">'+(recorded?number(m.eventCount):'—')+'</td></tr>';
- }).join(''):'<tr><td colspan="6">No confirmed team members or bank transactions have been captured yet.</td></tr>';
+ }).join(''):'<tr><td colspan="6">'+(team.memberCount?'InPvP reports '+number(team.memberCount)+' members, but the visible roster names have not yet been captured.':'No verified roster names have been captured yet.')+'</td></tr>';
  const last=team.detailObservedAt;
  const events=team.events.length?team.events.map(e=>'<tr><td>'+esc(e.displayTime)+'</td>'+
    '<td>'+playerName(e.gamertag,byName.get(e.gamertag.toLowerCase()))+'</td>'+
    '<td>'+esc(e.kind==='deposit'?'Deposit':'Withdrawal')+'</td>'+
    '<td class="mega-number">'+moneyCents(e.amountCents)+'</td></tr>').join(''):
-   '<tr><td colspan="4">No visible bank events recorded yet.</td></tr>';
+   '<tr><td colspan="4">'+
+   (team.eventStatus==='empty_visible_log'?
+     'The visible Bank Event Log contained no readable transactions. History may still be incomplete.':
+     'Bank transactions have not been captured from this team yet.')+
+   '</td></tr>';
  return shell(ctx,team.name+' · MegaSMP',
   '<div class="mega-top-page">'+header+
   '<div class="mega-top-actions"><a class="btn btn-outline" href="/mega-team/leaderboard">'+
@@ -127,7 +137,7 @@ export function megaTeamDetailsPage(ctx,{team,links=[],currentSeason='current'})
    '</div>'+
    '<p class="mega-top-notice">Team details last captured: '+esc(date(last))+
    (team.detailError?' · Last collection warning: '+esc(team.detailError):'')+
-   '. Contribution amounts reflect only observed events, not verified lifetime totals.</p>'+
+   '. Player figures may come from InPvP roster totals or captured bank events; captured events do not prove lifetime totals.</p>'+
    tiles+
    '<section class="mega-section"><div class="mega-section-head"><h3>Players and contributions</h3>'+
    '<p>Click a Minecraft name to open its linked website profile when the owner has associated an account.</p></div>'+
