@@ -456,6 +456,19 @@
 .top-account-menu-identity small{display:block;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .top-account-menu-linked{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#79baec}
 .top-account-menu-linked .lucide-icon{width:14px;height:14px}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.9.1: Xbox sign-in action immediately below the account identity. */
+.top-account-menu-xbox{padding:9px 10px 11px;margin:0 0 2px;border-bottom:1px solid #253d60}
+.top-account-menu-xbox form{margin:0}
+.top-account-menu-xbox-button{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:40px;border-radius:9px;border:1px solid #357ed0;background:linear-gradient(100deg,#1c579e,#237de3);color:#fff;font-size:12px;font-weight:800;padding:9px 11px;cursor:pointer}
+.top-account-menu-xbox-button .lucide-icon{flex:none;width:17px;height:17px}
+.top-account-menu-xbox-button:hover{background:linear-gradient(100deg,#286fc2,#398df6);border-color:#8ec6ff}
+.top-account-menu-xbox-button:focus-visible{outline:2px solid #a2d4ff;outline-offset:2px}
+.top-account-menu-xbox-status{display:flex;align-items:center;gap:5px;font-size:11px;color:#85cebd;padding:7px 2px 0;overflow-wrap:anywhere}
+.top-account-menu-xbox-status .lucide-icon{flex:none;width:13px;height:13px}
+.top-account-menu-xbox-unavailable{display:flex;align-items:center;gap:8px;min-height:36px;color:#8b9db5;font-size:11px;padding:5px 7px}
+.top-account-menu-xbox-unavailable .lucide-icon{width:17px;height:17px;flex:none}
 .top-account-menu>a .menu-action-icon{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;flex:none;color:#79b7ff}
 .top-account-menu>a .menu-action-icon .lucide-icon{width:19px;height:19px}
 .top-account-menu>a:hover .menu-action-icon{color:#f3faff}
