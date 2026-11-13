@@ -62,6 +62,21 @@ db.exec([
  "CREATE TABLE IF NOT EXISTS mega_top_events (team_id TEXT NOT NULL REFERENCES mega_top_teams(team_id),event_key TEXT NOT NULL,gamertag TEXT NOT NULL COLLATE NOCASE,kind TEXT NOT NULL CHECK(kind IN ('deposit','withdrawal')),amount_cents INTEGER NOT NULL CHECK(amount_cents>0),display_time TEXT NOT NULL,first_seen_at INTEGER NOT NULL,last_seen_at INTEGER NOT NULL,PRIMARY KEY(team_id,event_key))",
  "CREATE INDEX IF NOT EXISTS idx_mega_top_events_player ON mega_top_events(team_id,gamertag)"
 ].join(';')+';');
+// Non-destructive migration: preserve every existing bank, team and roster row.
+const teamCols=new Set(all("PRAGMA table_info('mega_top_teams')").map(x=>x.name));
+for(const [name,definition] of [
+ ['roster_complete','INTEGER NOT NULL DEFAULT 0'],
+ ['roster_observed_at','INTEGER NOT NULL DEFAULT 0']
+]){
+ if(!teamCols.has(name)){
+  try{db.exec('ALTER TABLE mega_top_teams ADD COLUMN '+name+' '+definition);}
+  catch(error){
+   // The Railway web process and Chromium worker can initialize together.
+   // If the other process already added the column, continue safely.
+   if(!/duplicate column name/i.test(String(error?.message||'')))throw error;
+  }
+ }
+}
 run('INSERT OR IGNORE INTO mega_top_status(id) VALUES(1)');
 for(const [name,id] of KNOWN_TEAM_LINKS)
  run('INSERT OR IGNORE INTO mega_top_teams(team_id,name,team_url) VALUES(?,?,?)',id,name,canonicalTeamLink(name,id));
@@ -79,7 +94,7 @@ export function top10Leaderboard(){
 }
 export function topTeamById(id){
  if(typeof id!=='string'||!(UUID.test(id)||NUMERIC.test(id)))return null;
- return one("SELECT team_id AS id,name,team_url AS url,rank,bank_text AS bankText,bank_cents AS bankCents,bank_approx AS approximate,level,views,member_count AS memberCount,roster_json AS rosterJson,rank_observed_at AS rankObservedAt,detail_observed_at AS detailObservedAt,detail_attempt_at AS detailAttemptAt,detail_error AS detailError,source FROM mega_top_teams WHERE team_id=?",id)||null;
+ return one("SELECT team_id AS id,name,team_url AS url,rank,bank_text AS bankText,bank_cents AS bankCents,bank_approx AS approximate,level,views,member_count AS memberCount,roster_json AS rosterJson,rank_observed_at AS rankObservedAt,detail_observed_at AS detailObservedAt,detail_attempt_at AS detailAttemptAt,detail_error AS detailError,roster_complete AS rosterComplete,roster_observed_at AS rosterObservedAt,source FROM mega_top_teams WHERE team_id=?",id)||null;
 }
 
 export function saveTop10Leaderboard(rows,{at=Date.now()}={}){
@@ -170,16 +185,27 @@ export function saveTopTeamDetails(teamId,capture,{at=Date.now()}={}){
    events.push({...parsed,key});
  }
  const memberCount=nint(capture.memberCount,100000);
+ const complete=capture.rosterComplete===true&&memberCount!==null&&roster.length===memberCount;
+ let previous=[];
+ try{previous=JSON.parse(team.rosterJson||'[]');}catch{}
+ // A partial capture must not overwrite a previously complete/larger roster.
+ // Full new captures may safely replace the last complete list after changes.
+ const updateRoster=complete||(roster.length>0&&
+   !team.rosterComplete&&roster.length>=previous.length);
+ const rosterComplete=updateRoster?(complete?1:0):Number(team.rosterComplete)||0;
+ const rosterObservedAt=updateRoster?at:team.rosterObservedAt||0;
  return transaction(()=>{
    run('UPDATE mega_top_teams SET '+
      'bank_text=COALESCE(?,bank_text),bank_cents=COALESCE(?,bank_cents),'+
      'bank_approx=CASE WHEN ? IS NOT NULL THEN ? ELSE bank_approx END,'+
      'level=COALESCE(?,level),views=COALESCE(?,views),member_count=COALESCE(?,member_count),'+
      'roster_json=CASE WHEN ? THEN ? ELSE roster_json END,'+
+     'roster_complete=?,roster_observed_at=?,'+
      'detail_observed_at=?,detail_attempt_at=?,detail_error=? WHERE team_id=?',
      money.text,money.cents,money.text,money.approximate?1:0,
      nint(capture.level,100000),nint(capture.views,1000000000),memberCount,
-     roster.length?1:0,JSON.stringify(roster),at,at,'',teamId);
+     updateRoster?1:0,JSON.stringify(roster),rosterComplete,rosterObservedAt,
+     at,at,'',teamId);
    let inserted=0;
    for(const event of events){
      const prev=one('SELECT gamertag,kind,amount_cents,display_time FROM mega_top_events WHERE team_id=? AND event_key=?',
@@ -196,7 +222,7 @@ export function saveTopTeamDetails(teamId,capture,{at=Date.now()}={}){
        inserted++;
      }
    }
-   return {members:roster.length,eventsObserved:events.length,eventsAdded:inserted};
+   return {members:roster.length,complete,rosterSaved:updateRoster,eventsObserved:events.length,eventsAdded:inserted};
  });
 }
 export function topTeamDetails(id){

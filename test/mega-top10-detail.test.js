@@ -9,6 +9,7 @@ const tmp=mkdtempSync(join(tmpdir(),'mega-team-members-v182-'));
 process.env.NODE_ENV='test';process.env.DB_PATH=join(tmp,'players.sqlite');
 const {db}=await import('../src/db.js');
 const {parseTeamMemberSnapshot}=await import('../src/mega-top10-roster.js');
+const {collectFullTeamRoster}=await import('../src/mega-top10-member-pages.js');
 const {captureTopTeamDetails}=await import('../src/mega-top10-collector.js');
 const {saveTopTeamDetails,topTeamDetails,top10Leaderboard,canonicalTeamLink,KNOWN_TEAM_LINKS}=
  await import('../src/mega-top10-store.js');
@@ -58,8 +59,10 @@ function fakePage(rows=roster,memberCount=2){
   evaluate:async fn=>{
    const code=String(fn);
    if(code.includes('const rowMap=new Map'))return rows;
-   if(code.includes("const body=document.body?.innerText||''"))
-     return {memberCount};
+   if(code.includes("const body=String(document.body?.innerText||''"))
+     return {memberCount,bankText:'$1.0B'};
+   if(code.includes('const headings=[...document.querySelectorAll('))
+     return {action:'none'};
    throw new Error('Unexpected browser operation; other teams must not scrape bank history.');
   }
  };
@@ -70,13 +73,16 @@ test('team-detail worker collects only visible member names, leaving bank collec
  assert.equal(captured.memberCount,2);
  assert.deepEqual(captured.roster.map(x=>x.gamertag),['PlayerOne','PlayerTwo']);
  assert.deepEqual(captured.events,[]);
- assert.equal(captured.bankText,null);
- assert.equal(captured.memberStatus,'observed');
+ assert.equal(captured.bankText,'$1.0B');
+ assert.equal(captured.rosterComplete,true);
+ assert.equal(captured.memberStatus,'complete');
  const result=saveTopTeamDetails(team.id,captured);
  assert.equal(result.members,2);
  assert.equal(result.eventsAdded,0);
  const saved=topTeamDetails(team.id);
  assert.equal(saved.memberCount,2);
+ assert.equal(saved.rosterComplete,1);
+ assert.equal(saved.bankText,'$1.0B');
  assert.ok(saved.members.every(x=>x.rosterObserved));
 });
 test('team details do not invent membership when InPvP only exposes a count',async()=>{
@@ -100,16 +106,93 @@ test('simplified team pages show roster names and linked Discord profiles withou
  assert.match(page,/PlayerTwo/);
  assert.match(page,/href="\/u\/100000000000000008"/);
  assert.match(page,/<th>MINECRAFT PLAYER<\/th>/);
+ assert.match(page,/Team bank balance/);
+ assert.match(page,/\$1\.0B/);
+ assert.match(page,/All 2 member names captured/);
  assert.doesNotMatch(page,/OBSERVED DEPOSITS|OBSERVED WITHDRAWALS|OBSERVED NET|CAPTURED BANK EVENTS|<th>AMOUNT<\/th>/);
  const listing=megaLeaderboardPage(ctx,top10Leaderboard());
- assert.match(listing,/<th>PLACE<\/th><th>TEAM<\/th><th>OFFICIAL PAGE<\/th>/);
- assert.doesNotMatch(listing,/<th>BANK<\/th>|<th>LEVEL<\/th>|<th>VIEWS<\/th>|<th>MEMBERS<\/th>/);
+ assert.match(listing,/<th>PLACE<\/th><th>TEAM<\/th><th>TEAM BANK<\/th><th>OFFICIAL PAGE<\/th>/);
+ assert.doesNotMatch(listing,/<th>LEVEL<\/th>|<th>VIEWS<\/th>|<th>MEMBERS<\/th>/);
 });
 test('empty team pages explain unavailable roster without blank bank/stat cards',()=>{
  const id=KNOWN_TEAM_LINKS[2][1];
  saveTopTeamDetails(id,{id,memberCount:21,roster:[],events:[]});
  const page=megaTeamDetailsPage(ctx,{team:topTeamDetails(id),links:[]});
- assert.match(page,/21 members reported by InPvP/);
- assert.match(page,/player names for this team are not currently available/);
+ assert.match(page,/0 of 21 reported member names captured/);
+ assert.match(page,/has not exposed the player names for this team/i);
  assert.doesNotMatch(page,/OBSERVED DEPOSITS|OBSERVED WITHDRAWALS|OBSERVED NET|Not recorded|<th>EVENTS<\/th>/);
+});
+
+test('collects every page of a virtual member list, deduplicating names and marking coverage',async()=>{
+ let step=0;
+ const slices=[
+  {hasMemberSection:true,reportedCount:3,
+   rows:[{gamertag:'PlayerOne',role:'Leader'},{gamertag:'PlayerTwo',role:'Member'}]},
+  {hasMemberSection:true,reportedCount:3,
+   rows:[{gamertag:'PlayerTwo',role:'Member'},{gamertag:'PlayerThree',role:'Member'}]}
+ ];
+ const no={count:async()=>0};
+ const page={
+  url:()=>team.url,
+  waitForTimeout:async()=>{},
+  getByRole:()=>no,
+  evaluate:async fn=>{
+   const code=String(fn);
+   if(code.includes('const rowMap=new Map'))return slices[Math.min(step,1)];
+   if(code.includes('const headings=[...document.querySelectorAll(')){
+    step=Math.min(step+1,1);
+    return {action:'next'};
+   }
+   throw new Error('Unexpected browser action');
+  }
+ };
+ const result=await collectFullTeamRoster(page,{teamId:team.id,reportedCount:3});
+ assert.deepEqual(result.roster.map(m=>m.gamertag),['PlayerOne','PlayerTwo','PlayerThree']);
+ assert.equal(result.memberCount,3);
+ assert.equal(result.rosterComplete,true);
+ assert.equal(result.memberStatus,'complete');
+});
+test('never labels a partial member list as every player',async()=>{
+ let steps=0;
+ const no={count:async()=>0};
+ const page={
+  url:()=>team.url,waitForTimeout:async()=>{},getByRole:()=>no,
+  evaluate:async fn=>{
+   const code=String(fn);
+   if(code.includes('const rowMap=new Map'))return roster;
+   if(code.includes('const headings=[...document.querySelectorAll(')){
+    steps++;return {action:'none'};
+   }
+   throw Error('Unexpected browser action');
+  }
+ };
+ const result=await collectFullTeamRoster(page,{teamId:team.id,reportedCount:21,maxActions:8});
+ assert.equal(result.roster.length,2);
+ assert.equal(result.memberStatus,'partial');
+ assert.equal(result.rosterComplete,false);
+ assert.ok(steps<=2,'does not spin indefinitely when source has no more pages');
+});
+test('rejects roster collection if a source navigation changes team identity',async()=>{
+ const page={url:()=>canonicalTeamLink('Abyzz',KNOWN_TEAM_LINKS[2][1])};
+ await assert.rejects(()=>collectFullTeamRoster(page,{teamId:team.id}),/expected team/);
+});
+
+test('partial update does not destroy a previously complete member roster',()=>{
+ const id=KNOWN_TEAM_LINKS[2][1];
+ const complete=saveTopTeamDetails(id,{id,bankText:'$88.1M',memberCount:2,
+  roster:[{gamertag:'FirstPlayer'},{gamertag:'SecondPlayer'}],
+  rosterComplete:true,events:[]});
+ assert.equal(complete.complete,true);
+ const subsequent=saveTopTeamDetails(id,{id,bankText:null,memberCount:3,
+  roster:[{gamertag:'FirstPlayer'}],
+  rosterComplete:false,events:[]});
+ assert.equal(subsequent.rosterSaved,false);
+ const detail=topTeamDetails(id);
+ assert.equal(detail.bankText,'$88.1M');
+ assert.equal(detail.memberCount,3);
+ assert.equal(detail.members.filter(m=>m.rosterObserved).length,2);
+ assert.equal(detail.rosterComplete,1);
+ const page=megaTeamDetailsPage(ctx,{team:detail,links:[]});
+ assert.match(page,/2 of 3 reported member names captured/);
+ assert.doesNotMatch(page,/All 3 member names captured/);
 });

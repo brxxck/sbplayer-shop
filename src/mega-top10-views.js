@@ -6,6 +6,14 @@ import {icon} from './icons.js';
 import {MEGA_TEAM_ID} from './mega-team.js';
 const attr=esc;
 const date=ms=>ms?new Date(ms).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet verified';
+export function teamBankText(team){
+ if(team&&typeof team.bankText==='string'&&/^\$[\d,]+(?:\.\d{1,3})?[KMBT]?$/i.test(team.bankText))
+  return team.bankText;
+ if(team&&Number.isSafeInteger(team.bankCents)&&team.bankCents>=0)
+  return '$'+(team.bankCents/100).toLocaleString('en-US',
+   {minimumFractionDigits:2,maximumFractionDigits:2});
+ return null;
+}
 const mainTeam=listing=>listing.teams.find(t=>t.id===MEGA_TEAM_ID)||null;
 const lastLabel=listing=>listing.live?
   (Date.now()-listing.status.last_success>15*60000?'Saved listing (stale)':'Latest verified listing'):
@@ -19,8 +27,10 @@ function teamRows(listing){
   '<td class="mega-rank"><a href="/mega-team/teams/'+attr(t.id)+'">'+
    (listing.live&&t.rank?'#'+t.rank:'—')+'</a></td>'+
   '<td>'+teamAnchor(t,t.name)+(t.id===MEGA_TEAM_ID?' <small>Our team</small>':'')+'</td>'+
+  '<td class="mega-number">'+esc(teamBankText(t)||'Not available')+
+    (t.approximate&&teamBankText(t)?'<small>Rounded by InPvP</small>':'')+'</td>'+
   '<td><a href="'+attr(t.url)+'" target="_blank" rel="noopener noreferrer" class="quiet-link">InPvP ↗</a></td>'+
-  '</tr>').join('')||'<tr><td colspan="3">No current team listing available.</td></tr>';
+  '</tr>').join('')||'<tr><td colspan="4">No current team listing available.</td></tr>';
 }
 const statusText=listing=>'<div class="mega-top-status">'+
  '<span>'+esc(lastLabel(listing))+'</span>'+
@@ -29,7 +39,7 @@ const statusText=listing=>'<div class="mega-top-status">'+
  '</div>';
 function topTable(listing){
  return '<div class="table-wrap panel"><table class="mega-table mega-top-table">'+
-   '<thead><tr><th>PLACE</th><th>TEAM</th><th>OFFICIAL PAGE</th></tr></thead>'+
+   '<thead><tr><th>PLACE</th><th>TEAM</th><th>TEAM BANK</th><th>OFFICIAL PAGE</th></tr></thead>'+
    '<tbody data-top10-rows>'+teamRows(listing)+'</tbody></table></div>';
 }
 export function megaHubPage(ctx,{listing,megaContent}){
@@ -54,7 +64,7 @@ export function megaHubPage(ctx,{listing,megaContent}){
 export function megaLeaderboardPage(ctx,listing){
  const intro=titlebar('MEGASMP LEADERBOARD',
    'Top <span class="gradient">10 teams.</span>',
-   'Current team placements and official links. Open a team to see player names when available.');
+   'Latest team placements, reported bank balances and all currently visible player names.');
  const notice=!listing.live?
   '<p class="mega-top-notice">The first live Top 10 capture is not yet available. Teams below are previously provided reference links; their rankings are intentionally unverified.</p>':
   '<p class="mega-top-notice">Only the latest successfully captured source ranking is shown. InPvP may update less frequently than the one-minute checks; these standings can be delayed.</p>';
@@ -80,22 +90,35 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
    team.rank?'#'+team.rank+' (last captured)':'Position unverified';
  const header=titlebar('MEGASMP TEAM',
     esc(team.name)+' <span class="gradient">players.</span>',
-    'Team placement and member names, where visible on InPvP.');
- // Only real observed roster membership is displayed; transaction-only names
- // are not evidence a player is currently on a team's roster.
+    'Team bank balance and member names captured from the official InPvP team page.');
  const roster=team.members.filter(m=>m.rosterObserved);
  const memberRows=roster.map(m=>{
    const linked=byName.get(m.gamertag.toLowerCase());
    return '<tr><td>'+playerName(m.gamertag,linked)+'</td></tr>';
  }).join('');
- const count=Number.isSafeInteger(team.memberCount)&&team.memberCount>=0?
-   '<p class="muted">'+team.memberCount.toLocaleString('en-US')+
-   ' members reported by InPvP.</p>':'';
+ const total=Number.isSafeInteger(team.memberCount)&&team.memberCount>=0?
+   team.memberCount:null;
+ const captured=roster.length;
+ const complete=!!team.rosterComplete&&total!==null&&captured===total;
+ const sourceBank=teamBankText(team);
+ const bank='<div class="mega-top-kpis">'+
+   '<div class="mega-stat panel"><span class="mega-stat-label">Team bank balance</span>'+
+     '<strong>'+esc(sourceBank||'Not available')+'</strong>'+
+     (team.approximate&&sourceBank?'<small>Rounded by InPvP</small>':'')+'</div>'+
+   '<div class="mega-stat panel"><span class="mega-stat-label">Top 10 placement</span>'+
+     '<strong>'+esc(rank)+'</strong></div>'+
+   '</div>';
+ const progress=total!==null?
+   (complete?'All '+total+' member names captured':
+     captured+' of '+total+' reported member names captured'+
+      (captured?' · partial list':'')):
+   (captured+' player names captured · total membership unverified');
+ const rosterDate=team.rosterObservedAt|| (captured?team.detailObservedAt:0);
  const playerSection=roster.length?
    '<div class="table-wrap panel"><table class="mega-table">'+
    '<thead><tr><th>MINECRAFT PLAYER</th></tr></thead>'+
    '<tbody>'+memberRows+'</tbody></table></div>':
-   '<p class="mega-top-notice">The player names for this team are not currently available from the visible InPvP page. Open the official team page to view any additional information.</p>';
+   '<p class="mega-top-notice">InPvP has not exposed the player names for this team to the website collector yet. You can view the official team page while collection continues.</p>';
  return shell(ctx,team.name+' · MegaSMP',
   '<div class="mega-top-page">'+header+
   '<div class="mega-top-actions"><a class="btn btn-outline" href="/mega-team/leaderboard">'+
@@ -104,12 +127,12 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
    '<a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="'+attr(team.url)+'">'+
    icon('external-link',{size:17})+' Official InPvP team</a>'+
    (ctx.role==='owner'?'<a class="btn btn-outline" href="/mega-team/links">Link player profiles</a>':'')+
-   '</div>'+
-   '<p class="mega-top-status">Leaderboard position: '+esc(rank)+
-   ' · Player list last captured: '+esc(date(roster.length?team.detailObservedAt:null))+'</p>'+
+   '</div>'+bank+
    '<section class="mega-section"><div class="mega-section-head"><h3>Team members</h3>'+
-   '<p>Click a linked Minecraft name to visit its Discord website profile.</p></div>'+
-   count+playerSection+'</section></div>');
+   '<p>'+esc(progress)+' · Last names captured: '+esc(date(rosterDate))+
+   '. Click a linked name to open its Discord website profile.</p></div>'+
+   (!complete&&captured?'<p class="mega-top-notice">The saved player list may be incomplete or outdated. It will be refreshed as more member pages become visible on InPvP.</p>':'')+
+   playerSection+'</section></div>');
 }
 
 export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],error=''}={}){

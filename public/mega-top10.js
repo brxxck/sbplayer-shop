@@ -33,6 +33,18 @@
        cell(tr,teamLink(team,live&&team.rank?'#'+team.rank:'—'),'mega-rank');
        const title=cell(tr,teamLink(team));
        if(team.id==='5638a504-3347-43fc-89d6-424dad53b7f6')details(title,'Our team');
+       const formatBank=()=>{
+         if(typeof team.bankText==='string'&&
+           /^\$[\d,]+(?:\.\d{1,3})?[KMBT]?$/i.test(team.bankText))
+           return team.bankText;
+         if(Number.isSafeInteger(team.bankCents)&&team.bankCents>=0)
+           return '$'+(team.bankCents/100).toLocaleString('en-US',
+            {minimumFractionDigits:2,maximumFractionDigits:2});
+         return 'Not available';
+       };
+       const balance=cell(tr,formatBank(),'mega-number');
+       if(team.approximate&&formatBank()!=='Not available')
+         details(balance,'Rounded by InPvP');
        const td=cell(tr,null);
        const official=document.createElement('a');
        // The server validates the source URL, but defend again on the client.

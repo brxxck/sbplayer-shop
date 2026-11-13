@@ -1,7 +1,16 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.7.8
+# SB's & Cam's Store — Community Portal V1.8.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.8.3 — Team bank balances and complete member-name capture
+
+- Restore the **bank balance** column alongside rank and team on the Top 10 page. Keep the current verified InPvP source value, including compact units like \`$1.0B\`. Also display team bank and placement on each team page. Values are labeled "Not available" rather than fabricated if InPvP does not expose them.
+- Expand the normal, authenticated InPvP team Member section, including visible Members tabs, "Load more" / "Next" controls and virtualized scrolling. Bounded by 36 page actions and the existing staggered one-team-at-a-time browser worker; no unofficial API access or authentication bypass.
+- Track source-listed member total versus **actual distinct names** captured. "All N member names captured" is shown only when a verified member section exposes exactly N names. Otherwise the page shows "X of N captured" and a partial/unavailable note, never invented roster members.
+- New idempotent \`roster_complete\` and \`roster_observed_at\` columns record coverage without deleting saved observations. A partial/failed refresh must not overwrite a previously complete or larger roster. Linked Minecraft names still open the owner's chosen Discord website profile.
+- Keep SBsxScam's existing five-minute bank-event collector and ledger, all prior 142 event observations, historical team IDs, stored InPvP session and Railway \`/app/data\` volume unchanged. Team pages still do **not** display unsupported deposits, withdrawals or per-player bank histories.
+- Actual full member coverage is contingent on InPvP exposing member names and pagination in a permitted website session. Deploy, then confirm coverage against the source member count; automated CI passing alone does not verify live roster availability.
 
 ## V1.8.2 — Simple Top 10 and player-only team pages
 

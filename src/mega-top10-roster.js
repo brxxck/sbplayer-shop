@@ -98,7 +98,9 @@ export async function extractTeamMembers(page){
   const clean=x=>String(x??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   const heading=/^(?:(?:Team\s+)?Members|Roster)(?:\s*\([\d,]+\))?$/i;
   const raw=(document.body?.innerText||'').slice(0,15000);
-  const countMatch=/\b(?:Team\s+)?Members\s*\(([\d,]+)\)/i.exec(raw);
+  const countMatch=/\b(?:Team\s+)?Members\s*\(([\d,]+)\)/i.exec(raw)||
+   /\b(?:Team\s+)?Members\s*:\s*([\d,]+)\b/i.exec(raw)||
+   /\b([\d,]+)\s+(?:Team\s+)?Members\b/i.exec(raw);
   const reportedCount=countMatch?Number(countMatch[1].replaceAll(',','')):null;
   const isVisible=el=>{
    const rect=el.getBoundingClientRect();
@@ -173,6 +175,21 @@ export async function extractTeamMembers(page){
        el.querySelector('a[href*="/player"],a[href*="/profile"]')?.textContent||
        el.querySelector('td:first-child,[role="cell"]')?.textContent||'';
      accept(name,'',el);
+   }
+   // InPvP also uses image-backed player cards with no anchor or <li>.
+   // Read the avatar's explicit player-name alt only inside Members.
+   for(const image of [...container.querySelectorAll('img[alt]')].slice(0,400)){
+     const alt=clean(image.getAttribute('alt')||'')
+       .replace(/^(?:avatar|head|profile(?: picture)?)\s+(?:of|for)\s+/i,'')
+       .replace(/\s+(?:avatar|head|profile(?: picture)?|skin)$/i,'');
+     accept(alt,'',image);
+   }
+   for(const card of [...container.querySelectorAll(
+     '[data-testid*="member"],[data-testid*="player"],[class*="member-card"],[class*="player-card"],[class*="MemberCard"],[class*="PlayerCard"]')].slice(0,400)){
+     if(clean(card.innerText||'').length>210)continue;
+     const candidate=card.querySelector('[data-player-name],a[href*="/profile"],a[href*="/player"],strong,b,h4,h3');
+     const name=candidate?.getAttribute('data-player-name')||candidate?.textContent||'';
+     accept(name,'',candidate||card);
    }
   }
   return {hasMemberSection,reportedCount,rows:[...rowMap.values()],lines:texts};
