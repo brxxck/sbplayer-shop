@@ -20,10 +20,15 @@ const field=(name,label,{placeholder='',help='',required=true,multiline=false}={
  return `<label>${val(label)}${help?`<small class="ticket-field-help">${val(help)}</small>`:''}${control}</label>`;
 };
 export function chooseTicket(ctx){
+ // Application cards use Discord role eligibility supplied by the server, not browser state.
+ const promotion=ctx.promotionEligible?
+  '<a class="support-choice tone-violet" href="/promotions/new"><span class="support-choice-icon">'+icon('award',{size:22})+'</span><span class="support-choice-content"><b>Promotion Ticket</b><small>Request a staff promotion</small></span><span class="support-chevron">'+icon('chevron-right',{size:20})+'</span></a>':'';
+ const joinTeam=ctx.teamApplicationEligible?
+  '<a class="support-choice tone-blue" href="/team-applications/apply"><span class="support-choice-icon">'+icon('users-round',{size:22})+'</span><span class="support-choice-content"><b>Join SBsxScam</b><small>Apply to the MegaSMP team</small></span><span class="support-chevron">'+icon('chevron-right',{size:20})+'</span></a>':'';
  return shell(ctx,'Submit a Ticket',`<div class="support-container">
  ${titlebar('CONTACT SUPPORT','How can we <span class="gradient">help?</span>','Choose a ticket type.')}
- <div class="support-picker">${ctx.promotionEligible?'<a class="support-choice tone-violet" href="/promotions/new"><span class="support-choice-icon">'+icon('award',{size:22})+'</span><span class="support-choice-content"><b>Promotion Ticket</b><small>Staff promotion</small></span><span class="support-chevron">'+icon('chevron-right',{size:20})+'</span></a>':''}${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${icon(t.icon,{size:22})}</span>
-  <span class="support-choice-content"><b>${t.label}</b><small>${t.desc}</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>`).join('')}</div>
+ <div class="support-picker">${types.map(t=>`<a class="support-choice tone-${t.tone}" href="/tickets/new/${t.id}"><span class="support-choice-icon">${icon(t.icon,{size:22})}</span>
+  <span class="support-choice-content"><b>${t.label}</b><small>${t.desc}</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>`).join('')}${promotion}${joinTeam}</div>
  <a class="support-choice support-view-all" href="/tickets/mine"><span class="support-choice-icon">${icon('tickets',{size:22})}</span>
  <span class="support-choice-content"><b>View My Tickets</b><small>Open and past tickets</small></span><span class="support-chevron">${icon('chevron-right',{size:20})}</span></a>
  </div>`);
