@@ -58,7 +58,7 @@ const responseHeaders={
   'x-content-type-options':'nosniff','referrer-policy':'strict-origin-when-cross-origin',
   'x-frame-options':'DENY','permissions-policy':'camera=(),microphone=(),geolocation=()',
   'cross-origin-resource-policy':'same-origin',
-  'content-security-policy':"default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' blob:; connect-src 'self'; upgrade-insecure-requests"
+  'content-security-policy':"default-src 'self'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.discordapp.com data: blob:; media-src 'self' blob:; connect-src 'self'; upgrade-insecure-requests"
 };
 function respond(res,status,body,type='text/html; charset=utf-8',extra={}) {res.writeHead(status,{'content-type':type,'cache-control':'no-store',...extra});res.end(body);}
 function redirect(res,url){res.writeHead(303,{location:url,'cache-control':'no-store'});res.end();}
@@ -264,7 +264,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -377,6 +377,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 
     // All routes below this point are server-member-only.
     await member();
+
+    // Account dropdown uses the same verified Xbox link and configuration
+    // as the profile page; no credentials or Microsoft tokens are sent to HTML.
+    ctx.xboxConfigured=xboxLinkAuth.configured;
+    ctx.xboxLink=xboxLinkForUser(ctx.user.id);
 
     // Member-owned Xbox gamertag verification, separate from owner-only Graph.
     // The Microsoft auth response is single-use and bound to this Discord session.
@@ -1753,5 +1758,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.1 running at ${config.baseUrl}`));
 }
