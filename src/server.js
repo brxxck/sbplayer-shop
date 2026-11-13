@@ -28,7 +28,8 @@ import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
 import * as megaTopViews from './mega-top10-views.js';
 import {top10Leaderboard,topTeamDetails,TOP10_URL} from './mega-top10-store.js';
-import {allMegaPlayerProfileLinks,linkMegaPlayerProfile,unlinkMegaPlayerProfile} from './mega-player-profile-links.js';
+import {allMegaPlayerProfileLinks,linkMegaPlayerProfile,unlinkMegaPlayerProfile,
+  allowMegaAutoProfile,megaAutoSuppressedNames} from './mega-player-profile-links.js';
 import {createMegaTeamSync} from './mega-team-sync.js';
 import {createMegaBrowserRunner} from './mega-team-browser-runner.js';
 import {megaCapturedBankHistory} from './mega-team-bank-history.js';
@@ -564,7 +565,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         }catch{error='Discord member search temporarily unavailable.';}
       }
       return html(megaTopViews.megaProfileLinksPage(ctx,{
-        q,player,results,links:allMegaPlayerProfileLinks(),error
+        q,player,results,links:allMegaPlayerProfileLinks(),
+        suppressed:megaAutoSuppressedNames(),error
       }));
     }
     if(pathname==='/mega-team/links'&&req.method==='POST'){
@@ -574,6 +576,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const gamertag=String(fields.gamertag||'').trim();
       if(!validGamertag(gamertag))invalid('Invalid Minecraft Gamertag.');
       const back='/mega-team/links?player='+encodeURIComponent(gamertag);
+      if(fields.mode==='allow_auto'){
+        const state=allowMegaAutoProfile(gamertag);
+        if(state.changed)logAction(ctx,'mega.profile.auto.allow','mega:'+gamertag);
+        return success(back,'Automatic profile matching enabled for this Minecraft name.');
+      }
       if(fields.mode==='unlink'){
         const old=unlinkMegaPlayerProfile(gamertag);
         if(old.changed)logAction(ctx,'mega.profile.unlink','mega:'+gamertag,
