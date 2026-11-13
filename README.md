@@ -3,6 +3,15 @@
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.8.2 — Complete team detail capture and improved coverage labels
+
+- The Top 10 ranking and SBsxScam's separately working 142-event bank snapshot remain unchanged.
+- Team pages now look for player names in styled Members containers and visible member grids, rather than requiring `<section>` markup. Any member-level deposit and withdrawal figures visibly reported by InPvP can be retained alongside members and shown with their source (not mistaken for independently verified lifetime sums).
+- Reuse the working Bank Event Log selector plus **bounded scroll and pagination** for every verified InPvP team ID. Bank observations remain partial and never imply a full lifetime history.
+- Distinguish `event_status=unavailable` from a visible but empty log. UI no longer displays a bare zero as if every transaction were known. Railway logs report safe capture counts and source availability without usernames, tokens or raw page contents.
+- Add idempotent SQLite columns to record source coverage and keep old data. Do **not** change the Railway volume, DB_PATH, existing encryption key or first-login session.
+- Automated tests validate member cards, reported totals, tab navigation, event capture, team ID isolation and missing-data behavior. Actual InPvP page layouts and access permissions must still be checked in Railway logs after deployment.
+
 ## V1.8.1 — InPvP Top 10 loading, fallback and diagnostics
 
 - Expanded the official rendered leaderboard parser to understand HTML tables, accessible rows, CSS-grid rows and the visible text sequence (rank, team, views, bank, level). Parsing still requires **all ten ordered positions** and never invents unobserved rankings.
