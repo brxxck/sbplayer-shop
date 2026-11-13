@@ -16,6 +16,7 @@ Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(tmp,'new.sqlite'),DISCOR
    DISCORD_ADMIN_REPORT_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',DISCORD_OWNER_REPORT_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef'});
 const {createServer}=await import('../src/server.js');
 const {db,one,all}=await import('../src/db.js');
+const {saveXboxLink}=await import('../src/xbox-gamertag-links.js');
 const {config}=await import('../src/config.js');
 const members=new Map();
 for(const [key,id] of Object.entries(ids)){
@@ -47,6 +48,10 @@ before(async()=>{
   const csrf=/name="_csrf" value="([^"]+)"/.exec(await page.text())?.[1];
   assert.ok(csrf,'CSRF for '+name);
   sessions.set(name,{cookie,csrf});
+  if(name!=='banned')saveXboxLink({userId:ids[name],
+   identityKey:String(Object.keys(ids).indexOf(name)+1).padStart(64,'0'),
+   gamertag:'V131'+Object.keys(ids).indexOf(name)});
+
  }
 });
 after(async()=>{await new Promise(resolve=>server.close(resolve));db.close();rmSync(tmp,{recursive:true,force:true});});
