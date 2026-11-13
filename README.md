@@ -3,6 +3,15 @@
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.8.1 — InPvP Top 10 loading, fallback and diagnostics
+
+- Expanded the official rendered leaderboard parser to understand HTML tables, accessible rows, CSS-grid rows and the visible text sequence (rank, team, views, bank, level). Parsing still requires **all ten ordered positions** and never invents unobserved rankings.
+- Allow extra time for InPvP client-side data hydration (bounded retries); no requests to undocumented or internal APIs and no verification bypass.
+- Failure logs now include **privacy-safe counts and readiness flags only**, e.g. `[mode=upstream-sync,rows=0,dom=0,text=0,table=0,role=0,styled=0,sync=true,columns=false]`. Names, tokens and page contents are not logged.
+- The detail collector can read the **ten preconfigured official team URLs even when the public Top 10 list is stuck syncing**. Those team names remain **Unverified** for rank until the directory successfully loads; individual observed stats can appear independently.
+- The primary SBsxScam bank collector, encrypted session, Railway volume, permissions and Discord links remain unchanged.
+- A successful syntax/test build cannot prove the live InPvP DOM works. After deploying, inspect the `[Mega Top10]` readiness diagnostics and team-detail results. A persistent `mode=upstream-sync` means InPvP itself did not render the directory in the collector's browser.
+
 ## V1.8.0 — Standalone MegaSMP Top 10, staggered source checks, linked profiles
 
 - **Standalone MegaSMP portal:** `/mega-team` is a navigation destination, no longer a fourth tab inside Team Members. `/team?tab=mega` redirects to `/mega-team` for old bookmarks. Existing administrative and historical `/team/mega/*` endpoints remain compatible.
