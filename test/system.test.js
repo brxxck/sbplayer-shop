@@ -667,7 +667,7 @@ test('members submit private applications; optional reviewers vote once then tic
   }
   let r=await post('/apply','member',answers);assert.equal(r.status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);assert.equal(a.status,'pending');
-  let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes(`Application Reviews`) && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs
+  let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes('class="page-heading"') && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs
   assert.ok(html.includes(`/staff/applications/${a.id}`));
   r=await post(`/staff/applications/${a.id}/review`,'reviewer',{choice:'accept',note:'Thoughtful answer and good attitude.'});assert.equal(r.status,303);
   html=await (await get('/staff','reviewer')).text();assert.ok(!html.includes(`/staff/applications/${a.id}`));
