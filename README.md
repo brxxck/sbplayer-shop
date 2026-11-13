@@ -1,8 +1,15 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.9.0
+# SB's & Cam's Store — Community Portal V1.9.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.9.1 — Working Microsoft link in profile dropdown
+
+- The top-right account menu now places **Link Microsoft / Xbox** immediately beneath the member avatar/Discord name and **above MY PROFILE**, including mobile layouts. Linked accounts show their verified gamertag and a **Verify Microsoft / Xbox** action.
+- The new menu form submits directly to the existing authenticated `/profile/microsoft/start` route using a CSRF token. If Railway's three Xbox app variables are absent, the action is clearly marked unavailable, rather than silently doing nothing.
+- Allow `https://login.microsoftonline.com` as the only new external origin in the browser's `form-action` Content Security Policy. A POST redirect to Microsoft OAuth could previously be blocked by `form-action 'self'`, leaving users on the same screen. All other external form destinations remain prohibited.
+- Added regression checks for menu placement, linked and disabled states, CSRF and the configured 303 redirect. No InPvP login/data changes; no Microsoft tokens stored.
+- After deploying, hard-refresh the website and click the account dropdown's new button. The live Microsoft/Xbox identity verification flow still depends on Microsoft permitting your app to use Xbox services.
 ## V1.9.0 — Verified Xbox gamertag linking on Discord profiles
 
 **Scope:** Username/account linking only. No new InPvP data enrichment, shared login sessions, private team access or bank collection.
