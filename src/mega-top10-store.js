@@ -67,6 +67,7 @@ for(const [name,id] of KNOWN_TEAM_LINKS)
  run('INSERT OR IGNORE INTO mega_top_teams(team_id,name,team_url) VALUES(?,?,?)',id,name,canonicalTeamLink(name,id));
 
 export function top10Status(){return one('SELECT * FROM mega_top_status WHERE id=1');}
+export function allTop10KnownTeams(){return all('SELECT team_id AS id,name,team_url AS url FROM mega_top_teams ORDER BY name COLLATE NOCASE');}
 export function top10Leaderboard(){
  const status=top10Status();
  const rows=all("SELECT team_id AS id,name,team_url AS url,rank,bank_text AS bankText,bank_cents AS bankCents,bank_approx AS approximate,level,views,member_count AS memberCount,rank_observed_at AS rankObservedAt,detail_observed_at AS detailObservedAt,source "+
