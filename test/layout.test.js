@@ -324,3 +324,35 @@ test('Discord login keeps safe same-site return paths and rejects off-site redir
  assert.equal(await inspect('https://malicious.example/steal'),'/');
  assert.equal(await inspect('/unknown-untrusted-route'),'/');
 });
+
+
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+test('clean UI uses compact headings and keeps meaningful field labels',async()=>{
+ const {apply,home:landing}=await import('../src/views.js');
+ const {teamApplyPage}=await import('../src/team-application-views.js');
+ const {chooseTicket}=await import('../src/support-views.js');
+ const signedCtx={...signed,pathname:'/team-applications/apply',config:{applicationRoles:['Helper']}};
+ const publicHome=landing(blank);
+ assert.match(publicHome,/<div class="hero"><div><h1>SB's &amp; Cam's/);
+ assert.doesNotMatch(publicHome,/ONE COMMUNITY\. ONE PLACE/);
+ assert.doesNotMatch(publicHome,/WELCOME TO THE COMMUNITY/);
+ const memberShell=landing(signed);
+ assert.match(memberShell,/href="\/team-applications\/apply"[^>]*>[\s\S]*?Join SBs/);
+ assert.doesNotMatch(memberShell,/<span class="muted">Community<\/span><span class="sep">/);
+ assert.ok(!memberShell.includes('Community Portal V1.10.0'));
+ const staffForm=apply(signedCtx,{open:true,active:null,cooldown:false,xboxLink:{gamertag:'SBisOnTop'}});
+ assert.match(staffForm,/action="\/apply"/);
+ assert.doesNotMatch(staffForm,/Your basic information/);
+ const teamForm=teamApplyPage(signedCtx,{open:true,xboxLink:{gamertag:'SBisOnTop'}});
+ for(const item of ['Daily earnings ($)','Net worth ($)','Days per week','Hours per day','Why SBs?']){
+   assert.ok(teamForm.includes(item),item+' should be concise and understandable');
+ }
+ assert.doesNotMatch(teamForm,/Be realistic about how much you play/);
+ const support=chooseTicket(signedCtx);
+ assert.match(support,/Choose a ticket type/);
+ assert.doesNotMatch(support,/Your Discord identity is verified automatically/);
+ const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
+ assert.match(css,/\.sidebar-scroll>.sidebar-title:first-of-type/);
+ assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.match(css,/:focus-visible/,'keyboard focus remains visible');
+});
