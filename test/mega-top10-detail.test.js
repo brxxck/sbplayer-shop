@@ -75,7 +75,7 @@ test('team-detail worker collects only visible member names, leaving bank collec
  assert.deepEqual(captured.events,[]);
  assert.equal(captured.bankText,'$1.0B');
  assert.equal(captured.rosterComplete,true);
- assert.equal(captured.memberStatus,'observed');
+ assert.equal(captured.memberStatus,'complete');
  const result=saveTopTeamDetails(team.id,captured);
  assert.equal(result.members,2);
  assert.equal(result.eventsAdded,0);
@@ -118,7 +118,7 @@ test('empty team pages explain unavailable roster without blank bank/stat cards'
  const id=KNOWN_TEAM_LINKS[2][1];
  saveTopTeamDetails(id,{id,memberCount:21,roster:[],events:[]});
  const page=megaTeamDetailsPage(ctx,{team:topTeamDetails(id),links:[]});
- assert.match(page,/21 members reported by InPvP/);
+ assert.match(page,/0 of 21 reported member names captured/);
  assert.match(page,/player names for this team are not currently available/);
  assert.doesNotMatch(page,/OBSERVED DEPOSITS|OBSERVED WITHDRAWALS|OBSERVED NET|Not recorded|<th>EVENTS<\/th>/);
 });
