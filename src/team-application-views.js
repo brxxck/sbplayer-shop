@@ -91,7 +91,7 @@ export function teamReviewDetail(ctx,{application:a}={}) {
  answer('Money-making method',a.income_method)+answer('Team bank contribution',bankLabel[a.bank_contribution]||a.bank_contribution)+
  answer('Previous teams',a.previous_teams||'None given')+answer('Why join SBs?',a.motivation)+answer('Expected contribution',a.contribution)+'</section>'+
  '<div class="stack"><section class="panel padded"><h2>Recruitment decision</h2>'+actions+
- '<p class="muted tiny">Decisions don't assign roles or send team invites.</p></section>'+
+ '<p class="muted tiny">Decisions do not assign roles or send team invites.</p></section>'+
  '<section class="panel padded"><h2>Private notes</h2><form action="/team-applications/review/'+a.id+'/note" method="post">'+token(ctx)+
  '<label>Notes<textarea name="note" maxlength="2000" rows="5" '+(own?'disabled':'')+'>'+esc(a.reviewer_note||'')+'</textarea></label>'+
  '<button class="btn btn-primary btn-sm" '+(own?'disabled':'')+'>Save note</button></form></section></div></div>'+
