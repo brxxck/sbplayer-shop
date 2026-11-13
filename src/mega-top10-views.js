@@ -135,7 +135,7 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
    playerSection+'</section></div>');
 }
 
-export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],error=''}={}){
+export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],suppressed=[],error=''}={}){
  const options=results.map(m=>{
    const id=String(m.user?.id||'');
    if(!/^\d{15,22}$/.test(id)||m.user?.bot||m.pending)return '';
@@ -144,10 +144,12 @@ export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],err
  }).join('');
  const rows=links.length?links.map(link=>{
    const global=link.source==='owner';
+   const auto=link.source==='inpvp';
+   const removable=global||auto;
    return '<tr><td>'+esc(link.gamertag)+'</td><td><a href="/u/'+attr(link.discordId)+'">'+
      '@'+esc(link.username||link.displayName||link.discordId)+'</a></td>'+
-     '<td>'+esc(global?'Owner-linked (global)':'Existing season match')+'</td>'+
-     '<td>'+(global?'<form method="post" action="/mega-team/links">'+token(ctx)+
+     '<td>'+esc(global?'Owner-linked (global)':auto?'Auto-matched · InPvP Discord badge':'Existing season match')+'</td>'+
+     '<td>'+(removable?'<form method="post" action="/mega-team/links">'+token(ctx)+
        '<input type="hidden" name="gamertag" value="'+attr(link.gamertag)+'">'+
        '<input type="hidden" name="mode" value="unlink">'+
        '<button type="submit" class="btn btn-outline btn-sm">Unlink</button></form>':
@@ -171,9 +173,16 @@ export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],err
    (options||'<option value="">Search for a Discord member above</option>')+'</select></label>'+
    '<button class="btn btn-primary" type="submit"'+(options?'':' disabled')+'>'+
    icon('user-round-check',{size:17})+' Save profile association</button>'+
-   '<p class="muted tiny">Only the verified website owner/co-owners can change these links. Every change is audited. Do not interpret an owner-entered link as external account verification.</p></form>'+
+   '<p class="muted tiny">Automatic matches require a linked Discord badge on InPvP and an exact verified username on this Discord server. Owner decisions always take priority; these links never grant roles or login access.</p></form>'+
    '<section class="mega-section"><h3>Linked Minecraft accounts</h3>'+
    '<div class="table-wrap panel"><table class="mega-table"><thead><tr>'+
    '<th>GAMERTAG</th><th>DISCORD PROFILE</th><th>SOURCE</th><th>ACTION</th>'+
-   '</tr></thead><tbody>'+rows+'</tbody></table></div></section></div>');
+   '</tr></thead><tbody>'+rows+'</tbody></table></div></section>'+
+   (suppressed.length?'<section class="mega-section"><h3>Automatic linking disabled</h3>'+
+    '<p class="muted tiny">Owner-removed names cannot be automatically re-linked until an owner enables them again.</p>'+
+    suppressed.map(name=>'<form method="post" action="/mega-team/links" class="mega-top-link-form">'+token(ctx)+
+     '<input type="hidden" name="gamertag" value="'+attr(name)+'">'+
+     '<input type="hidden" name="mode" value="allow_auto">'+
+     '<button class="btn btn-outline btn-sm" type="submit">Re-enable auto linking for '+esc(name)+'</button></form>').join('')+
+    '</section>':'')+'</div>');
 }
