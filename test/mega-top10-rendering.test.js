@@ -1,9 +1,17 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-import {test} from 'node:test';
+import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {parseTop10Snapshot} from '../src/mega-top10-dom.js';
-import {captureTop10Leaderboard,extractTop10Rows} from '../src/mega-top10-collector.js';
-import {TOP10_URL,canonicalTeamLink,KNOWN_TEAM_LINKS} from '../src/mega-top10-store.js';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+const temp=mkdtempSync(join(tmpdir(),'sbs-top10-rendering-'));
+process.env.NODE_ENV='test';
+process.env.DB_PATH=join(temp,'render.sqlite');
+const {db}=await import('../src/db.js');
+const {parseTop10Snapshot}=await import('../src/mega-top10-dom.js');
+const {captureTop10Leaderboard}=await import('../src/mega-top10-collector.js');
+const {canonicalTeamLink,KNOWN_TEAM_LINKS}=await import('../src/mega-top10-store.js');
+after(()=>{db.close();rmSync(temp,{recursive:true,force:true});});
 
 const example=[
  ['Abaddon','890','$1.0B','100'],
