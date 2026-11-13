@@ -64,10 +64,19 @@ db.exec([
 ].join(';')+';');
 // Non-destructive migration: preserve every existing bank, team and roster row.
 const teamCols=new Set(all("PRAGMA table_info('mega_top_teams')").map(x=>x.name));
-if(!teamCols.has('roster_complete'))
- db.exec('ALTER TABLE mega_top_teams ADD COLUMN roster_complete INTEGER NOT NULL DEFAULT 0');
-if(!teamCols.has('roster_observed_at'))
- db.exec('ALTER TABLE mega_top_teams ADD COLUMN roster_observed_at INTEGER NOT NULL DEFAULT 0');
+for(const [name,definition] of [
+ ['roster_complete','INTEGER NOT NULL DEFAULT 0'],
+ ['roster_observed_at','INTEGER NOT NULL DEFAULT 0']
+]){
+ if(!teamCols.has(name)){
+  try{db.exec('ALTER TABLE mega_top_teams ADD COLUMN '+name+' '+definition);}
+  catch(error){
+   // The Railway web process and Chromium worker can initialize together.
+   // If the other process already added the column, continue safely.
+   if(!/duplicate column name/i.test(String(error?.message||'')))throw error;
+  }
+ }
+}
 run('INSERT OR IGNORE INTO mega_top_status(id) VALUES(1)');
 for(const [name,id] of KNOWN_TEAM_LINKS)
  run('INSERT OR IGNORE INTO mega_top_teams(team_id,name,team_url) VALUES(?,?,?)',id,name,canonicalTeamLink(name,id));
