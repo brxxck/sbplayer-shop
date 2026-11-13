@@ -299,37 +299,37 @@ export function team(ctx,{groups=[],sbsGroups=[],knownGroups=[],tab='team',known
  const restricted=ctx.role==='appeal-only';
  const tabs=`<nav class="team-directory-tabs" aria-label="Meet the team sections">
  <a class="team-directory-tab ${tab==='team'?'active':''}" href="/team?tab=team" ${tab==='team'?'aria-current="page"':''}>
-   <span>Our Staff</span><small>Store staff</small></a>
+   <span>Our Staff</span></a>
  <a class="team-directory-tab ${tab==='sbs'?'active':''}" href="/team?tab=sbs" ${tab==='sbs'?'aria-current="page"':''}>
    <span>Team Members</span><small>${sbsTotal} member${sbsTotal===1?'':'s'}</small></a>
  <a class="team-directory-tab ${tab==='known'?'active':''}" href="/team?tab=known" ${tab==='known'?'aria-current="page"':''}>
    <span>Known Members</span><small>${knownTotal} member${knownTotal===1?'':'s'}</small></a>
  </nav>`;
  const knownContent=`<section class="team-section known-member-section">
-   <div class="section-heading"><div><h2>Known Members</h2><p class="muted tiny">Recognised Mega SMP and Prison staff members from our Discord server.</p></div>
+   <div class="section-heading"><div><h2>Known Members</h2><p class="muted tiny">Recognised server members.</p></div>
      <span class="muted">${knownTotal} member${knownTotal===1?'':'s'}</span></div>
    <nav class="known-member-tabs" aria-label="Known member categories">
      ${knownGroups.map(g=>`<a href="/team?tab=known&amp;known=${attr(g.key)}" class="known-member-tab ${selected.key===g.key?'active':''}" ${selected.key===g.key?'aria-current="page"':''}>
         ${esc(g.title)} <span>${g.members.length}</span></a>`).join('')}
    </nav>
    <div class="member-grid">${teamCards(selected.members,restricted)}</div>
-   ${selected.members.length?'':'<div class="empty panel">No '+esc(selected.title)+' members found yet. Check that these Discord roles exist and the bot has member-list access.</div>'}
+   ${selected.members.length?'':'<div class="empty panel">No members found.</div>'}
  </section>`;
  const sbsContent=`<section class="team-section sbs-team-section"><div class="section-heading"><div>
-   <h2>SBs x Scam</h2><p class="muted tiny">SBs Team Leaders and Team Members, verified through Discord roles.</p></div>
+   <h2>SBs x Scam</h2><p class="muted tiny">Verified via Discord roles.</p></div>
    <span class="muted">${sbsTotal} member${sbsTotal===1?'':'s'}</span></div>
    ${sbsGroups.map(g=>`<section class="team-section">
      <div class="section-heading"><h3>${esc(g.title)}</h3><span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
      <div class="member-grid">${teamCards(g.members,restricted)}</div>
    ${g.members.length?'':'<p class="muted tiny team-empty-group">No members currently assigned.</p>'}
    </section>`).join('')||
-       '<div class="empty panel">No SBs x Scam team members found yet. Check the two Discord team roles and Guild Members Intent.</div>'}
+       '<div class="empty panel">No SBs team members found.</div>'}
  </section>`;
  const teamContent=groups.map(g=>`<section class="team-section">
    <div class="section-heading"><h2>${esc(g.title)}</h2>
      <span class="muted">${g.members.length} member${g.members.length===1?'':'s'}</span></div>
    <div class="member-grid">${teamCards(g.members,restricted)}</div></section>`).join('')||
-   '<div class="empty panel">No team members detected yet. Check your bot permissions and role configuration.</div>';
+   '<div class="empty panel">No team members found.</div>';
  return shell(ctx,'Team Members',`${titlebar('THE PEOPLE BEHIND THE SERVER','Meet our <span class="gradient">team.</span>')}
    ${partial?'<div class="alert alert-error">Full server member listing is unavailable or incomplete. Enable Guild Members Intent for the bot to show the complete team.</div>':''}
    ${tabs}${tab==='known'?knownContent:tab==='sbs'?sbsContent:teamContent}`);
