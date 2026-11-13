@@ -186,6 +186,30 @@ test('Xbox account menu navigates to Microsoft via GET, bypassing form-action re
  }
 });
 
+test('staff and SBs application submissions require Discord AND Microsoft/Xbox verification',async()=>{
+  const staff=await get('/apply','member');
+  assert.equal(staff.status,200);
+  const page=await staff.text();
+  assert.match(page,/Verify Microsoft\/Xbox before applying/);
+  assert.doesNotMatch(page,/action="\/apply"/,'unverified member must not see staff application form');
+  const denied=await post('/apply','member',answers);
+  assert.equal(denied.status,403,'server must reject unverified staff submission');
+  assert.equal(one('SELECT COUNT(*) n FROM applications WHERE user_id=?',ids.member).n,0);
+  const team=await get('/team-applications/apply','member');
+  assert.equal(team.status,200);
+  assert.match(await team.text(),/Account verification required/);
+  const deniedTeam=await post('/team-applications/apply','member',{
+    daily_earnings:'500',net_worth:'1000',play_days:'5',play_hours:'3',timezone:'GMT',
+    skill_pvp:'on',bank_contribution:'yes',income_method:'I farm crops each day',
+    motivation:'I want to join the SBs team.',contribution:'I can contribute money and farms.'
+  });
+  assert.equal(deniedTeam.status,403,'server must reject unverified team submission');
+  assert.equal(one('SELECT COUNT(*) n FROM team_applications WHERE user_id=?',ids.member).n,0);
+  assert.equal((await get('/team-applications/review','member')).status,403);
+  assert.equal((await get('/team-applications/review','member3')).status,200,'verified SBs leader can review');
+  assert.equal((await get('/team-applications/review','adminA')).status,200,'verified website admin can review');
+});
+
 test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
   const path='/owner/mega/session';
   for(const who of ['member','adminA','reviewer'])
