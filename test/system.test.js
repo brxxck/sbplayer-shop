@@ -598,7 +598,7 @@ test('captured event history and verified owner Discord matching are permission-
  assert.equal(megaCapturedBankHistory({season}).total,123);
  assert.equal(megaCapturedBankHistory({season,page:3}).rows.length,23);
  const first=await (await get('/team/mega/history?season='+encodeURIComponent(season),'member')).text();
- assert.ok(first.includes('Captured events'));
+ assert.ok(first.includes('Saved bank events.'));
  assert.ok(first.includes('Page 1 of 3'));
  assert.ok(first.includes('PARTIAL / UNVERIFIED HISTORY'));
  assert.ok(first.includes('Captured0000'));
