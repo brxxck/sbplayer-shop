@@ -7,7 +7,7 @@ import {TOP10_LIST_POLL_MS,TOP10_TEAM_SPACING_MS,
   noteTopTeamAttempt,noteTopTeamFailure,saveTopTeamDetails} from './mega-top10-store.js';
 import {captureTop10Leaderboard,captureTopTeamDetails} from './mega-top10-collector.js';
 import {captureInPvPProfileDiscord} from './mega-inpvp-discord-collector.js';
-import {matchInPvPDiscordToGuild,registeredWebsiteMember} from './mega-inpvp-discord-match.js';
+import {matchInPvPDiscordToGuild,ensureLinkedWebsiteProfile} from './mega-inpvp-discord-match.js';
 import {enqueueMegaProfileCandidates,nextMegaProfileScan,markMegaProfileScan,
   autoLinkMegaProfile} from './mega-player-profile-links.js';
 import {topTeamDetails} from './mega-top10-store.js';
@@ -121,7 +121,7 @@ export function createMegaTop10Poller({
          .includes(match.status)?match.status:'unavailable';
        return false;
      }
-     if(!registeredWebsiteMember(match.discordId)){
+     if(!ensureLinkedWebsiteProfile(match.member)){
        status='not_registered';
        return false;
      }
