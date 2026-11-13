@@ -7,6 +7,18 @@ import {TOP10_LIST_POLL_MS,TOP10_TEAM_SPACING_MS,
   noteTopTeamAttempt,noteTopTeamFailure,saveTopTeamDetails} from './mega-top10-store.js';
 import {captureTop10Leaderboard,captureTopTeamDetails} from './mega-top10-collector.js';
 
+const safeDiagnostic=e=>{
+ const d=e?.safeDiagnostic;
+ if(!d||typeof d!=='object')return '';
+ const type=['found','empty','layout','upstream-sync','sign-in','verification','test-fixture','unavailable']
+   .includes(d.mode)?d.mode:'unknown';
+ const safeCount=n=>Number.isInteger(n)&&n>=0&&n<=100000?n:0;
+ return ' [mode='+type+
+  ',rows='+safeCount(d.rows)+',dom='+safeCount(d.fromDom)+
+  ',text='+safeCount(d.fromText)+',table='+safeCount(d.tableCount)+
+  ',role='+safeCount(d.roleCount)+',styled='+safeCount(d.styledCount)+
+  ',sync='+!!d.syncing+',columns='+!!d.columns+']';
+};
 const safeError=e=>{
  const message=String(e?.message||'');
  if(message.startsWith('InPvP Top 10 listing was not fully rendered'))
@@ -57,8 +69,9 @@ export function createMegaTop10Poller({
        'No ranking changes.'));
      return true;
    }catch(error){
-     noteTop10Failure(safeError(error));
-     onLog(safeError(error));
+     const message=safeError(error)+safeDiagnostic(error);
+     noteTop10Failure(message);
+     onLog(message);
      return false;
    }finally{busy=false;}
  }

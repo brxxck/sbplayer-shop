@@ -125,11 +125,16 @@ export function noteTop10Failure(message,{at=Date.now()}={}){
  run('UPDATE mega_top_status SET last_attempt=?,last_error=? WHERE id=1',at,safe);
 }
 export function top10NextDue({at=Date.now()}={}){
- // One team per 30-second scheduler slot; each individual team at most once
- // per five minutes, and only after the live Top 10 is verified.
+ // Read the current Top 10 when verified. If the source leaderboard still
+ // displays its loading placeholder, read only owner-provided known official
+ // URLs instead. NEVER treat those reference teams as confirmed live ranks.
+ // Each team is checked no more than once per five minutes; shared worker
+ // runs only one detail read per 30-second slot.
  return one('SELECT team_id AS id,name,team_url AS url FROM mega_top_teams '+
-  'WHERE rank IS NOT NULL AND detail_attempt_at<=? ORDER BY detail_attempt_at ASC,rank ASC LIMIT 1',
-  at-TOP10_TEAM_REFRESH_MS)||null;
+   "WHERE (rank IS NOT NULL OR (source='reference' AND "+
+   '(SELECT last_success FROM mega_top_status WHERE id=1)=0)) '+
+   'AND detail_attempt_at<=? ORDER BY detail_attempt_at ASC,COALESCE(rank,999),rowid LIMIT 1',
+   at-TOP10_TEAM_REFRESH_MS)||null;
 }
 export function noteTopTeamAttempt(id,{at=Date.now()}={}){
  run('UPDATE mega_top_teams SET detail_attempt_at=? WHERE team_id=?',at,id);
