@@ -176,3 +176,23 @@ test('rejects roster collection if a source navigation changes team identity',as
  const page={url:()=>canonicalTeamLink('Abyzz',KNOWN_TEAM_LINKS[2][1])};
  await assert.rejects(()=>collectFullTeamRoster(page,{teamId:team.id}),/expected team/);
 });
+
+test('partial update does not destroy a previously complete member roster',()=>{
+ const id=KNOWN_TEAM_LINKS[2][1];
+ const complete=saveTopTeamDetails(id,{id,bankText:'$88.1M',memberCount:2,
+  roster:[{gamertag:'FirstPlayer'},{gamertag:'SecondPlayer'}],
+  rosterComplete:true,events:[]});
+ assert.equal(complete.complete,true);
+ const subsequent=saveTopTeamDetails(id,{id,bankText:null,memberCount:3,
+  roster:[{gamertag:'FirstPlayer'}],
+  rosterComplete:false,events:[]});
+ assert.equal(subsequent.rosterSaved,false);
+ const detail=topTeamDetails(id);
+ assert.equal(detail.bankText,'$88.1M');
+ assert.equal(detail.memberCount,3);
+ assert.equal(detail.members.filter(m=>m.rosterObserved).length,2);
+ assert.equal(detail.rosterComplete,1);
+ const page=megaTeamDetailsPage(ctx,{team:detail,links:[]});
+ assert.match(page,/2 of 3 reported member names captured/);
+ assert.doesNotMatch(page,/All 3 member names captured/);
+});
