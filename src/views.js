@@ -389,15 +389,15 @@ export function xboxLinkResultPage(ctx,{status='verification_failed'}={}){
   '<p>'+esc(explanation)+'</p></div></div>'+
   '<p class="muted tiny">No Microsoft password or access token has been saved by SBStore.</p>'+
   '<div class="actions">'+tryAgain+
-  '<a class="btn btn-outline" href="/profile/edit">Back to profile settings</a></div></section>');
+  '<a class="btn btn-outline" href="/profile/edit">Profile settings</a></div></section>');
 }
 function xboxAccountCard(ctx,link,configured){
  const state=link?
   '<p class="muted">Verified Xbox gamertag: <strong>'+esc(link.gamertag)+'</strong></p>'+
   '<p class="muted tiny">Verified through Microsoft/Xbox on '+
     esc(new Date(link.verifiedAt).toLocaleDateString('en-GB'))+
-    '. This verifies the Xbox gamertag, not ownership of Minecraft itself.</p>':
-  '<p class="muted">No Minecraft Bedrock gamertag linked yet.</p>';
+    '. Xbox identity only — not proof of Minecraft ownership.</p>':
+  '<p class="muted">No Xbox gamertag linked.</p>';
  const linkButton=configured?
   '<a href="/profile/microsoft/start" class="btn btn-primary">'+
   icon('gamepad-2',{size:17})+' '+(link?'Verify again':'Link Microsoft / Xbox')+'</a>':
@@ -406,9 +406,9 @@ function xboxAccountCard(ctx,link,configured){
   '<form method="post" action="/profile/microsoft/unlink">'+token(ctx)+
   '<button type="submit" class="btn btn-outline btn-sm">Unlink Xbox gamertag</button></form>':'';
  return '<section class="panel padded profile-xbox-card"><h2>'+icon('gamepad-2',{size:19})+
-  ' Connected Accounts</h2><h3>Microsoft / Xbox</h3>'+state+
+  ' Connected Accounts</h2>'+state+
   '<div class="actions">'+linkButton+unlink+'</div>'+
-  '<p class="muted tiny">Only your Xbox gamertag and a protected identity fingerprint are saved. No Microsoft login tokens are stored or shared with InPvP.</p></section>';
+  '<p class="muted tiny">Stores your gamertag and protected identity fingerprint only. No Microsoft login tokens.</p></section>';
 }
 export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],xboxLink=null,xboxConfigured=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
