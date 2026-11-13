@@ -119,7 +119,7 @@ test('empty team pages explain unavailable roster without blank bank/stat cards'
  saveTopTeamDetails(id,{id,memberCount:21,roster:[],events:[]});
  const page=megaTeamDetailsPage(ctx,{team:topTeamDetails(id),links:[]});
  assert.match(page,/0 of 21 reported member names captured/);
- assert.match(page,/player names for this team are not currently available/);
+ assert.match(page,/has not exposed the player names for this team/i);
  assert.doesNotMatch(page,/OBSERVED DEPOSITS|OBSERVED WITHDRAWALS|OBSERVED NET|Not recorded|<th>EVENTS<\/th>/);
 });
 
