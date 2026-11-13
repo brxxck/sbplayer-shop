@@ -4,7 +4,7 @@
 import {validGamertag} from './mega-team.js';
 
 const financial=/^\$[\d,]+(?:\.\d{1,3})?[KMBT]?$/i;
-const disallowed=/^(?:members?|team members|roster|player|name|role|leader|officer|owner|co-owner|deposited|deposits?|withdrawn|withdrawals?|bank|net|total|statistics|stats|balance|view profile|search|level|activity|last seen|online|offline|unknown|loading|show more|invite|manage|leave team)$/i;
+const disallowed=/^(?:members?|team members|roster|player|name|role|leader|officer|owner|co-owner|deposited|deposits?|withdrawn|withdrawals?|bank|team bank|event log|net|total|statistics|stats|balance|view profile|search|level|activity|last seen|online|offline|unknown|loading|show more|invite|manage|leave team)$/i;
 const clean=value=>String(value??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
 const finance=value=>{
  const text=clean(value);
