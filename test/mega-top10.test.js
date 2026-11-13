@@ -43,6 +43,15 @@ test('official URL validation rejects unrelated sites, escaped URLs and wrong ga
  assert.throws(()=>canonicalTeamLink('Invalid<script>',MEGA_TEAM_ID));
  assert.throws(()=>canonicalTeamLink('Abaddon','../../secret'));
 });
+test('known reference teams are eligible for staggered detail capture before ranking verification',()=>{
+ const listing=top10Leaderboard();
+ assert.equal(listing.live,false);
+ const due=top10NextDue();
+ assert.ok(due,'a reference team should be readable while the directory is syncing');
+ assert.equal(due.id,KNOWN_TEAM_LINKS[0][1]);
+ assert.equal(due.url,canonicalTeamLink('Abaddon',KNOWN_TEAM_LINKS[0][1]));
+ assert.equal(listing.teams[0].rank,null,'detail collection never fabricates Top 10 rank');
+});
 test('verified listing sets current positions without inventing missing fields',()=>{
  const saved=saveTop10Leaderboard(initial());
  assert.equal(saved.changed,true);
