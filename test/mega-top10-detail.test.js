@@ -99,7 +99,7 @@ test('simplified team pages show roster names and linked Discord profiles withou
  assert.match(page,/PlayerOne/);
  assert.match(page,/PlayerTwo/);
  assert.match(page,/href="\/u\/100000000000000008"/);
- assert.match(page,/<th>PLAYER<\/th><th>TEAM ROLE<\/th>/);
+ assert.match(page,/<th>MINECRAFT PLAYER<\/th>/);
  assert.doesNotMatch(page,/OBSERVED DEPOSITS|OBSERVED WITHDRAWALS|OBSERVED NET|CAPTURED BANK EVENTS|<th>AMOUNT<\/th>/);
  const listing=megaLeaderboardPage(ctx,top10Leaderboard());
  assert.match(listing,/<th>PLACE<\/th><th>TEAM<\/th><th>OFFICIAL PAGE<\/th>/);
