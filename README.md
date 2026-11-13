@@ -1,8 +1,19 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.8.4
+# SB's & Cam's Store — Community Portal V1.9.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.9.0 — Verified Xbox gamertag linking on Discord profiles
+
+**Scope:** Username/account linking only. No new InPvP data enrichment, shared login sessions, private team access or bank collection.
+
+- A signed-in member can use **Connected Accounts → Microsoft / Xbox** on My Profile or Edit Profile. The verified Xbox gamertag appears on their website profile and is used for existing MegaSMP name-to-Discord profile links.
+- Microsoft Entra consumer OAuth with authorization code + PKCE, short-lived per-session state and the `xboxlive.signin` scope; subsequent Xbox user token, XSTS and official profile response validate the gamertag. A gamertag is not proof of a Minecraft purchase.
+- **No Microsoft/Xbox tokens or passwords are retained.** Only a verified gamertag and a site-keyed HMAC of the transient Xbox identity are persisted for one-to-one uniqueness. Raw XUIDs are not stored. No Discord roles or session permissions are granted.
+- One Xbox account per Discord profile. The member can unlink; identity and gamertag conflicts are rejected. Profile-link actions are recorded in the owner-only tamper-evident audit. Holder-verified Xbox matches supersede older manual and InPvP name associations for display.
+- New Railway variables: `XBOX_LINK_CLIENT_ID`, `XBOX_LINK_CLIENT_SECRET`, and a 32+ character stable `XBOX_LINK_ACCOUNT_KEY`. Register a **personal Microsoft accounts only** Web callback at `https://sbstore.info/profile/microsoft/callback`. This is separate from the existing owner-only Microsoft Graph tool.
+- The feature remains disabled until credentials are configured. The web UI explains setup status without exposing any credentials. Xbox service/profile access may require Microsoft provisioning; if the API cannot verify a gamertag, the link is not created.
+- Existing Discord OAuth, Railway volume and database, InPvP public profile matching, Top 10 ranks and bank history remain untouched.
 ## V1.8.4 — Automatic Discord profile matching from InPvP member lists
 
 - Every captured Minecraft member name enters a **staggered, read-only public InPvP profile scan queue** (20-second scheduler, sharing the existing Chromium browser with the Top 10 reader). Example: \`https://inpvp.net/mineville/profile/SBisOnTop\` shows a voluntarily linked Discord badge such as \`@unk.sb\`. A public profile is checked only after it appears in a verified team roster.
