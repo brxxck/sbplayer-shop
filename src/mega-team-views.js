@@ -14,8 +14,10 @@ const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat pan
  '<strong data-mega-value="'+key+'">'+fmtShort(amount)+'</strong>'+
  '<small>'+detail+'</small></div>';
 function memberRow(m,linked){
+ const id=linked&&/^\d{15,22}$/.test(String(linked.discordId||''))?linked.discordId:null;
+ const playerName=id?'<a class="mega-top-team-link" href="/u/'+attr(id)+'" title="Open linked Discord profile">'+esc(m.gamertag)+'</a>':'<b>'+esc(m.gamertag)+'</b>';
  return '<tr><td><span class="mega-player">'+icon(m.role==='Leader'?'crown':'user-round',{size:17})+
-  '<b>'+esc(m.gamertag)+'</b>'+(m.status==='former'?'<span class="mega-former">Former</span>':m.status==='observed'?'<span class="mega-former">Observed (not verified roster)</span>':'')+
+  playerName+(m.status==='former'?'<span class="mega-former">Former</span>':m.status==='observed'?'<span class="mega-former">Observed (not verified roster)</span>':'')+
   '</span><small>'+esc(m.role)+' · '+esc(sourceLabel(m.source))+'</small>'+
  (linked?'<small><a class="mega-matched-discord" href="/u/'+attr(linked.discordId)+'">'+
   icon('user-round-check',{size:15})+' @'+esc(linked.username||linked.displayName||linked.discordId)+'</a></small>':'')+'</td>'+
@@ -23,11 +25,18 @@ function memberRow(m,linked){
  '<td class="mega-number">'+moneyCell(m.withdrawals??m.observedWithdrawals)+'</td>'+
  '<td class="mega-number">'+moneyCell(m.net??m.observedNet)+'</td></tr>';
 }
-const leaderboard=(members,field='deposits')=>members.filter(m=>m.status==='active').sort((a,b)=>{
- const x=b[field]??b.observedDeposits??-1,y=a[field]??a.observedDeposits??-1;
+const leaderboard=(members,links,field='deposits')=>members.filter(m=>m.status!=='former'&&
+ (m[field]!=null||m.observedDeposits!=null)).sort((a,b)=>{
+ const x=Number(b[field]??b.observedDeposits??-1),y=Number(a[field]??a.observedDeposits??-1);
  return x-y||a.gamertag.localeCompare(b.gamertag);
-}).map((m,i)=>'<tr><td class="mega-rank">#'+(i+1)+'</td><td>'+esc(m.gamertag)+'</td>'+
- '<td class="mega-number">'+moneyCell(m[field]??m.observedDeposits)+'</td></tr>').join('');
+}).map((m,i)=>{
+ const linked=links.get(m.gamertag.toLowerCase());
+ const name=linked&&/^\d{15,22}$/.test(String(linked.discordId||''))?
+  '<a href="/u/'+attr(linked.discordId)+'" class="mega-top-team-link">'+esc(m.gamertag)+'</a>':esc(m.gamertag);
+ return '<tr><td class="mega-rank">#'+(i+1)+'</td><td>'+name+
+  (m.status==='observed'?'<small>Captured activity only</small>':'')+'</td>'+
+  '<td class="mega-number">'+moneyCell(m[field]??m.observedDeposits)+'</td></tr>';
+}).join('');
 function discordRoster(groups,restricted){
  const seen=new Set(),members=groups.flatMap(g=>g.members).filter(m=>{
   if(!m.id||seen.has(m.id))return false;seen.add(m.id);return true;
@@ -101,13 +110,22 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
  const coverage=data.totals.withBoth+'/'+data.totals.recordedMembers+' recorded members have both totals';
  const stateLabel=data.totals.missing?'Partial totals · '+coverage:'Complete recorded roster coverage · '+coverage;
  const seasons=data.seasons.map(s=>'<option value="'+attr(s.season)+'" '+(s.season===data.season.season?'selected':'')+'>'+esc(s.label)+'</option>').join('');
- const rank=leaderboard(data.members);
  const linkedByGamertag=new Map(discordMatches.map(link=>[link.gamertag.toLowerCase(),link]));
+ const rank=leaderboard(data.members,linkedByGamertag);
+ const hasObserved=Number(data.captured?.totalEvents||0)>0;
+ const observedDeposits=hasObserved?Number(data.captured.deposited):null;
+ const observedWithdrawals=hasObserved?Number(data.captured.withdrawn):null;
+ const observedNet=hasObserved&&Number.isFinite(observedDeposits)&&Number.isFinite(observedWithdrawals)?
+  observedDeposits-observedWithdrawals:null;
+ const sourceHint='Partial observed bank activity; not lifetime contributions';
  const summary='<section class="mega-stats" aria-label="MegaSMP financial summary">'+
   summaryCard('balance','Reported team bank',data.bank?.balance??null,'From '+esc(sourceLabel(data.bank?.source)),'wallet')+
-  summaryCard('deposits','Known deposits',data.totals.deposited,'Partial if some players lack records','arrow-down-to-line')+
-  summaryCard('withdrawals','Known withdrawals',data.totals.withdrawn,'Partial if some players lack records','arrow-up-from-line')+
-  summaryCard('net','Net recorded contributions',data.totals.net,'Shown when every recorded player has both totals','chart-no-axes-combined')+
+  summaryCard('deposits',data.totals.deposited==null?'Observed deposits':'Recorded deposits',
+    data.totals.deposited??observedDeposits,data.totals.deposited==null?sourceHint:'Partial if players lack records','arrow-down-to-line')+
+  summaryCard('withdrawals',data.totals.withdrawn==null?'Observed withdrawals':'Recorded withdrawals',
+    data.totals.withdrawn??observedWithdrawals,data.totals.withdrawn==null?sourceHint:'Partial if players lack records','arrow-up-from-line')+
+  summaryCard('net',data.totals.net==null?'Observed net':'Net recorded contributions',
+    data.totals.net??observedNet,data.totals.net==null?sourceHint:'Shown when all recorded players have both totals','chart-no-axes-combined')+
   '</section>';
  const rows=data.members.length?data.members.map(m=>memberRow(m,linkedByGamertag.get(m.gamertag.toLowerCase()))).join(''):'<tr><td colspan="4">No in-game roster imported yet. Team admins can add Gamertags or import an authorized snapshot.</td></tr>';
  const history=data.transactions.map(t=>'<tr><td>'+date(t.occurred_at)+'</td><td>'+esc(t.gamertag)+'</td>'+
@@ -125,8 +143,8 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<span data-mega-updated>Latest known source: '+date(sourceUpdated||data.bank?.as_of)+'</span></div>'+
   '<p class="mega-disclaimer">Recorded and observed figures remain separate. Observed bank activity may be partial, and a captured player is not proof of current membership. Refresh displays stored records; browser collection requires a separately configured worker.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
   '</section>'+
-  '<div class="mega-toolbar"><form method="get" action="/team" class="mega-season-select">'+
-  '<input type="hidden" name="tab" value="mega"><label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View season</button></form>'+
+  '<div class="mega-toolbar"><form method="get" action="/mega-team" class="mega-season-select">'+
+  '<label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View season</button></form>'+
   '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh displayed data</button>'+
   '<span class="mega-muted" data-mega-timestamp aria-live="polite"></span></div>'+
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
@@ -141,7 +159,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>PLAYER</th><th>DEPOSITED</th><th>WITHDRAWN</th><th>NET</th></tr></thead>'+
   '<tbody data-mega-rows>'+rows+'</tbody></table></div></section>'+
   '<section class="mega-section" id="mega-leaderboard"><div class="mega-section-head"><div><h3>Contribution leaderboard</h3>'+
-  '<p>Ranked by known cumulative deposits. Players with missing data appear last.</p></div></div>'+
+  '<p>Ranked by recorded or captured deposits. Observed totals may be incomplete.</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>RANK</th><th>GAMERTAG</th><th>DEPOSITED</th></tr></thead>'+
   '<tbody data-mega-leaderboard>'+rank+'</tbody></table></div></section>'+
   '<section class="mega-section" id="mega-bank-history"><div class="mega-section-head"><div><h3>Recorded bank activity</h3>'+
