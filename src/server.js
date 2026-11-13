@@ -325,6 +325,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       try{await member();}catch{}
       await form();
       if(isStaffRole(ctx.role))logAction(ctx,'staff.logout',ctx.user.id);
+      if(ctx.session?.token_hash)xboxLinkAuth.forget(ctx.session.token_hash,ctx.user.id);
       if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));setCookie(res,'sid','');return redirect(res,'/');
     }
 
