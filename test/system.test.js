@@ -293,12 +293,55 @@ test('Our Staff, Team Members, Known Members render in requested order with exac
 });
 
 
+test('MegaSMP leaderboard and owner-only profile linking are separate and secure',async()=>{
+ const oldTeam=await (await get('/team?tab=team','member')).text();
+ const tabs=oldTeam.split('<nav class="team-directory-tabs"')[1]?.split('</nav>')[0]||'';
+ assert.ok(!tabs.includes('href="/team?tab=mega"'),'MegaSMP is no longer embedded in Team Members tabs');
+ const landing=await get('/mega-team','member');
+ assert.equal(landing.status,200);
+ const html=await landing.text();
+ assert.ok(html.includes('href="/mega-team/leaderboard"'));
+ assert.ok(html.includes('data-mega-title-rank'));
+ assert.equal((await get('/mega-team/leaderboard','member')).status,200);
+ const directory=await (await get('/mega-team/leaderboard','member')).text();
+ assert.ok(directory.includes('Reference links'));
+ assert.ok(directory.includes('Abaddon'));
+ assert.ok(directory.includes('richmans'));
+ assert.ok(directory.includes('d3b46a3c-f5a5-4888-a247-0074ccbfceec'));
+ const index=await (await get('/mega-team/top10.json','member')).json();
+ assert.equal(index.teams.length,10);
+ assert.equal(index.live,false);
+ assert.equal((await get('/mega-team/teams/d3b46a3c-f5a5-4888-a247-0074ccbfceec','member')).status,200);
+ assert.equal((await get('/mega-team/teams/not-a-team','member')).status,404);
+ assert.equal((await get('/mega-team/links','member')).status,403);
+ assert.equal((await get('/mega-team/links','adminA')).status,403);
+ assert.equal((await get('/mega-team/links','reviewer')).status,403);
+ const owner=await get('/mega-team/links?player=SBisOnTop&q=member2','owner');
+ assert.equal(owner.status,200);
+ assert.ok((await owner.text()).includes('value="'+ids.member2+'"'));
+ assert.equal((await post('/mega-team/links','adminA',{mode:'link',gamertag:'SBisOnTop',discord_user_id:ids.member2})).status,403);
+ assert.equal((await post('/mega-team/links','owner',{mode:'link',gamertag:'SBisOnTop',discord_user_id:ids.bot})).status,400);
+ const csrfMissing=await fetch(base+'/mega-team/links',{method:'POST',
+   headers:{cookie:sessions.get('owner').cookie,'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({mode:'link',gamertag:'SBisOnTop',discord_user_id:ids.member2}),
+   redirect:'manual'
+ });
+ assert.equal(csrfMissing.status,403);
+ assert.equal((await post('/mega-team/links','owner',{mode:'link',gamertag:'SBisOnTop',discord_user_id:ids.member2})).status,303);
+ const links=await import('../src/mega-player-profile-links.js');
+ assert.equal(links.allMegaPlayerProfileLinks().find(m=>m.gamertag==='SBisOnTop').discordId,ids.member2);
+ assert.equal(one("SELECT COUNT(*) AS n FROM owner_audit_log WHERE action='mega.profile.link'").n>=1,true);
+ assert.equal((await post('/mega-team/links','owner',{mode:'unlink',gamertag:'SBisOnTop'})).status,303);
+ assert.equal(links.allMegaPlayerProfileLinks().some(m=>m.gamertag==='SBisOnTop'),false);
+ assert.equal(one("SELECT COUNT(*) AS n FROM owner_audit_log WHERE action='mega.profile.unlink'").n>=1,true);
+});
+
 test('MegaSMP dashboard preserves rosters, manually recorded money, source provenance and season history',async()=>{
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {activeMegaSeason,MEGA_TEAM_ID}=await import('../src/mega-team.js');
  const season=activeMegaSeason();
- const initial=await (await get('/team?tab=mega','member')).text();
- assert.match(initial,/>MegaSMP Team<\/span>/,'fourth team directory tab is visible');
+ const initial=await (await get('/mega-team','member')).text();
+ assert.match(initial,/MEGASMP PORTAL/,'MegaSMP is its own standalone page');
  assert.ok(initial.includes('SBsxScam'));
  assert.ok(initial.includes('No in-game roster imported yet'),'unverified Discord team roles are not presented as a verified game roster');
  assert.ok(initial.includes('Discord team roster'),'Discord fallback is clearly labelled');
@@ -308,7 +351,7 @@ test('MegaSMP dashboard preserves rosters, manually recorded money, source prove
  assert.equal(blank.totals.deposited,null,'unknown totals must not silently display zero');
  assert.equal(blank.totals.withdrawn,null);
  assert.equal(blank.bank,null);
- assert.equal((await get('/mega-team','member')).headers.get('location'),'/team?tab=mega');
+ assert.equal((await get('/team?tab=mega','member')).headers.get('location'),'/mega-team');
  assert.equal((await post('/team/mega/roster','member',{season,gamertags:'UnauthorizedPlayer'})).status,403);
  assert.equal((await post('/team/mega/season','adminA',{label:'Not an owner'})).status,403);
  const roster=await post('/team/mega/roster','adminA',{season,
@@ -363,7 +406,8 @@ test('MegaSMP dashboard preserves rosters, manually recorded money, source prove
  assert.notEqual(activeMegaSeason(),season);
  assert.equal(megaDashboard().members.length,0,'new seasons start with a fresh roster and zero fabricated statistics');
  assert.equal(megaDashboard(season).bank.balance,15000000,'historic balances stay available');
- assert.equal((await get('/team?tab=mega&season='+encodeURIComponent(season),'member')).status,200);
+ assert.equal((await get('/team?tab=mega&season='+encodeURIComponent(season),'member')).status,303);
+  assert.equal((await get('/mega-team?season='+encodeURIComponent(season),'member')).status,200);
  assert.equal((await post('/team/mega/bank','adminA',{season,balance:'1'})).status,400,'past seasons cannot be silently edited');
 });
 
@@ -456,7 +500,7 @@ test('captured event history and verified owner Discord matching are permission-
  assert.ok(linkedPage.includes('/u/'+ids.member2));
  assert.ok(linkedPage.includes('@member2'));
  assert.equal((await post('/team/mega/roster','adminA',{season,gamertags:'Captured0001',role:'Member'})).status,303);
- const team=await (await get('/team?tab=mega&season='+encodeURIComponent(season),'member')).text();
+ const team=await (await get('/mega-team?season='+encodeURIComponent(season),'member')).text();
  assert.ok(team.includes('/u/'+ids.member2));
  const data=await (await get('/team/mega/data?season='+encodeURIComponent(season),'member')).json();
  assert.equal(data.members.find(x=>x.gamertag==='Captured0001').linkedDiscord.id,ids.member2);
