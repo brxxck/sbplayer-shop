@@ -41,10 +41,23 @@ if(!allowed){
         viewport:{width:1360,height:850}
       });
     const screenshotPath=resolve(dirname(config.dbPath),'mega-bank-last-failure.png');
-    let busy=false,stopped=false,timer=null;
+    let busy=false,stopped=false,timer=null,bankRetryTimer=null;
     const top10=createMegaTop10Poller({browser,encryptedMode,vault,mainBusy:()=>busy});
     async function collect(){
-      if(busy||top10.busy||stopped)return;
+      if(busy||stopped)return;
+      if(top10.busy){
+        // A 60-second leaderboard check may overlap the five-minute bank
+        // interval. Retry the bank capture after the other read rather than
+        // silently dropping a whole five-minute collection window.
+        if(!bankRetryTimer){
+          bankRetryTimer=setTimeout(()=>{
+            bankRetryTimer=null;
+            void collect();
+          },5000);
+          bankRetryTimer.unref?.();
+        }
+        return;
+      }
       busy=true;
       let context=null,page=null,originalState=null,revision=null,success=false;
       const transport={failedRequests:0,httpErrors:0,pageErrors:0};
@@ -138,6 +151,7 @@ if(!allowed){
           const shutdown=async()=>{
             if(stopped)return;stopped=true;
             if(timer)clearInterval(timer);
+            if(bankRetryTimer)clearTimeout(bankRetryTimer);
             await top10.stop();
             while(busy)await new Promise(done=>setTimeout(done,250));
             await browser.close();
