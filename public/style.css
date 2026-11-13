@@ -729,3 +729,16 @@
 /* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
 .mega-title-place{display:inline-flex;align-items:center;margin-left:10px;font-size:clamp(15px,2vw,23px);color:#80c5ff;text-decoration:none;white-space:nowrap}
 .mega-title-place:hover{text-decoration:underline;color:#fff}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.10 SBs recruitment: responsive, consistent with existing dark panels. */
+.team-application-form{max-width:850px}
+.team-application-form hr{margin:26px 0}
+.team-identity-gate{max-width:720px}
+.team-skills{border:1px solid var(--line);border-radius:12px;padding:18px;margin:6px 0 19px}
+.team-skills legend{font-size:13px;font-weight:800;padding:0 9px;color:var(--text)}
+.team-skill-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.team-skill-grid .check-label{margin:0;padding:7px;border-radius:7px;font-weight:600}
+.team-skill-grid .check-label:hover{background:var(--panel-hi)}
+.team-application-form .step{min-width:43px}
+@media(max-width:700px){.team-skill-grid{grid-template-columns:1fr}.team-application-form .field-grid{grid-template-columns:1fr}.team-application-form{padding:20px}}

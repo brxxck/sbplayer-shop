@@ -35,6 +35,7 @@ export function icon(name,{size=18,className='',label=''}={}){
 export const NAV_ICON_NAMES=Object.freeze({
   '/':'house','/tickets/new':'ticket-plus','/tickets/new/ban_appeal':'scale',
   '/tickets/mine':'tickets','/dashboard':'clipboard-list','/apply':'file-pen-line',
+  '/team-applications/apply':'file-pen-line','/team-applications/review':'clipboard-list',
   '/promotions':'award','/feed':'newspaper','/suggestions':'lightbulb',
   '/members':'users-round','/team':'shield-check','/mega-team':'wallet','/profile':'circle-user-round',
   '/notifications':'bell','/saved':'bookmark','/profile/edit':'user-round-pen',

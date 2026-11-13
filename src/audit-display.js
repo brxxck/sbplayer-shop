@@ -7,6 +7,7 @@ const decimalDiscordId=/^[0-9]{15,22}$/;
 // The audit ledger is tamper-evident: never rewrite rows to replace IDs.
 const changingActions=new Set([
   // Direct writes and meaningful review decisions, including legacy event names.
+  'team_application.submitted','team_application.status','team_application.note','team_application.access','team_application.webhook',
   'application.submitted','application.note.update','application.interview','application.reply',
   'admin.decision','application.consensus.reached','reviewer.vote',
   'application.owner_review','application.role.assigned','application.role.failed',

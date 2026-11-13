@@ -10,6 +10,7 @@ const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'20
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
+const {saveXboxLink}=await import('../src/xbox-gamertag-links.js');
 const {config}=await import('../src/config.js');
 const {verifyAudit,appendAudit}=await import('../src/audit.js');
 const fakeRoles=[
@@ -183,6 +184,30 @@ test('Xbox account menu navigates to Microsoft via GET, bypassing form-action re
   if(extraServer?.listening)await new Promise(resolve=>extraServer.close(resolve));
   for(const k of envNames){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
  }
+});
+
+test('staff and SBs application submissions require Discord AND Microsoft/Xbox verification',async()=>{
+  const staff=await get('/apply','member');
+  assert.equal(staff.status,200);
+  const page=await staff.text();
+  assert.match(page,/Verify Microsoft\/Xbox before applying/);
+  assert.doesNotMatch(page,/action="\/apply"/,'unverified member must not see staff application form');
+  const denied=await post('/apply','member',answers);
+  assert.equal(denied.status,403,'server must reject unverified staff submission');
+  assert.equal(one('SELECT COUNT(*) n FROM applications WHERE user_id=?',ids.member).n,0);
+  const team=await get('/team-applications/apply','member');
+  assert.equal(team.status,200);
+  assert.match(await team.text(),/Account verification required/);
+  const deniedTeam=await post('/team-applications/apply','member',{
+    daily_earnings:'500',net_worth:'1000',play_days:'5',play_hours:'3',timezone:'GMT',
+    skill_pvp:'on',bank_contribution:'yes',income_method:'I farm crops each day',
+    motivation:'I want to join the SBs team.',contribution:'I can contribute money and farms.'
+  });
+  assert.equal(deniedTeam.status,403,'server must reject unverified team submission');
+  assert.equal(one('SELECT COUNT(*) n FROM team_applications WHERE user_id=?',ids.member).n,0);
+  assert.equal((await get('/team-applications/review','member')).status,403);
+  assert.equal((await get('/team-applications/review','member3')).status,200,'verified SBs leader can review');
+  assert.equal((await get('/team-applications/review','adminA')).status,200,'verified website admin can review');
 });
 
 test('encrypted InPvP browser session setup is hidden and owner-only',async()=>{
@@ -633,6 +658,13 @@ test('SBs Member tag follows names on profiles but leader-only and private profi
 });
 
 test('members submit private applications; optional reviewers vote once then ticket disappears',async()=>{
+  // Legacy review-flow fixtures now satisfy both new recruitment identity requirements.
+  for(const [key,id] of Object.entries(ids)){
+    if(key==='guild'||key==='bot'||!one('SELECT 1 FROM users WHERE id=?',id))continue;
+    if(!one('SELECT 1 FROM xbox_gamertag_links WHERE user_id=?',id)){
+      saveXboxLink({userId:id,identityKey:(Number(Object.keys(ids).indexOf(key)+1)).toString(16).padStart(64,'0'),gamertag:'Tester'+Object.keys(ids).indexOf(key)});
+    }
+  }
   let r=await post('/apply','member',answers);assert.equal(r.status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);assert.equal(a.status,'pending');
   let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes(`Application Reviews`) && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs

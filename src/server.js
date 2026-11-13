@@ -12,6 +12,8 @@ import {classify,hasVerifiedAdministratorPermission,manageableRoles,protectedRol
 import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
+import * as teamApplicationViews from './team-application-views.js';
+import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
 import * as view from './views.js';
 import * as microsoftView from './owner-microsoft-views.js';
 import {megaSessionPage} from './mega-session-views.js';
@@ -246,6 +248,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          ctx.staffNavigation=isStaffRole(ctx.role);
        }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
+      ctx.teamRecruiter=isAdminRole(ctx.role)||sbsTeamMembership(actual.roles||[]).leader;
       ctx.notificationCount=notificationCount(ctx.user.id);
       // Xbox menu status is available on every authenticated page, including Home.
       ctx.xboxConfigured=xboxLinkAuth.configured;
@@ -267,7 +270,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.10.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -373,6 +376,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         'application/json; charset=utf-8');
     }
 
+    // SBs team recruitment routes are registered after member() below.
     // Public, non-sensitive HTML for signed-out links. Discordbot can read OG tags
     // without being redirected to Discord OAuth. Real protected data remains gated.
     if(req.method==='GET' && !ctx.user && pathname!=='/' && view.linkPreviewData(pathname))
@@ -569,6 +573,97 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         'content-disposition':'inline; filename="mega-bank-private-diagnostic.png"'
       });
     }
+    // Both Discord guild membership and verified Microsoft/Xbox linking are required.
+    // Never accept a gamertag from the submitted form as identity proof.
+    function linkedXboxOrReject() {
+      if(ctx.role==='appeal-only'||!ctx.member||ctx.member.pending)forbidden('Verified Discord server membership is required to apply.');
+      const linked=xboxLinkForUser(ctx.user.id);
+      if(!linked?.gamertag)forbidden('Link and verify your Microsoft/Xbox account before submitting an application. Open Customize Profile to connect it.');
+      return linked;
+    }
+    function canReviewTeam() {
+      const roles=ctx.member?.roles||[];
+      return isAdminRole(ctx.role)||sbsTeamMembership(roles).leader;
+    }
+    function teamReviewRequired() {
+      if(!canReviewTeam())forbidden('Only verified SBs team leaders and website admins can review team applications.');
+    }
+    if(pathname==='/team-applications/apply'&&req.method==='GET'){
+      return html(teamApplicationViews.teamApplyPage(ctx,{
+        xboxLink:xboxLinkForUser(ctx.user.id),
+        active:activeTeamApplication(ctx.user.id),
+        history:myTeamApplications(ctx.user.id),
+        alreadyMember:sbsTeamMembership(ctx.member?.roles||[]).member||sbsTeamMembership(ctx.member?.roles||[]).leader,
+        open:getSetting('team_applications_open','true')==='true'
+      }));
+    }
+    if(pathname==='/team-applications/apply'&&req.method==='POST'){
+      rate(ctx,'team.application.submit',3,3600000);
+      const {fields}=await form();
+      const linked=linkedXboxOrReject();
+      if(getSetting('team_applications_open','true')!=='true')return warn('/team-applications/apply','Team applications are closed.');
+      const membership=sbsTeamMembership(ctx.member?.roles||[]);
+      if(membership.leader||membership.member)return warn('/team-applications/apply','You are already an SBs team member.');
+      let data;
+      try{data=validateTeamApplication(fields,{linkedGamertag:linked.gamertag});}
+      catch(error){invalid(error.message);}
+      let id;
+      try{id=submitTeamApplication({userId:ctx.user.id,data,actorRole:ctx.role,ip:ctx.ip});}
+      catch(error){invalid(error.message);}
+      // A private link only: never send the applicant's financial data to Discord.
+      try{
+        const notified=await discord.notify({title:'New SBs Team Application #'+id,
+          description:'Verified applicant: '+data.minecraft_ign+' (self-reported activity and earnings).',
+          fields:[{name:'Review privately',value:config.baseUrl+'/team-applications/review/'+id}],
+          pingHere:false});
+        logAction(ctx,'team_application.webhook','team_application:'+id,{delivered:!!notified});
+      }catch{ /* Notification delivery must not reverse an already saved application. */ }
+      return success('/team-applications/'+id,'Your team application was submitted.');
+    }
+    if(pathname==='/team-applications/review'&&req.method==='GET'){
+      teamReviewRequired();
+      rate(ctx,'team.application.queue',60,60000);
+      const status=String(url.searchParams.get('status')||'active');
+      const sort=String(url.searchParams.get('sort')||'newest');
+      const q=String(url.searchParams.get('q')||'').slice(0,60);
+      return html(teamApplicationViews.teamReviewQueue(ctx,{
+        items:teamApplicationQueue({status,sort,q}),status,sort,q
+      }));
+    }
+    const teamReviewMatch=/^\/team-applications\/review\/(\d+)$/.exec(pathname);
+    if(teamReviewMatch&&req.method==='GET'){
+      teamReviewRequired();
+      const a=teamApplication(idFrom(teamReviewMatch[1]));
+      if(!a)missing();
+      logAction(ctx,'team_application.access','team_application:'+a.id,{access:'leadership'});
+      return html(teamApplicationViews.teamReviewDetail(ctx,{application:a}));
+    }
+    const teamReviewAction=/^\/team-applications\/review\/(\d+)\/(status|note)$/.exec(pathname);
+    if(teamReviewAction&&req.method==='POST'){
+      teamReviewRequired();rate(ctx,'team.application.review.write',25,3600000);
+      const id=idFrom(teamReviewAction[1]),a=teamApplication(id);
+      if(!a)missing();
+      if(a.user_id===ctx.user.id)forbidden('You cannot review your own application.');
+      const {fields}=await form();
+      try{
+        if(teamReviewAction[2]==='note'){
+          const note=formValue(fields,'note',2000,0);
+          saveTeamApplicationNote({id,actorId:ctx.user.id,actorRole:ctx.role,note,ip:ctx.ip});
+          return success('/team-applications/review/'+id,'Private leadership note saved.');
+        }
+        const status=formValue(fields,'status',40,1),note=formValue(fields,'note',1500,0);
+        updateTeamApplication({id,actorId:ctx.user.id,actorRole:ctx.role,status,note,ip:ctx.ip});
+        return success('/team-applications/review/'+id,'Team recruitment status updated.');
+      }catch(error){invalid(error.message);}
+    }
+    const myTeamApplicationMatch=/^\/team-applications\/(\d+)$/.exec(pathname);
+    if(myTeamApplicationMatch&&req.method==='GET'){
+      const a=teamApplication(idFrom(myTeamApplicationMatch[1]));
+      if(!a||a.user_id!==ctx.user.id)missing();
+      logAction(ctx,'team_application.access','team_application:'+a.id,{access:'applicant'});
+      return html(teamApplicationViews.myTeamApplicationPage(ctx,{application:a}));
+    }
+
     // V1.8: standalone MegaSMP home, current Top 10 and per-team details.
     // Read-only routes serve stored snapshots; only the worker reads InPvP.
     if(pathname==='/mega-team'&&req.method==='GET'){
@@ -1133,11 +1228,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/apply'&&req.method==='GET'){
       const recent=latestApplication(ctx.user.id);
-      return html(view.apply(ctx,{active:activeApplication(ctx.user.id),cooldown:recent&&now()-recent.created_at<7*86400000,open:getSetting('applications_open','true')==='true'}));
+      return html(view.apply(ctx,{active:activeApplication(ctx.user.id),cooldown:recent&&now()-recent.created_at<7*86400000,open:getSetting('applications_open','true')==='true',xboxLink:xboxLinkForUser(ctx.user.id)}));
     }
     if(pathname==='/apply'&&req.method==='POST'){
       rate(ctx,'application.submit',3,3600000);
       const {fields}=await form();
+      linkedXboxOrReject();
       if(getSetting('applications_open','true')!=='true')return warn('/dashboard','Applications are currently closed.');
       const position=formValue(fields,'position',80,1);
       if(!config.applicationRoles.includes(position))invalid('Unknown staff position');
@@ -1778,5 +1874,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.10.0 running at ${config.baseUrl}`));
 }
