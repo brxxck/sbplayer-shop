@@ -87,7 +87,7 @@ test('Xbox gamertag profile integration is disabled cleanly until configured',as
  const html=await p.text();
  assert.match(html,/Connected Accounts/);
  assert.match(html,/Xbox linking is not configured yet/);
- assert.doesNotMatch(html,/action="\/profile\/microsoft\/start"/);
+ assert.doesNotMatch(html,/href="\/profile\/microsoft\/start"/);
  const otherPage=await get('/u/'+ids.member2,'member');
  assert.equal(otherPage.status,200);
  assert.doesNotMatch(await otherPage.text(),/Verified Xbox gamertag:/);
@@ -108,7 +108,7 @@ test('Xbox gamertag profile integration is disabled cleanly until configured',as
  assert.match(callback.headers.get('location'),/verification.*failed/i);
 });
 
-test('configured Xbox menu posts to Microsoft OAuth with explicitly allowlisted CSP redirect',async()=>{
+test('Xbox account menu navigates to Microsoft via GET, bypassing form-action redirect restrictions',async()=>{
  const envNames=['XBOX_LINK_CLIENT_ID','XBOX_LINK_CLIENT_SECRET','XBOX_LINK_ACCOUNT_KEY'];
  const old=Object.fromEntries(envNames.map(k=>[k,process.env[k]]));
  let extraServer;
@@ -118,34 +118,67 @@ test('configured Xbox menu posts to Microsoft OAuth with explicitly allowlisted 
    XBOX_LINK_CLIENT_SECRET:'fixture-client-secret-value',
    XBOX_LINK_ACCOUNT_KEY:'fixture-integration-key-longer-than-32-characters'
   });
-  // Second server reads the configured values; no real Microsoft calls occur.
+  // An independent configured server exercises the real GET route without
+  // ever contacting Microsoft or using any production account credentials.
   extraServer=createServer({discord:fake,testLogin:true});
   await new Promise(resolve=>extraServer.listen(0,'127.0.0.1',resolve));
   const host='http://127.0.0.1:'+extraServer.address().port;
-  const memberSession=sessions.get('member');
-  const home=await fetch(host+'/',{headers:{cookie:memberSession.cookie},redirect:'manual'});
+  const memberSession=sessions.get('member'),cookie=memberSession.cookie;
+  const home=await fetch(host+'/',{headers:{cookie},redirect:'manual'});
   assert.equal(home.status,200);
-  assert.match(await home.text(),/class="top-account-menu-xbox"[\s\S]*?action="\/profile\/microsoft\/start"/);
+  const html=await home.text();
+  assert.match(html,/class="top-account-menu-xbox"[\s\S]*?href="\/profile\/microsoft\/start"/);
+  assert.doesNotMatch(html,/action="\/profile\/microsoft\/start"/,'no HTML form can block the OAuth redirect');
   const csp=home.headers.get('content-security-policy')||'';
   assert.match(csp,/form-action 'self' https:\/\/login\.microsoftonline\.com;/);
-  assert.doesNotMatch(csp,/form-action[^;]*\*/,'form redirects must not be wildcarded');
+  assert.doesNotMatch(csp,/form-action[^;]*\*/,'forms must remain restricted');
   const response=await fetch(host+'/profile/microsoft/start',{
-   method:'POST',redirect:'manual',
-   headers:{cookie:memberSession.cookie,'content-type':'application/x-www-form-urlencoded'},
-   body:new URLSearchParams({_csrf:memberSession.csrf})
+   method:'GET',redirect:'manual',headers:{cookie,'sec-fetch-site':'same-origin'}
   });
   assert.equal(response.status,303);
   const oauth=new URL(response.headers.get('location'));
   assert.equal(oauth.origin,'https://login.microsoftonline.com');
   assert.equal(oauth.pathname,'/consumers/oauth2/v2.0/authorize');
   assert.equal(oauth.searchParams.get('scope'),'xboxlive.signin');
+  assert.equal(oauth.searchParams.get('redirect_uri'),'https://sbstore.info/profile/microsoft/callback');
   assert.ok(oauth.searchParams.get('state'));
+  assert.equal(oauth.searchParams.get('code_challenge_method'),'S256');
+  const foreign=await fetch(host+'/profile/microsoft/start',{
+   method:'GET',redirect:'manual',headers:{cookie,'sec-fetch-site':'cross-site'}
+  });
+  assert.equal(foreign.status,403,'third-party pages cannot spend OAuth start quotas');
+  const failure=await fetch(host+'/profile/microsoft/callback?'+
+   new URLSearchParams({state:oauth.searchParams.get('state'),error:'invalid_scope',
+    error_description:'SENSITIVE-DETAILS-NOT-FOR-RENDERING'}),{
+   redirect:'manual',headers:{cookie}
+  });
+  assert.equal(failure.status,303);
+  assert.equal(failure.headers.get('location'),'/profile/microsoft/result?status=invalid_scope');
+  const feedback=await fetch(host+failure.headers.get('location'),{headers:{cookie}});
+  assert.equal(feedback.status,200);
+  const feedbackHtml=await feedback.text();
+  assert.match(feedbackHtml,/Microsoft rejected the Xbox permission/);
+  assert.match(feedbackHtml,/Retry Microsoft \/ Xbox sign-in/);
+  assert.ok(!feedbackHtml.includes('SENSITIVE-DETAILS-NOT-FOR-RENDERING'));
+  const malicious=await fetch(host+'/profile/microsoft/result?status=%3Cscript%3Ebad%3C%2Fscript%3E',{
+   headers:{cookie}
+  });
+  assert.equal(malicious.status,200);
+  assert.doesNotMatch(await malicious.text(),/<script>bad<\/script>/);
+  // Previously rendered forms remain supported but still need real CSRF.
+  const legacy=await fetch(host+'/profile/microsoft/start',{
+   method:'POST',redirect:'manual',
+   headers:{cookie,'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({_csrf:memberSession.csrf})
+  });
+  assert.equal(legacy.status,303);
+  assert.equal(new URL(legacy.headers.get('location')).origin,'https://login.microsoftonline.com');
   const wrong=await fetch(host+'/profile/microsoft/start',{
    method:'POST',redirect:'manual',
-   headers:{cookie:memberSession.cookie,'content-type':'application/x-www-form-urlencoded'},
+   headers:{cookie,'content-type':'application/x-www-form-urlencoded'},
    body:new URLSearchParams({_csrf:'invalid'})
   });
-  assert.equal(wrong.status,403,'starting OAuth requires a valid CSRF token');
+  assert.equal(wrong.status,403,'legacy POST requires a valid CSRF token');
  }finally{
   if(extraServer?.listening)await new Promise(resolve=>extraServer.close(resolve));
   for(const k of envNames){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
