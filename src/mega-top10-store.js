@@ -133,7 +133,7 @@ export function top10NextDue({at=Date.now()}={}){
  return one('SELECT team_id AS id,name,team_url AS url FROM mega_top_teams '+
    "WHERE (rank IS NOT NULL OR (source='reference' AND "+
    '(SELECT last_success FROM mega_top_status WHERE id=1)=0)) '+
-   'AND detail_attempt_at<=? ORDER BY detail_attempt_at ASC,COALESCE(rank,999),team_id LIMIT 1',
+   'AND detail_attempt_at<=? ORDER BY detail_attempt_at ASC,COALESCE(rank,999),rowid LIMIT 1',
    at-TOP10_TEAM_REFRESH_MS)||null;
 }
 export function noteTopTeamAttempt(id,{at=Date.now()}={}){
