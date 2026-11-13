@@ -86,15 +86,14 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
  const roster=team.members.filter(m=>m.rosterObserved);
  const memberRows=roster.map(m=>{
    const linked=byName.get(m.gamertag.toLowerCase());
-   return '<tr><td>'+playerName(m.gamertag,linked)+'</td>'+
-     '<td>'+esc(m.role||'Member')+'</td></tr>';
+   return '<tr><td>'+playerName(m.gamertag,linked)+'</td></tr>';
  }).join('');
  const count=Number.isSafeInteger(team.memberCount)&&team.memberCount>=0?
    '<p class="muted">'+team.memberCount.toLocaleString('en-US')+
    ' members reported by InPvP.</p>':'';
  const playerSection=roster.length?
    '<div class="table-wrap panel"><table class="mega-table">'+
-   '<thead><tr><th>PLAYER</th><th>TEAM ROLE</th></tr></thead>'+
+   '<thead><tr><th>MINECRAFT PLAYER</th></tr></thead>'+
    '<tbody>'+memberRows+'</tbody></table></div>':
    '<p class="mega-top-notice">The player names for this team are not currently available from the visible InPvP page. Open the official team page to view any additional information.</p>';
  return shell(ctx,team.name+' · MegaSMP',
