@@ -63,6 +63,8 @@
    const sb=data.teams.find(t=>t.id==='5638a504-3347-43fc-89d6-424dad53b7f6');
    const rank=root.querySelector('[data-mega-sb-rank]');
    if(rank)rank.textContent=live&&sb?.rank?'#'+sb.rank+' ↗':'Unverified ↗';
+   const titleRank=root.querySelector('[data-mega-title-rank]');
+   if(titleRank)titleRank.textContent=live&&sb?.rank?'#'+sb.rank:'Unverified';
    const status=root.querySelector('.mega-top-status');
    if(status){
      const spans=status.querySelectorAll('span');
