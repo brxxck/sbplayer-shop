@@ -742,3 +742,92 @@
 .team-skill-grid .check-label:hover{background:var(--panel-hi)}
 .team-application-form .step{min-width:43px}
 @media(max-width:700px){.team-skill-grid{grid-template-columns:1fr}.team-application-form .field-grid{grid-template-columns:1fr}.team-application-form{padding:20px}}
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.10.1: Quiet UI refresh — clarity, concise labels and reduced visual noise. */
+:root{
+  --panel:#0c1a2d;
+  --panel-hi:#11233a;
+  --line:#23344c;
+  --line-soft:#1a2a40;
+  --muted:#96a9c0;
+}
+body{background:radial-gradient(ellipse 64% 36% at 95% 0,rgba(21,58,104,.12),transparent 78%),var(--bg)}
+.brand{margin-bottom:19px}
+.brand small{display:none}
+.sidebar{background:#091627;padding-top:21px}
+.sidebar-scroll>.sidebar-title:first-of-type,
+.sidebar-scroll>.sidebar-title:nth-of-type(2){display:none}
+.sidebar nav{gap:2px;margin-bottom:18px}
+.nav-link{padding:10px 12px;border-radius:9px;font-weight:600;transition:background-color .14s ease,color .14s ease,border-color .14s ease}
+.nav-link:hover{background:#11263d}
+.nav-link.active{background:rgba(42,106,190,.16);border-color:rgba(65,132,219,.23);box-shadow:inset 2px 0 0 #4d9cf2}
+.nav-icon{width:21px;color:#79aee4}
+.topbar{background:rgba(7,17,31,.96)}
+.breadcrumbs{font-size:12px;letter-spacing:.01em;color:#adc4db}
+.content{padding-top:32px;padding-bottom:55px}
+.page-heading{margin-bottom:21px}
+.page-heading h1{font-size:clamp(26px,3vw,36px);letter-spacing:-.035em;line-height:1.17;margin:0 0 6px}
+.page-heading p{font-size:13px;line-height:1.5;max-width:65ch}
+.eyebrow{letter-spacing:.1em;font-size:10px}
+.panel{border-radius:12px;background:linear-gradient(155deg,rgba(16,34,57,.93),rgba(11,25,43,.98));box-shadow:0 8px 22px rgba(0,0,0,.07)}
+.panel.padded{padding:20px}
+.panel-heading{padding:16px 20px}
+.panel-heading h2{font-size:16px;margin:0}
+.panel h2{font-size:17px;letter-spacing:-.015em}
+.panel h3{letter-spacing:-.01em}
+.panel p{line-height:1.55}
+.btn{min-height:39px;padding:9px 14px;border-radius:8px;box-shadow:none;transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease}
+.btn:hover{transform:none}
+.btn-primary{background:linear-gradient(110deg,#2575d6,#318bf0);box-shadow:none}
+.btn-primary:hover{background:#428ff0}
+.btn:focus-visible,.nav-link:focus-visible,.tile:focus-visible,.dash-action:focus-visible,
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #77bcff;outline-offset:2px}
+.dash-welcome{border-radius:15px;padding:25px 29px;background:linear-gradient(120deg,#102947,#0b1c31);border-color:#254362}
+.dash-welcome h1{margin:0 0 12px}
+.dash-welcome p{margin:0 0 16px}
+.dash-summary-row{gap:12px}
+.dash-summary-card{padding:19px 20px;border-radius:11px;background:#0d1d33;border-color:#263b54;gap:5px;transition:background-color .15s ease,border-color .15s ease}
+.dash-summary-card:hover{background:#122741;border-color:#3a6490}
+.dash-summary-card>span{letter-spacing:.07em}
+.dash-summary-card small{font-size:11px}
+.dash-member-grid,.staff-dashboard-columns{gap:14px}
+.tile{border-radius:12px;padding:20px;gap:8px}
+.tile p{min-height:0}
+.feature-grid{gap:13px}
+.hero{border-radius:15px;min-height:245px;padding:30px 34px;background:linear-gradient(115deg,#102842,#0a1b31);border-color:#28486a}
+.hero h1{font-size:clamp(28px,3.2vw,43px);letter-spacing:-.035em;line-height:1.15;margin:0 0 12px}
+.hero p{font-size:13px;margin:0 0 19px}
+.form-heading{gap:12px;margin-bottom:17px}
+.form-heading h2{margin:0}
+.form-heading .step{width:36px;min-width:36px;height:36px;border-radius:9px;font-size:12px}
+.form-heading p{line-height:1.5}
+.form{padding:23px 25px}
+.field-grid{gap:13px}
+label{gap:7px;margin-bottom:15px}
+input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;background:#0a1a2c}
+.support-form-title{font-size:clamp(23px,2.8vw,30px);letter-spacing:-.025em;margin:0 0 20px}
+.team-application-form hr{margin:22px 0}
+.team-skills{padding:15px}
+.team-skill-grid .check-label{padding:5px}
+.mega-top-hero{border-radius:12px;background:linear-gradient(112deg,#102842,#0c1f33);border-color:#2a4b70}
+.mega-top-page{gap:15px}
+.ticket-detail-head{margin-bottom:16px}
+.footer{font-size:10px;opacity:.75}
+@media(max-width:840px){
+  .content{padding-top:24px;padding-bottom:40px}
+  .page-heading{margin-bottom:18px}
+  .dash-welcome{padding:22px}
+  .hero{padding:24px}
+}
+@media(max-width:540px){
+  .page-heading h1{font-size:27px}
+  .panel.padded{padding:17px}
+  .panel-heading{padding:15px 17px}
+  .form{padding:19px}
+  .dash-summary-card{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  .nav-link,.btn,.dash-summary-card,.tile{transition:none!important}
+}
