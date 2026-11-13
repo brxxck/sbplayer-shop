@@ -5,10 +5,6 @@
  const root=document.querySelector('[data-top10-board]');
  if(!root)return;
  const date=ms=>ms?new Date(ms).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet verified';
- const numeric=n=>n==null?'Not recorded':Number(n).toLocaleString('en-US');
- const money=n=>Number.isSafeInteger(n)&&n>=0?'$'+(n/100).toLocaleString('en-US',{
-   minimumFractionDigits:2,maximumFractionDigits:2
- }):'Not recorded';
  const cell=(tr,content,cls)=>{
    const td=document.createElement('td');
    if(cls)td.className=cls;
@@ -37,11 +33,6 @@
        cell(tr,teamLink(team,live&&team.rank?'#'+team.rank:'—'),'mega-rank');
        const title=cell(tr,teamLink(team));
        if(team.id==='5638a504-3347-43fc-89d6-424dad53b7f6')details(title,'Our team');
-       const bank=cell(tr,team.bankText||money(team.bankCents),'mega-number');
-       if(team.approximate)details(bank,'Rounded by InPvP');
-       cell(tr,numeric(team.level),'mega-number');
-       cell(tr,numeric(team.views),'mega-number');
-       cell(tr,numeric(team.memberCount),'mega-number');
        const td=cell(tr,null);
        const official=document.createElement('a');
        // The server validates the source URL, but defend again on the client.

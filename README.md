@@ -3,6 +3,15 @@
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.8.2 — Simple Top 10 and player-only team pages
+
+- The **Top 10 leaderboard is lightweight**: verified placement, team name and the team's real official InPvP link. Removes the empty/duplicate bank, level, view and member-stat columns from this table. One-minute leaderboard discovery and automatic identification of new teams stay enabled.
+- Every individual Top 10 team page is focused on **real player names and team roles**, where a visible InPvP member list is available. A linked Minecraft name opens the corresponding Discord profile. A known count (such as Abaddon's 21 members) does not become 21 invented players.
+- If InPvP does not expose member names to the collector, the page displays **one concise availability note** instead of blank financial cards, contribution totals or an empty bank-event table.
+- Other teams' details **do not scan bank events or contributions**. The original SBsxScam dashboard at `/mega-team` retains its existing working five-minute bank reader, current snapshots, and 142 previously captured events, unchanged.
+- Roster reads remain staggered approximately 30 seconds apart with a five-minute per-team target. Captures come only from the normal visible InPvP website, without undocumented APIs or challenge bypasses.
+- No new database migration is needed. Existing Railway volume, `DB_PATH`, encryption key, account links and saved source records remain intact. Automated tests cover observed vs unavailable rosters and simplified pages. Real team-name availability still requires Railway verification.
+
 ## V1.8.1 — InPvP Top 10 loading, fallback and diagnostics
 
 - Expanded the official rendered leaderboard parser to understand HTML tables, accessible rows, CSS-grid rows and the visible text sequence (rank, team, views, bank, level). Parsing still requires **all ten ordered positions** and never invents unobserved rankings.

@@ -3,8 +3,7 @@
 // Supports native HTML tables, accessible rows, CSS grid and displayed text.
 import {TOP10_URL,verifyTeamLink,canonicalTeamLink} from './mega-top10-store.js';
 import {parseTop10Snapshot} from './mega-top10-dom.js';
-import {extractTeamOverview,extractBankRows,openBankTab,openEventLogSection,
-  revealTeamEventLog} from './mega-team-page-collector.js';
+import {extractTeamMembers} from './mega-top10-roster.js';
 import {validGamertag} from './mega-team.js';
 
 const sleep=ms=>new Promise(done=>setTimeout(done,ms));
@@ -146,59 +145,47 @@ export async function captureTopTeamDetails(page,team){
     opened.searchParams.get('id')!==target.id)
    throw new Error('Team page redirected away from the approved InPvP team.');
  await pause(page,650);
- const overview=await extractTeamOverview(page);
+ // Only the roster is needed on other teams' pages. The separate SBsxScam
+ // dashboard retains its dedicated, already-working bank-event collector.
  const detail=await page.evaluate(()=>{
-   const clean=value=>String(value||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-   const body=document.body?.innerText||'';
-   const count=/\b(?:Members|Team Members)\s*\(([\d,]+)\)/i.exec(body);
-   const labeled=label=>{
-     const re=new RegExp('(?:^|\\n)\\s*'+label+'\\s*:?\\s*([\\d,]+)\\b','im');
-     const found=re.exec(body);return found?Number(found[1].replaceAll(',','')):null;
-   };
-   const members=[];
-   // Only extract players within an explicitly labeled Members / Roster area.
-   const sections=[...document.querySelectorAll('section,article,[data-testid]')];
-   const parent=sections.find(el=>{
-     const head=el.querySelector('h1,h2,h3,h4,[role="heading"]');
-     return head&&/^(?:Team Members|Roster|Members)(?:\s*\(\d+\))?$/i.test(clean(head.textContent));
-   });
-   if(parent){
-     const unique=new Set();
-     const rows=[...parent.querySelectorAll('tr,li,[role="row"],[data-player-name]')];
-     for(const row of rows){
-       if(members.length>=300)break;
-       const explicit=row.getAttribute('data-player-name')||
-         row.querySelector('[data-player-name]')?.getAttribute('data-player-name');
-       const profile=row.querySelector('a[href*="/profile"],a[href*="/player"]');
-       const first=clean(explicit||profile?.textContent||row.querySelector('td:first-child')?.textContent||'');
-       if(!/^[a-z0-9_. #\-]{2,32}$/i.test(first)||unique.has(first.toLowerCase()))continue;
-       unique.add(first.toLowerCase());
-       const role=/\b(Leader|Officer)\b/i.exec(clean(row.innerText||''));
-       members.push({gamertag:first,role:role?role[1]:'Member'});
-     }
-   }
-   return {memberCount:count?Number(count[1].replaceAll(',','')):null,
-     level:labeled('Level'),views:labeled('Views'),roster:members};
+  const body=document.body?.innerText||'';
+  const count=/\b(?:Members|Team Members)\s*\(([\d,]+)\)/i.exec(body);
+  return {memberCount:count?Number(count[1].replaceAll(',','')):null};
  });
- let events=[];
- // Bounded, visible Bank Event Log reading. Missing events are not proof of zero.
+ let roster=[];
  try{
-   await revealTeamEventLog(page,{checks:6,intervalMs:350});
-   await openEventLogSection(page);
-   await openBankTab(page);
-   await pause(page,350);
-   events=await extractBankRows(page,{maxRows:500});
- }catch{
-   events=[];
- }
- // The saved page may show roster, bank or level even when Bank events are not
- // available. Do not replace good records with missing/null values.
- const roster=(detail.roster?.length?detail.roster:overview.roster)||[];
- const bankText=overview.bankBalance||null;
- if(!roster.length&&!events.length&&bankText===null&&
-   detail.memberCount===null&&detail.level===null&&detail.views===null)
-   throw new Error('InPvP detail not available; existing saved observations retained.');
- return {id:team.id,roster:roster.filter(x=>validGamertag(x.gamertag)),
-   memberCount:detail.memberCount,bankText,
-   level:detail.level,views:detail.views,events};
+  const parsed=await extractTeamMembers(page);
+  roster=parsed.roster||[];
+  // Responsive pages can hide member cards behind a normal visible tab.
+  // Do not force actions, use undocumented APIs, or infer names from bank rows.
+  if(!roster.length){
+   const groups=[
+    page.getByRole('tab',{name:/^(?:Team )?Members(?:\s*\(\d+\))?$/i}),
+    page.getByRole('button',{name:/^(?:Team )?Members(?:\s*\(\d+\))?$/i})
+   ];
+   for(const group of groups){
+    if(!(await group.count().catch(()=>0)))continue;
+    const control=group.first();
+    if(!await control.isVisible().catch(()=>false))continue;
+    if(!await control.isEnabled().catch(()=>false))continue;
+    try{
+     await control.click({timeout:4000});
+     await pause(page,400);
+     const next=await extractTeamMembers(page);
+     if(next.roster?.length){roster=next.roster;break;}
+    }catch{/* A noninteractive/hidden member view is not an empty roster. */}
+   }
+  }
+ }catch{/* Missing visible member data is not a verified zero. */}
+ const after=new URL(page.url());
+ if(after.protocol!=='https:'||after.hostname!=='inpvp.net'||
+    after.searchParams.get('id')!==team.id)
+   throw new Error('Member read navigated away from the approved InPvP team.');
+ return {
+  id:team.id,
+  roster:roster.filter(x=>validGamertag(x.gamertag)),
+  memberCount:detail.memberCount,
+  bankText:null,level:null,views:null,events:[],
+  memberStatus:roster.length?'observed':'unavailable'
+ };
 }
