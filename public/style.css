@@ -831,3 +831,8 @@ input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;ba
 @media(prefers-reduced-motion:reduce){
   .nav-link,.btn,.dash-summary-card,.tile{transition:none!important}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.10.2: SBsxScam recruitment entry in the existing support picker. */
+.support-choice.tone-blue .support-choice-icon{background:#16334b;color:#80c8ff}
+.support-choice.tone-blue:hover{border-color:#3b79b5}
