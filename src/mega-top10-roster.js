@@ -54,6 +54,18 @@ export function parseTeamMemberSnapshot(snapshot){
  // A free-floating gamertag anywhere else on the page cannot enter this list.
  if(snapshot.hasMemberSection&&Array.isArray(snapshot.lines)&&seen.size===0){
   const lines=snapshot.lines.slice(0,700).map(clean).filter(Boolean);
+  // A pure grid of member names may omit visible role labels. Only accept
+  // this layout when the number of unambiguous names matches InPvP's own
+  // member counter exactly, and only within the isolated Members region.
+  const expected=Number(snapshot.reportedCount);
+  if(Number.isSafeInteger(expected)&&expected>0&&expected<=300){
+   const candidates=lines.map(memberName).filter(Boolean);
+   const unique=new Map(candidates.map(n=>[n.toLowerCase(),n]));
+   if(unique.size===expected&&candidates.length===expected){
+    for(const name of unique.values())
+     seen.set(name.toLowerCase(),{gamertag:name,role:'Member'});
+   }
+  }
   for(let i=0;i<lines.length&&seen.size<300;i++){
    const line=lines[i];
    const match=/^(?:\d{1,3}\.?\s+)?([a-z0-9_. #\-]{2,32})\s+[·|]\s*(Leader|Officer|Member|Owner|Co-Owner)$/i.exec(line);
