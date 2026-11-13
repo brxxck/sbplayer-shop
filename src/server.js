@@ -247,6 +247,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
        }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
       ctx.notificationCount=notificationCount(ctx.user.id);
+      // Xbox menu status is available on every authenticated page, including Home.
+      ctx.xboxConfigured=xboxLinkAuth.configured;
+      ctx.xboxLink=xboxLinkForUser(ctx.user.id);
       // Routine browsing, session refreshes and page loads must not fill the audit.
       // Successful reads of individual private tickets are recorded at their routes.
     }
@@ -377,11 +380,6 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 
     // All routes below this point are server-member-only.
     await member();
-
-    // Account dropdown uses the same verified Xbox link and configuration
-    // as the profile page; no credentials or Microsoft tokens are sent to HTML.
-    ctx.xboxConfigured=xboxLinkAuth.configured;
-    ctx.xboxLink=xboxLinkForUser(ctx.user.id);
 
     // Member-owned Xbox gamertag verification, separate from owner-only Graph.
     // The Microsoft auth response is single-use and bound to this Discord session.
