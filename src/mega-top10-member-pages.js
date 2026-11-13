@@ -105,7 +105,7 @@ export async function collectFullTeamRoster(page,{
  if(typeof teamId!=='string'||!validTeamUrl(page.url(),teamId))
   throw new Error('Member collection started outside the expected team.');
  const known=new Map();
- const expected=Number.isSafeInteger(reportedCount)&&reportedCount>=0&&reportedCount<=300?
+ let expected=Number.isSafeInteger(reportedCount)&&reportedCount>=0&&reportedCount<=300?
   reportedCount:null;
  const limit=Math.min(50,Math.max(1,Math.trunc(maxActions)||1));
  let tabOpened=false,noProgress=0,lastAction='none',readable=false;
@@ -114,6 +114,9 @@ export async function collectFullTeamRoster(page,{
    throw new Error('Members navigation left the expected InPvP team.');
   const before=known.size;
   const sample=await extractTeamMembers(page);
+  if(expected===null&&Number.isSafeInteger(sample.diagnostics?.reportedCount)&&
+    sample.diagnostics.reportedCount>=0&&sample.diagnostics.reportedCount<=300)
+   expected=sample.diagnostics.reportedCount;
   readable=readable||!!sample.hasMemberSection||sample.roster.length>0;
   mergeRows(known,sample.roster);
   if(expected!==null&&known.size===expected)break;
