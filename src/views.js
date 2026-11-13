@@ -9,7 +9,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-const assetVersion = '1.9.1-xbox-menu';
+const assetVersion = '1.9.2-xbox-get';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -115,9 +115,8 @@ function socialHeaderAccount(ctx){
     ' Connected: '+esc(ctx.xboxLink.gamertag)+'</span>':'';
   const xboxEntry='<div class="top-account-menu-xbox">'+
     (ctx.xboxConfigured?
-      '<form method="post" action="/profile/microsoft/start">'+token(ctx)+
-      '<button type="submit" class="top-account-menu-xbox-button">'+
-      icon('gamepad-2',{size:17})+'<span>'+xboxLabel+'</span></button></form>':
+      '<a href="/profile/microsoft/start" class="top-account-menu-xbox-button">'+
+      icon('gamepad-2',{size:17})+'<span>'+xboxLabel+'</span></a>':
       '<div class="top-account-menu-xbox-unavailable">'+icon('gamepad-2',{size:17})+
       '<span>Microsoft linking not configured</span></div>')+
     xboxStatus+'</div>';
@@ -162,7 +161,7 @@ ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tick
 </div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/profile'}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><span class="muted">Community</span><span class="sep">/</span><b>${esc(title)}</b></div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a><a href="/team">Meet the Team</a>':'<a href="/tickets/new">Submit Ticket</a>'+(staffNavigation?'':'<a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a>')+'<a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a><a href="/mega-team">MegaSMP</a>'}${staffNavigation?'<a href="/promotions">Apply for a Promotion</a>':''}${role==='appeal-only'?'':'<a href="/profile">My Profile</a><a href="/notifications">Notifications</a><a href="/saved">Saved</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
-<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.9.1</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
+<main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>Connected to Discord · Community Portal V1.9.2</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
 }
 export const titlebar=(eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;
 export function home(ctx){return shell(ctx,'Home',`${titlebar('WELCOME TO THE COMMUNITY',`SB's & Cam's <span class="gradient">Store.</span>`,'Your staff portal, community feed, suggestions and member profiles — all connected to Discord.')}
@@ -342,6 +341,42 @@ export function discordRoleSection({state='unavailable',roles=[]}={}){
      `<p class="profile-roles-empty">${empty}</p>`}
  </section>`;
 }
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// OAuth error results are kept on a dedicated, code-free page so a Microsoft
+// rejection never looks like a silent refresh back to the member's profile.
+export function xboxLinkResultPage(ctx,{status='verification_failed'}={}){
+ const messages={
+  not_configured:['Xbox linking is not configured','Ask the website owner to check the three Xbox Railway variables and redeploy.'],
+  start_failed:['Microsoft login could not start','Refresh your Discord login session and try again. If it continues, contact the website owner.'],
+  expired:['Microsoft login expired','The verification state expired, was already used or no longer belongs to this Discord session. Start linking again.'],
+  cancelled:['Microsoft sign-in cancelled','You did not complete Microsoft authorization. No Xbox account was linked.'],
+  invalid_scope:['Microsoft rejected the Xbox permission','The Microsoft application is not permitted to request XboxLive.signin. Check Xbox service access in the Microsoft app registration.'],
+  unauthorized_client:['Microsoft application not authorized','Check the application registration, its personal-account support and Xbox service access.'],
+  invalid_client:['Microsoft rejected the application credentials','The website owner should check the Microsoft client ID and the client secret Value in Railway.'],
+  invalid_request:['Microsoft rejected the sign-in request','Check that the exact Microsoft Web redirect URI is registered: https://sbstore.info/profile/microsoft/callback.'],
+  consent_required:['Microsoft needs additional consent','The Microsoft application is not yet authorized for Xbox account sign-in.'],
+  login_required:['Microsoft requires sign-in','Sign into the Microsoft account you use with Xbox and try again.'],
+  interaction_required:['Microsoft needs account confirmation','Open Microsoft sign-in and complete the account-verification prompts.'],
+  server_error:['Microsoft is temporarily unavailable','Microsoft returned an authentication error. Try again later.'],
+  temporarily_unavailable:['Microsoft is temporarily unavailable','Microsoft sign-in could not complete. Try again later.'],
+  microsoft_rejected:['Microsoft did not authorize Xbox linking','Check the Microsoft app permissions, supported account types and redirect URI.'],
+  token_exchange_failed:['Microsoft token verification failed','The website owner should confirm the Microsoft client secret Value and Xbox app permissions in Railway.'],
+  xbox_profile_unavailable:['Xbox gamertag unavailable','Microsoft sign-in succeeded but Xbox did not provide a verified gamertag. Xbox service access may need configuration.'],
+  verification_failed:['Xbox verification failed','Your Microsoft account has not been linked. Please retry, or contact the website owner if this continues.'],
+  already_linked:['Xbox account already linked','This gamertag is already connected to a different Discord profile, or you must unlink your previous Xbox account first.']
+ };
+ const [heading,explanation]=messages[String(status)]||messages.verification_failed;
+ const tryAgain=ctx.xboxConfigured&&status!=='not_configured'?
+  '<a class="btn btn-primary" href="/profile/microsoft/start">'+icon('gamepad-2',{size:17})+
+    ' Retry Microsoft / Xbox sign-in</a>':'';
+ return shell(ctx,'Microsoft / Xbox linking',
+  '<section class="panel padded"><div class="page-heading"><div>'+
+  '<span class="eyebrow">CONNECTED ACCOUNTS</span><h1>'+esc(heading)+'</h1>'+
+  '<p>'+esc(explanation)+'</p></div></div>'+
+  '<p class="muted tiny">No Microsoft password or access token has been saved by SBStore.</p>'+
+  '<div class="actions">'+tryAgain+
+  '<a class="btn btn-outline" href="/profile/edit">Back to profile settings</a></div></section>');
+}
 function xboxAccountCard(ctx,link,configured){
  const state=link?
   '<p class="muted">Verified Xbox gamertag: <strong>'+esc(link.gamertag)+'</strong></p>'+
@@ -350,9 +385,8 @@ function xboxAccountCard(ctx,link,configured){
     '. This verifies the Xbox gamertag, not ownership of Minecraft itself.</p>':
   '<p class="muted">No Minecraft Bedrock gamertag linked yet.</p>';
  const linkButton=configured?
-  '<form method="post" action="/profile/microsoft/start">'+token(ctx)+
-  '<button type="submit" class="btn btn-primary">'+
-  icon('gamepad-2',{size:17})+' '+(link?'Verify again':'Link Microsoft / Xbox')+'</button></form>':
+  '<a href="/profile/microsoft/start" class="btn btn-primary">'+
+  icon('gamepad-2',{size:17})+' '+(link?'Verify again':'Link Microsoft / Xbox')+'</a>':
   '<p class="muted tiny">Xbox linking is not configured yet. The website owner must add the Xbox app credentials to Railway.</p>';
  const unlink=link?
   '<form method="post" action="/profile/microsoft/unlink">'+token(ctx)+

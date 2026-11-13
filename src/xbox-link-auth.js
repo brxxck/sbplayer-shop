@@ -99,7 +99,18 @@ export function createXboxLinkAuth({
   flows.delete(state);
   if(!entry||entry.bound!==bound||entry.expiresAt<=clock())
    throw new Error('Microsoft linking expired or does not belong to this session.');
-  if(error)return {cancelled:true};
+  if(error){
+   // Microsoft may redirect straight back with an OAuth error, which the old
+   // handler silently treated as a user cancellation. Return a fixed safe
+   // status instead of echoing Microsoft-supplied descriptions or tokens.
+   if(error==='access_denied')return {cancelled:true,issue:'cancelled'};
+   const reasons=new Set([
+    'invalid_scope','unauthorized_client','invalid_client','invalid_request',
+    'consent_required','login_required','interaction_required',
+    'server_error','temporarily_unavailable'
+   ]);
+   return {cancelled:false,issue:reasons.has(error)?error:'microsoft_rejected'};
+  }
   if(typeof code!=='string'||!code||code.length>8192)
    throw new Error('Microsoft did not return a valid authorization code.');
   if(!configured)throw new Error('Xbox account linking is not configured.');

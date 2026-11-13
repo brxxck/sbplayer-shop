@@ -98,6 +98,30 @@ test('Microsoft OAuth is for Xbox sign-in only, with PKCE and no offline token s
  }),/expired/);
 });
 
+test('Microsoft OAuth failure returns a safe issue instead of pretending it was cancelled',async()=>{
+ const {fetcher,requests}=fakeFetcher();
+ const auth=makeAuth(fetcher);
+ const scopeState=new URL(auth.begin(session,userId)).searchParams.get('state');
+ const result=await auth.complete({
+  state:scopeState,error:'invalid_scope',sessionKey:session,userId
+ });
+ assert.deepEqual(result,{cancelled:false,issue:'invalid_scope'});
+ assert.equal(requests.length,0,'Microsoft errors are handled without token exchange');
+ const cancelState=new URL(auth.begin(session,userId)).searchParams.get('state');
+ const cancelled=await auth.complete({
+  state:cancelState,error:'access_denied',sessionKey:session,userId
+ });
+ assert.deepEqual(cancelled,{cancelled:true,issue:'cancelled'});
+ const unexpectedState=new URL(auth.begin(session,userId)).searchParams.get('state');
+ const unexpected=await auth.complete({
+  state:unexpectedState,error:'<script>bad()</script>',sessionKey:session,userId
+ });
+ assert.deepEqual(unexpected,{cancelled:false,issue:'microsoft_rejected'});
+ await assert.rejects(()=>auth.complete({
+  state:scopeState,error:'invalid_scope',sessionKey:session,userId
+ }),/expired/,'OAuth state must stay single-use for errors as well as successful links');
+});
+
 test('state cannot be redeemed by a second Discord account or reused',async()=>{
  const {fetcher}=fakeFetcher();
  const auth=makeAuth(fetcher);
@@ -181,7 +205,7 @@ test('profiles show verified Xbox names only to permitted viewers, and self-mana
   xboxLink:link,xboxConfigured:true});
  assert.match(self,/Xbox: SBisOnTop/);
  assert.match(self,/Connected Accounts/);
- assert.match(self,/profile\/microsoft\/start/);
+ assert.match(self,/href="\/profile\/microsoft\/start"/);
  assert.match(self,/profile\/microsoft\/unlink/);
  const otherViewer=profile(ctx,{person,profile:{public:0},self:false,privateProfile:true,
   xboxLink:link,xboxConfigured:true});
@@ -193,5 +217,5 @@ test('profiles show verified Xbox names only to permitted viewers, and self-mana
  assert.match(edit,/name="_csrf"/);
  const disabled=profileEdit(ctx,{profile:{},xboxLink:null,xboxConfigured:false});
  assert.match(disabled,/not configured yet/);
- assert.doesNotMatch(disabled,/action="\/profile\/microsoft\/start"/);
+ assert.doesNotMatch(disabled,/href="\/profile\/microsoft\/start"/);
 });

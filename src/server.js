@@ -267,7 +267,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -381,6 +381,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     // All routes below this point are server-member-only.
     await member();
 
+    // Keep authorization failures visible without exposing OAuth codes or descriptions.
+    if(pathname==='/profile/microsoft/result'&&req.method==='GET'){
+      rate(ctx,'profile.xbox.result',40,60000);
+      return html(view.xboxLinkResultPage(ctx,{
+        status:String(url.searchParams.get('status')||'verification_failed')
+      }));
+    }
+
     // Member-owned Xbox gamertag verification, separate from owner-only Graph.
     // The Microsoft auth response is single-use and bound to this Discord session.
     if(pathname==='/profile/microsoft/callback'&&req.method==='GET'){
@@ -393,10 +401,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           error:String(url.searchParams.get('error')||''),
           sessionKey:ctx.session.token_hash,userId:ctx.user.id
         });
-      }catch{
-        return warn('/profile/edit','Microsoft/Xbox verification failed or expired. Please try again.');
+      }catch(error){
+        const message=String(error?.message||'');
+        const reason=message.includes('Token endpoint refused')||
+          message.includes('token exchange failed')?'token_exchange_failed':
+          message.includes('did not provide a verified gamertag')||
+          message.includes('did not supply a supported gamertag')?'xbox_profile_unavailable':
+          message.includes('does not belong to this session')||
+          message.includes('expired')?'expired':'verification_failed';
+        return redirect(res,'/profile/microsoft/result?status='+reason);
       }
-      if(outcome.cancelled)return warn('/profile/edit','Microsoft sign-in was cancelled.');
+      if(outcome.cancelled)return redirect(res,'/profile/microsoft/result?status=cancelled');
+      if(outcome.issue)return redirect(res,'/profile/microsoft/result?status='+encodeURIComponent(outcome.issue));
       try{
         const result=saveXboxLink({
           userId:ctx.user.id,identityKey:outcome.identityKey,
@@ -414,14 +430,20 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return warn('/profile/edit',message);
       }
     }
-    if(pathname==='/profile/microsoft/start'&&req.method==='POST'){
+    if(pathname==='/profile/microsoft/start'&&['GET','POST'].includes(req.method)){
       rate(ctx,'profile.xbox.start',6,3600000);
-      await form();
+      if(req.method==='POST')await form(); // Previously rendered forms remain safe.
+      // OAuth initiation is a top-level GET navigation, not a cross-site form
+      // POST. PKCE/state are bound to the current Discord session in the callback.
+      // Block unsolicited cross-site navigations where the browser supplies
+      // Fetch Metadata. This prevents third-party pages from using login quotas.
+      if(req.method==='GET'&&req.headers['sec-fetch-site']==='cross-site')
+        forbidden('Start Microsoft linking from your SBStore account menu.');
       if(!xboxLinkAuth.configured)
-        return warn('/profile/edit','Xbox sign-in has not been configured yet.');
+        return redirect(res,'/profile/microsoft/result?status=not_configured');
       let target;
       try{target=xboxLinkAuth.begin(ctx.session.token_hash,ctx.user.id);}
-      catch{return warn('/profile/edit','Unable to start Microsoft sign-in. Please retry.');}
+      catch{return redirect(res,'/profile/microsoft/result?status=start_failed');}
       return redirect(res,target);
     }
     if(pathname==='/profile/microsoft/unlink'&&req.method==='POST'){
@@ -1756,5 +1778,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.1 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.2 running at ${config.baseUrl}`));
 }

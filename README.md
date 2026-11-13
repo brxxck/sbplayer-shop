@@ -1,8 +1,15 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.9.1
+# SB's & Cam's Store — Community Portal V1.9.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
 
+## V1.9.2 — Fix the Microsoft/Xbox button returning to SBStore
+
+- Replace the Microsoft/Xbox link's HTML POST form with a **normal one-click GET navigation** in the account dropdown and Connected Accounts card. The signed-in session, rate limit, PKCE and single-use OAuth state still apply; `Sec-Fetch-Site: cross-site` starts are rejected.
+- Avoid the cross-site redirect restriction some browsers apply to POST form chains, even when Microsoft was explicitly allowlisted under `form-action`. Existing POST routes remain available only for older cached pages and still require CSRF.
+- Microsoft OAuth error callbacks previously treated **all errors as cancellation**, immediately redirecting to profile settings. They now report a safe known error category on a dedicated `/profile/microsoft/result` page with clear remediation and a Retry Microsoft link. No OAuth codes, error descriptions or tokens are reflected into HTML or logs.
+- Keep Link Microsoft positioned directly below the avatar and username and above MY PROFILE. No changes to InPvP data, Railway encryption keys, team bank, Discord staff access or verified gamertag storage.
+- Profile assets now use `1.9.2-xbox-get` to bypass cached page scripts/CSS. Verify the production health version reports `1.9.2` after Railway deploy.
 ## V1.9.1 — Working Microsoft link in profile dropdown
 
 - The top-right account menu now places **Link Microsoft / Xbox** immediately beneath the member avatar/Discord name and **above MY PROFILE**, including mobile layouts. Linked accounts show their verified gamertag and a **Verify Microsoft / Xbox** action.
