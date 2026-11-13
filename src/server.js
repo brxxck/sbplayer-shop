@@ -604,6 +604,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         season:requested,page:url.searchParams.get('page'),
         kind:url.searchParams.get('kind')||'all',gamertag:url.searchParams.get('player')||''
       });
+      const profileLinks=new Map(allMegaPlayerProfileLinks({season:requested})
+        .map(link=>[link.gamertag.toLowerCase(),link]));
+      history.rows=history.rows.map(row=>{
+        const linked=profileLinks.get(row.gamertag.toLowerCase());
+        return linked?{...row,discordId:linked.discordId,
+          discordUsername:linked.username||linked.displayName||'Discord member'}:row;
+      });
       return html(megaHistoryPage(ctx,{...history,seasons:all('SELECT season,label FROM mega_team_seasons ORDER BY created_at DESC,season DESC')}));
     }
     // Owner-verified Minecraft -> Discord associations, never based on role names.
