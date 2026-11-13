@@ -10,6 +10,7 @@ const roles={admin:'200000000000000001',reviewer:'200000000000000002',helper:'20
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),DISCORD_CLIENT_ID:'100000000000000011',DISCORD_CLIENT_SECRET:'mock-secret',DISCORD_BOT_TOKEN:'mock-bot-token',DISCORD_GUILD_ID:ids.guild,REVIEWER_ROLE_IDS:roles.reviewer,ADMIN_ROLE_IDS:roles.admin,OWNER_USER_IDS:'',FINAL_APPROVER_USER_ID:ids.owner,DISCORD_WEBHOOK_URL:'https://discord.com/api/webhooks/123456789012345678/test_fixture_token_abcdef',APPLICATION_ROLES:'Helper,Moderator,Staff',APPLICATION_ROLE_IDS:''});
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
+const {saveXboxLink}=await import('../src/xbox-gamertag-links.js');
 const {config}=await import('../src/config.js');
 const {verifyAudit,appendAudit}=await import('../src/audit.js');
 const fakeRoles=[
@@ -633,6 +634,13 @@ test('SBs Member tag follows names on profiles but leader-only and private profi
 });
 
 test('members submit private applications; optional reviewers vote once then ticket disappears',async()=>{
+  // Legacy review-flow fixtures now satisfy both new recruitment identity requirements.
+  for(const [key,id] of Object.entries(ids)){
+    if(key==='guild'||key==='bot'||!one('SELECT 1 FROM users WHERE id=?',id))continue;
+    if(!one('SELECT 1 FROM xbox_gamertag_links WHERE user_id=?',id)){
+      saveXboxLink({userId:id,identityKey:(Number(Object.keys(ids).indexOf(key)+1)).toString(16).padStart(64,'0'),gamertag:'Tester'+Object.keys(ids).indexOf(key)});
+    }
+  }
   let r=await post('/apply','member',answers);assert.equal(r.status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member);assert.equal(a.status,'pending');
   let html=await (await get('/staff','reviewer')).text();assert.ok(html.includes(`Application Reviews`) && html.includes(`#${a.id}`)===false); // ticket links use numeric hrefs
