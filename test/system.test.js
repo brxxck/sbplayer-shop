@@ -105,7 +105,7 @@ test('Xbox gamertag profile integration is disabled cleanly until configured',as
  assert.match(unlink.headers.get('location'),/No.*Xbox.*gamertag/);
  const callback=await get('/profile/microsoft/callback?state=unknown&code=one','member');
  assert.equal(callback.status,303);
- assert.match(callback.headers.get('location'),/verification.*failed/i);
+ assert.equal(callback.headers.get('location'),'/profile/microsoft/result?status=expired');
 });
 
 test('Xbox account menu navigates to Microsoft via GET, bypassing form-action redirect restrictions',async()=>{
