@@ -18,6 +18,8 @@ import {megaSessionPage} from './mega-session-views.js';
 import {createMegaSessionVault} from './mega-session-vault.js';
 import {createMegaSessionPairing} from './mega-session-pairing.js';
 import {createOwnerMicrosoftAuth} from './owner-microsoft.js';
+import {createXboxLinkAuth} from './xbox-link-auth.js';
+import {xboxLinkForUser,saveXboxLink,unlinkXboxLink} from './xbox-gamertag-links.js';
 import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
@@ -163,6 +165,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   const megaSync=createMegaTeamSync();
   const megaBrowser=createMegaBrowserRunner();
   const microsoftAuth=createOwnerMicrosoftAuth({baseUrl:config.baseUrl});
+  const xboxLinkAuth=createXboxLinkAuth({baseUrl:config.baseUrl});
   const megaSessionVault=createMegaSessionVault({dbPath:config.dbPath});
   const megaSessionPairing=createMegaSessionPairing({vault:megaSessionVault});
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
@@ -261,7 +264,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.8.4',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.9.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -373,6 +376,58 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 
     // All routes below this point are server-member-only.
     await member();
+
+    // Member-owned Xbox gamertag verification, separate from owner-only Graph.
+    // The Microsoft auth response is single-use and bound to this Discord session.
+    if(pathname==='/profile/microsoft/callback'&&req.method==='GET'){
+      rate(ctx,'profile.xbox.callback',12,3600000);
+      let outcome;
+      try{
+        outcome=await xboxLinkAuth.complete({
+          state:String(url.searchParams.get('state')||''),
+          code:String(url.searchParams.get('code')||''),
+          error:String(url.searchParams.get('error')||''),
+          sessionKey:ctx.session.token_hash,userId:ctx.user.id
+        });
+      }catch{
+        return warn('/profile/edit','Microsoft/Xbox verification failed or expired. Please try again.');
+      }
+      if(outcome.cancelled)return warn('/profile/edit','Microsoft sign-in was cancelled.');
+      try{
+        const result=saveXboxLink({
+          userId:ctx.user.id,identityKey:outcome.identityKey,
+          gamertag:outcome.gamertag,verifiedAt:outcome.verifiedAt,
+          actorRole:ctx.role,ip:ctx.ip
+        });
+        return success('/profile/edit','Verified Xbox gamertag linked: '+result.gamertag);
+      }catch(error){
+        // Known linking conflicts only, never show identity fingerprints/tokens.
+        const message=String(error?.message||'').startsWith('This Xbox gamertag')?
+          'That Xbox account or gamertag is already linked to another member.':
+          String(error?.message||'').startsWith('Unlink your existing')?
+            'Unlink your existing Xbox account before connecting another.':
+            'Xbox account could not be linked.';
+        return warn('/profile/edit',message);
+      }
+    }
+    if(pathname==='/profile/microsoft/start'&&req.method==='POST'){
+      rate(ctx,'profile.xbox.start',6,3600000);
+      await form();
+      if(!xboxLinkAuth.configured)
+        return warn('/profile/edit','Xbox sign-in has not been configured yet.');
+      let target;
+      try{target=xboxLinkAuth.begin(ctx.session.token_hash,ctx.user.id);}
+      catch{return warn('/profile/edit','Unable to start Microsoft sign-in. Please retry.');}
+      return redirect(res,target);
+    }
+    if(pathname==='/profile/microsoft/unlink'&&req.method==='POST'){
+      rate(ctx,'profile.xbox.unlink',6,3600000);
+      await form();
+      xboxLinkAuth.forget(ctx.session.token_hash,ctx.user.id);
+      const removed=unlinkXboxLink({userId:ctx.user.id,actorRole:ctx.role,ip:ctx.ip});
+      return success('/profile/edit',removed.changed?
+        'Xbox gamertag unlinked.':'No Xbox gamertag was linked.');
+    }
 
     // Private Microsoft Graph OAuth utility: no public navigation or persistent tokens.
     // Callback must be processed before the generic server-member routes.
@@ -1387,7 +1442,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const discordRoles=privateProfile?{state:'hidden',roles:[]}:
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
-      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies}));
+      return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
+        xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){
@@ -1420,7 +1476,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/profile/edit'&&req.method==='GET'){
       ensureProfile(ctx.user.id);
-      return html(view.profileEdit(ctx,{profile:userProfile(ctx.user.id),sections:profileSections(ctx.user.id),posts:loadPosts(ctx.user.id,0,ctx.user.id,100).filter(p=>!p.repost_of)}));
+      return html(view.profileEdit(ctx,{profile:userProfile(ctx.user.id),sections:profileSections(ctx.user.id),posts:loadPosts(ctx.user.id,0,ctx.user.id,100).filter(p=>!p.repost_of),xboxLink:xboxLinkForUser(ctx.user.id),xboxConfigured:xboxLinkAuth.configured}));
     }
     if(pathname==='/profile/edit'&&req.method==='POST'){
       rate(ctx,'profile.edit',30,3600000);const {fields}=await form();
@@ -1696,5 +1752,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.8.4 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.9.0 running at ${config.baseUrl}`));
 }
