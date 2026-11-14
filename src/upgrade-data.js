@@ -56,7 +56,7 @@ export function filteredSuggestions({page=0,status='all',sort='recent',q=''}={})
 export function caseState(t){
  if(['accepted','denied','resolved'].includes(t.status))return t.status==='resolved'?'resolved':t.status;
  if(t.awaiting_owner)return 'awaiting_owner';
- if(['application','promotion'].includes(t.category))return t.status;
+ if(['application','promotion','team_application'].includes(t.category))return t.status;
  const last=one('SELECT author_id FROM support_ticket_messages WHERE ticket_id=? ORDER BY id DESC LIMIT 1',t.id);
  return last?(last.author_id===t.user_id?'awaiting_staff':'awaiting_member'):t.status;
 }
@@ -65,7 +65,8 @@ export function decorateCases(items,userId){return items.map(t=>{
  const seen=one('SELECT seen_at FROM case_reads WHERE user_id=? AND category=? AND case_id=?',userId,t.category,t.id)?.seen_at||0;
  const table=t.category==='application'?'ticket_messages':t.category==='promotion'?'promotion_messages':'support_ticket_messages';
  const column=t.category==='application'?'application_id':'ticket_id';
- const unread=one('SELECT COUNT(*) n FROM '+table+' WHERE '+column+'=? AND author_id=? AND created_at>?',t.id,t.user_id,seen)?.n||0;
+ // Recruitment notes are private leadership notes, not support replies.
+ const unread=t.category==='team_application'?0:one('SELECT COUNT(*) n FROM '+table+' WHERE '+column+'=? AND author_id=? AND created_at>?',t.id,t.user_id,seen)?.n||0;
  return {...t,queue_status:caseState(t),waiting_since:t.updated_at,unread};
 });}
 const txUnion=`SELECT 'manual-'||l.id id,m.gamertag,l.kind,CAST(l.amount AS TEXT)||'00' amount_cents,l.occurred_at occurred_at,l.created_at captured_at,'manual' source,'exact' precision,'' display_time FROM mega_team_ledger l JOIN mega_team_members m ON m.id=l.member_id WHERE l.season=?
