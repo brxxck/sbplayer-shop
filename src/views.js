@@ -169,7 +169,7 @@ ${renderNavigation(ctx,navLink)}
 <div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><b>${esc(title)}</b>${user&&role!=='appeal-only'?'<span class="live-connection" data-live-connection data-connection="connecting">Connecting</span>':''}</div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
 ${user?`<nav class="mobile-nav" aria-label="Mobile navigation">${renderMobile(ctx)}</nav>`:''}
 <a class="skip-link" href="#main-content">Skip to content</a>
-<main class="content" id="main-content" tabindex="-1">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>V1.18.4</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
+<main class="content" id="main-content" tabindex="-1">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>V1.19.0</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
 }
 // Each page already has a clear title; skip the repeated all-caps subject line.
 export const titlebar=(_eyebrow,title,subtitle='',extra='')=>`<div class="page-heading"><div><h1>${title}</h1>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div>${extra}</div>`;

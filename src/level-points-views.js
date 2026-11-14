@@ -1,0 +1,24 @@
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+import {shell,esc,token,titlebar} from './views.js';
+import {POINTS_PER_LEVEL} from './level-points.js';
+const number=n=>Number(n).toLocaleString('en-GB');
+const when=n=>n?new Date(n).toLocaleString('en-GB'):'Not synced yet';
+export function levelPointsPage(ctx,state,connection){return shell(ctx,'Level Points',`
+${titlebar('DISCORD REWARDS','Your level. Your points.','Claim rewards for the Discord levels you already have, then earn more as you level up.')}
+<div class="stats-three"><div class="stat"><small>POINTS BALANCE</small><strong>${number(state.balance)}</strong></div><div class="stat"><small>DISCORD LEVEL</small><strong>${state.snapshot?number(state.snapshot.level):'Awaiting sync'}</strong></div><div class="stat"><small>READY TO CLAIM</small><strong>${number(state.claimable)}</strong></div></div>
+<section class="panel padded"><h2>Claim level rewards</h2><p>Every level earns ${POINTS_PER_LEVEL} points. Existing levels count on your first claim. Each level can be claimed once.</p>
+${connection.configured?'<p>Run <code>/website-points</code> in our Discord server to sync your current level, then refresh this page.</p>':'<p class="alert alert-error">The owner is still connecting the leveling bot. Claims unlock after your first verified sync.</p>'}
+<p class="muted">Last sync: ${esc(when(state.snapshot?.synced_at))} · Claimed through level ${number(state.claimedLevel)}</p>
+<form method="post" action="/points/claim">${token(ctx)}<button class="btn btn-primary" ${state.claimable?'':'disabled'}>Claim ${number(state.claimable)} points</button> <a class="btn btn-outline" href="/points">Refresh level</a></form>
+<p class="muted tiny">Entertainment points only. Points cannot be bought, cashed out or exchanged for prizes with monetary value. Games are not available yet.</p></section>
+<section class="panel padded"><h2>Claim history</h2><div class="table-wrap"><table><thead><tr><th>Date</th><th>Levels</th><th>Points</th></tr></thead><tbody>${state.history.map(h=>`<tr><td>${esc(when(h.created_at))}</td><td>${number(h.from_level)}–${number(h.to_level)}</td><td>+${number(h.amount)}</td></tr>`).join('')||'<tr><td colspan="3">No claims yet.</td></tr>'}</tbody></table></div></section>`);}
+export function levelConnectionPage(ctx,connection,key=''){return shell(ctx,'BotGhost Connection',`
+${titlebar('OWNER','Connect Discord level rewards','Connect the SB’s leveling bot to this website. Existing Discord levels are preserved.')}
+<div class="stats-three"><div class="stat"><small>CONNECTION KEY</small><strong>${connection.configured?'Configured':'Not set'}</strong></div><div class="stat"><small>SYNCED MEMBERS</small><strong>${number(connection.members)}</strong></div><div class="stat"><small>LAST RECEIVED</small><strong style="font-size:1rem">${esc(when(connection.lastSync))}</strong></div></div>
+${key?`<section class="panel padded"><h2>Save this key in BotGhost now</h2><p>This key is shown once. Store it as a BotGhost Secret named <code>SB_WEBSITE_LEVELS</code>, restricted to <code>${esc(ctx.config.baseUrl)}</code>. It only authorizes level syncs. Never use your Discord bot token here.</p><label>One-time connection key<input readonly autocomplete="off" value="${esc(key)}"></label></section>`:''}
+<section class="panel padded"><h2>Connection settings</h2><p>Bot ID: <code>${esc(connection.botId)}</code><br>Discord server ID: <code>${esc(ctx.config.guildId)}</code><br>Endpoint: <code>${esc(ctx.config.baseUrl)}/api/integrations/botghost/levels</code></p>
+<form method="post" action="/owner/level-points/key">${token(ctx)}<button class="btn btn-primary">${connection.configured?'Replace connection key':'Create connection key'}</button></form><p class="muted tiny">Replacing the key disconnects the previous key immediately. Saved levels, balances and claims stay intact.</p>
+${connection.configured?`<form method="post" action="/owner/level-points/revoke">${token(ctx)}<button class="btn btn-outline">Disconnect level sync</button></form>`:''}
+<h3>BotGhost request</h3><p>Use a POST API action in the leveling module’s <code>/website-points</code> command and Level Up event. Header: <code>Authorization: Bearer {SECRET_SB_WEBSITE_LEVELS}</code>. Enable variable replacement in headers and body.</p>
+<pre>${esc(JSON.stringify({bot_id:'{bot_id}',guild_id:'{server_id}',user_id:'{user_id}',level:'{BGVAR_bg_leveling_level}',xp:'{BGVAR_bg_leveling_xp}'},null,2))}</pre>
+<p>Members sign in using Discord, run the sync command, then claim on <a href="/points">Level Points</a>. The website binds balances to Discord user IDs and prevents duplicate claims. The default reward is ${POINTS_PER_LEVEL} points per level.</p></section>`);}

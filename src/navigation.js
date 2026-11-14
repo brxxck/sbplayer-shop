@@ -6,14 +6,14 @@ export function navigationGroups(ctx){
  const groups=[{label:'Community',items:[['/','Home']]}];
  if(!ctx.user)return groups;
  if(!member){groups.push({label:'Support',items:[['/tickets/new/ban_appeal','Ban Appeal'],['/tickets/mine','My Appeals'],['/team','Meet the Team']]});return groups;}
- groups[0].items.push(['/feed','Main Feed'],['/suggestions','Suggestions']);
+ groups[0].items.push(['/feed','Main Feed'],['/suggestions','Suggestions'],['/points','Level Points']);
  groups.push({label:'People',items:[['/members','Members'],['/team','Teams']]},
   {label:'MegaSMP',items:[['/mega-team','Overview'],['/mega-team/leaderboard','Top 10'],['/mega-team/transactions','Transactions']]},
   {label:'Support',items:[['/tickets/new','New Ticket'],['/tickets/mine','My Tickets'],['/applications','Applications']]});
  if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','All Tickets'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[])]});
  else if(ctx.teamRecruiter)groups.push({label:'Recruitment',collapsible:true,items:[['/team-applications/review','Team Recruitment']]});
  if(admin)groups.push({label:'Administration',collapsible:true,items:[['/admin/roles','Roles'],['/admin/moderation','Moderation'],['/admin/dm-reports','Message Reports'],['/admin/settings','Settings']]});
- if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/owners','Owner Access'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});
+ if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/level-points','BotGhost Connection'],['/owner/owners','Owner Access'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});
  return groups;
 }
 export function renderNavigation(ctx,link){return navigationGroups(ctx).map(g=>{
