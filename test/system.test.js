@@ -401,6 +401,25 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.equal(submitted.status,303);
  const app=one('SELECT id,status FROM team_applications WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member5);
  assert.ok(app?.id,'the team application is persisted');
+ const archive=one('SELECT t.* FROM support_tickets t JOIN team_application_ticket_links l ON l.support_ticket_id=t.id WHERE l.team_application_id=?',app.id);
+ assert.ok(archive,'team recruitment is stored in the same support_tickets table as existing tickets');
+ assert.equal(archive.category,'team_application');
+ assert.equal(archive.visibility,'admin');
+ assert.equal(archive.status,'open');
+ assert.equal(JSON.parse(archive.fields_json).minecraft_ign,'RecruitQueueTest');
+ assert.equal(JSON.parse(archive.fields_json).motivation,'I would like to help the team compete this season.');
+ const memberTicket=await get('/tickets/'+archive.id,'member5');
+ assert.equal(memberTicket.status,303);
+ assert.equal(memberTicket.headers.get('location'),'/team-applications/'+app.id);
+ const adminTicket=await get('/staff/tickets/'+archive.id,'adminA');
+ assert.equal(adminTicket.status,303);
+ assert.equal(adminTicket.headers.get('location'),'/team-applications/review/'+app.id);
+ assert.equal((await get('/staff/tickets/'+archive.id,'reviewer')).status,403,
+  'ordinary reviewers must not view confidential recruitment archive tickets');
+ assert.equal((await get('/tickets/'+archive.id,'member2')).status,403,
+  'other members cannot open an applicant recruitment archive');
+ assert.equal((await post('/staff/tickets/'+archive.id+'/status','adminA',{status:'resolved'})).status,400,
+  'generic support status cannot bypass recruitment decisions');
  // The dedicated recruitment route must show all statuses and real stored counts.
  const recruitment=await (await get('/team-applications/review','owner')).text();
  assert.match(recruitment,/Stored team applications: [1-9]\d*/);
@@ -444,6 +463,10 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.ok(ownTickets.includes('href="/team-applications/'+app.id+'"'),'applicant can find their recruitment history in My Tickets');
  assert.ok(!ownTickets.includes('href="/team-applications/review/'+app.id+'"'),'applicant does not gain leadership access');
  assert.equal((await post('/team-applications/review/'+app.id+'/status','adminA',{status:'accepted',note:'Application reviewed'})).status,303);
+ const archiveAfter=one('SELECT status,resolved_at,resolved_by FROM support_tickets WHERE id=?',archive.id);
+ assert.equal(archiveAfter.status,'resolved','recruitment finalization updates the archived support ticket');
+ assert.equal(archiveAfter.resolved_by,ids.adminA);
+ assert.ok(archiveAfter.resolved_at);
  const activeAfter=await (await get('/staff/tickets?status=active','owner')).text();
  assert.ok(!activeAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment leaves active queue');
  const allAfter=await (await get('/staff/tickets','owner')).text();
