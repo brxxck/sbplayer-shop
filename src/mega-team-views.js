@@ -149,7 +149,7 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '<section class="mega-data-clarity" role="status" aria-label="Team bank data quality">'+
   '<b>Saved team records · NOT REAL-TIME</b>'+
   '<p>The reported team bank, manually recorded contributions and observed bank events are separate figures. Captured events may be incomplete and do not establish lifetime deposits or withdrawals. Linked Discord members and captured player names do not prove the current complete in-game roster.</p>'+
-  '<p>Source status: <strong>'+esc(syncLabel)+'</strong> · '+esc(stateLabel)+'</p></section>'+
+  '<p>Source status: <strong data-mega-banner-sync>'+esc(syncLabel)+'</strong> · <span data-mega-banner-coverage>'+esc(stateLabel)+'</span></p></section>'+
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
   '<nav class="mega-section-links" aria-label="MegaSMP dashboard sections"><a href="#mega-members">Members</a>'+
   '<a href="#mega-leaderboard">Leaderboard</a><a href="#mega-bank-history">Bank activity</a>'+
