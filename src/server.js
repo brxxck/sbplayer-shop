@@ -16,7 +16,7 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as teamApplicationViews from './team-application-views.js';
-import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
+import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,teamApplicationForTicket,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
 import * as view from './views.js';
 import * as microsoftView from './owner-microsoft-views.js';
 import {megaSessionPage} from './mega-session-views.js';
@@ -1355,6 +1355,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(forStaff)await authorize('staff');
       const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
+      if(t.category==='team_application'){
+        const applicationId=teamApplicationForTicket(id);
+        if(!applicationId)missing();
+        return redirect(res,forStaff||(t.user_id!==ctx.user.id)
+          ?'/team-applications/review/'+applicationId:'/team-applications/'+applicationId);
+      }
       if(forStaff)markCaseRead(ctx.user.id,t.category,id);
       if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:forStaff?'staff':'member'});
@@ -1368,6 +1374,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,'support.reply',12,60000);
       const id=idFrom(supportReplyMatch[2]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
+      if(t.category==='team_application')invalid('Use the team application review page for recruitment decisions.');
       const {fields,files}=await form();
       const body=formValue(fields,'body',2000,1);
       const evidence=Array.isArray(files.evidence)?files.evidence:[];
@@ -1414,6 +1421,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('staff');rate(ctx,'support.status',20,3600000);
       const id=idFrom(staffStatusMatch[1]),t=supportTicket(id);
       await requireSupportAccess(t,true);
+      if(t.category==='team_application')invalid('Use the team application review page for recruitment decisions.');
       const {fields}=await form();
       if(!['open','reviewing','resolved'].includes(fields.status))invalid('Invalid status');
       updateSupportStatus({ticketId:id,userId:ctx.user.id,role:ctx.role,ip:ctx.ip,status:fields.status});
