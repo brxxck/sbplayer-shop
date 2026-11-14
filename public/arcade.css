@@ -1,0 +1,103 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.arcade-root{display:grid;gap:22px;max-width:1380px;margin:0 auto}
+.arcade-header{display:flex;justify-content:space-between;align-items:center;gap:22px;padding:24px 28px;border:1px solid #24426b;border-radius:20px;background:radial-gradient(circle at 75% 20%,#1c467666,#101e32 60%,#0b1629)}
+.arcade-header h1{margin:5px 0 6px;font-size:clamp(28px,3.4vw,42px);letter-spacing:-1.3px}
+.arcade-header p{max-width:610px;color:#a8bdd8;margin:0;line-height:1.6}
+.arcade-eyebrow{color:#9cc7ff;font-size:11px;font-weight:800;letter-spacing:1.8px}
+.arcade-wallet{background:#0a1629;border:1px solid #2a4263;border-radius:15px;padding:14px 18px;display:grid;gap:3px;min-width:205px;text-align:right}
+.arcade-wallet small{color:#9bb5d0;font-size:11px}
+.arcade-wallet strong{font-size:28px;color:#f2c669;white-space:nowrap}
+.arcade-wallet strong span{font-size:15px}
+.arcade-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.arcade-tabs a{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:#101f36;border:1px solid #274364;color:#c1d2e5;padding:10px 15px;border-radius:10px;font-weight:700}
+.arcade-tabs a:hover,.arcade-tabs a:focus-visible{background:#1d3b5c;color:#fff}
+.arcade-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.arcade-metrics>div{border:1px solid #243c60;border-radius:13px;padding:18px;background:linear-gradient(145deg,#132740,#0b192d);display:grid;gap:8px}
+.arcade-metrics small{color:#a1b5d3;font-size:11px;font-weight:800;letter-spacing:.5px}
+.arcade-metrics strong{font-size:28px}
+.arcade-section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.arcade-section-title h2{margin:0 0 9px;font-size:20px}
+.arcade-section-title span{color:#94abc8;font-size:12px}
+.arcade-section-title a{font-weight:700;color:#9bc8ff}
+.arcade-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.arcade-game-card{display:flex;min-height:260px;flex-direction:column;justify-content:space-between;border-radius:17px;padding:20px;border:1px solid #29486e;transition:transform .2s,border-color .2s,box-shadow .2s;background:linear-gradient(155deg,#17385b,#0c182b 80%)}
+.arcade-game-card:hover{transform:translateY(-4px);border-color:#6fb3ff;box-shadow:0 14px 30px #0004}
+.arcade-game-card:focus-visible{outline:3px solid #5ca5ef;outline-offset:3px}
+.arcade-game-art{text-align:center;font-size:74px;padding:16px 0;text-shadow:0 12px 22px #0006}
+.arcade-game-info{display:grid;gap:8px}
+.arcade-game-info strong{font-size:22px}
+.arcade-game-info small{color:#bccfe8;line-height:1.5}
+.arcade-game-arrow{font-size:12px;color:#a7d4ff;font-weight:800;margin-top:15px}
+.arcade-coins{background:linear-gradient(160deg,#5e41244d,#16263b 65%,#0c1728)}
+.arcade-slots{background:linear-gradient(160deg,#57255b66,#16263b 65%,#0c1728)}
+.arcade-mines{background:linear-gradient(160deg,#126d6e66,#16263b 65%,#0c1728)}
+.arcade-crash{background:linear-gradient(160deg,#1e6e4d66,#16263b 65%,#0c1728)}
+.arcade-two-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.arcade-game-panel{display:flex;flex-direction:column;gap:15px;min-width:0}
+.arcade-game-panel>p,.arcade-feature-game>p{color:#b0c4db;line-height:1.55;margin:0}
+.arcade-form{display:grid;gap:15px}
+.arcade-form button,.arcade-mine-collect button,.arcade-round-panel button{min-height:44px}
+.arc-label{display:grid;gap:7px;color:#d7e3f2;font-weight:700;font-size:13px}
+.arc-label input,.arc-label select{display:block;width:100%;padding:13px 12px;border-radius:10px;background:#091628;border:1px solid #335074;min-height:45px;font-weight:600}
+.arc-label input:focus,.arc-label select:focus{outline:2px solid #3b94ff;outline-offset:1px}
+.arcade-face-choice{border:0;padding:0;display:flex;gap:10px;margin:0;min-width:0}
+.arcade-face-choice legend{font-size:13px;font-weight:700;margin-bottom:9px}
+.arcade-face-choice label{flex:1;display:flex;justify-content:center;align-items:center;gap:9px;padding:13px;border:1px solid #335074;border-radius:11px;background:#0d1d32;cursor:pointer;min-width:0}
+.arcade-face-choice label:has(input:checked){background:#153c67;border-color:#4c9cff}
+.arcade-face-choice input{width:auto}
+.arcade-coin-stage{min-height:180px;display:grid;place-items:center;background:radial-gradient(circle,#1e3555,#091629 72%);border:1px solid #24456d;border-radius:14px;perspective:800px}
+.arcade-coin-disc{height:118px;width:118px;display:grid;place-items:center;border-radius:100%;border:9px ridge #facb60;background:radial-gradient(circle at 28% 27%,#fdec98,#c38b2e 70%);box-shadow:0 6px 24px #0008,inset 0 0 0 4px #a57528;color:#71450a;font-size:34px;font-weight:900;transform-style:preserve-3d}
+.arcade-coin-disc.animated{animation:arcade-coin-flip 1.15s cubic-bezier(.2,.5,.3,1) both}
+@keyframes arcade-coin-flip{0%{transform:rotateY(0) scale(.85)}35%{transform:rotateY(540deg) scale(1.2)}100%{transform:rotateY(1440deg) scale(1)}}
+.arcade-challenges{display:grid;gap:10px;margin-top:16px}
+.arcade-challenge{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid #27435f;background:#0c1a2c;border-radius:11px;padding:13px 16px;flex-wrap:wrap}
+.arcade-challenge>div{display:grid;gap:3px}
+.arcade-challenge>b{color:#f4c66e}
+.arcade-challenge form{margin:0}
+.arcade-challenge form button{min-width:92px}
+.arcade-result{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.arcade-result small{color:#9eb5d0;font-size:11px}
+.arcade-result h2{font-size:25px;margin:5px 0}
+.arcade-result p{color:#afc0d8;margin:0}
+.arcade-result-value{text-align:right;display:grid;gap:3px}
+.arcade-result-value strong{font-size:25px}
+.arcade-result-value.positive strong,.arcade-positive{color:#46dea6}
+.arcade-result-value.negative strong,.arcade-negative{color:#fa8290}
+.arcade-history-panel{overflow:hidden}
+.arcade-history-panel table{min-width:550px}
+.arcade-history-panel tr td,.arcade-history-panel tr th{white-space:nowrap}
+.arcade-info p{line-height:1.65;color:#acc2dc}
+.arcade-feature-game{display:grid;justify-items:center;gap:19px}
+.arcade-feature-game .arcade-section-title{justify-self:stretch}
+.arcade-feature-game>p{text-align:center}
+.arcade-center-form{width:min(100%,360px)}
+.arcade-slot-reels{display:flex;align-items:center;gap:13px;justify-content:center;margin:12px 0}
+.arcade-reel{width:clamp(70px,11vw,120px);height:clamp(85px,12vw,145px);border:2px solid #d5a963;color:#fff;border-radius:13px;display:grid;place-items:center;font-size:clamp(40px,7vw,70px);background:linear-gradient(180deg,#243854,#101827 51%,#274365);box-shadow:0 5px 20px #0007,inset 0 0 14px #234}
+.arcade-reel.animated{animation:arcade-spin .7s ease-in-out}
+@keyframes arcade-spin{0%{transform:translateY(-15px) rotateX(-50deg);filter:blur(3px)}60%{transform:translateY(10px) rotateX(35deg)}100%{transform:translateY(0) rotateX(0);filter:blur(0)}}
+.arcade-mine-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:22px;color:#a8c2db}
+.arcade-mine-summary strong{color:#fff;padding-left:5px}
+.arcade-mine-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;width:min(100%,425px)}
+.arcade-mine-grid form{width:100%;aspect-ratio:1;min-width:0}
+.arcade-mine-tile{display:grid;place-items:center;width:100%;aspect-ratio:1;border:1px solid #2c5684;background:linear-gradient(135deg,#173e68,#0d2743);border-radius:9px;color:#b1d2fc;font-size:clamp(17px,3vw,32px);font-weight:800;box-shadow:inset 0 -4px 0 #0a1f38}
+button.arcade-mine-tile:hover{background:#275d91;border-color:#74b6ff}
+button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
+.arcade-mine-tile.revealed{background:#124e4c;border-color:#377e70}
+.arcade-mine-tile.exploded{background:#613042;border-color:#a24f68}
+.arcade-empty-grid{width:min(100%,425px);aspect-ratio:5/3;background:linear-gradient(145deg,#163452,#0c1a30);border-radius:12px;border:1px solid #284466;display:grid;place-items:center}
+.arcade-empty-grid span{font-size:64px;line-height:1}
+.arcade-empty-grid p{font-size:13px;color:#9ab6d1}
+.arcade-mine-collect{margin-bottom:7px}
+.arcade-crash-display{min-height:245px;width:min(100%,700px);border:1px solid #27445f;border-radius:15px;background:linear-gradient(155deg,#102c3f,#08182b 67%);position:relative;overflow:hidden;display:grid;align-content:center;justify-items:center;gap:14px}
+.arcade-crash-display::before{content:"";position:absolute;inset:auto 0 0;height:80%;background:linear-gradient(transparent,#06b98012);clip-path:polygon(0 100%,0 89%,20% 78%,48% 75%,75% 34%,100% 17%,100% 100%);pointer-events:none}
+.arcade-crash-line{position:absolute;width:84%;height:3px;left:8%;bottom:23%;background:linear-gradient(90deg,#164f61,#23e5a9);transform-origin:left;transform:rotate(-12deg)}
+.arcade-crash-number{font-size:clamp(42px,8vw,76px);line-height:1;font-weight:900;font-variant-numeric:tabular-nums;color:#50eeb2;z-index:1;letter-spacing:-2px}
+.arcade-crash-display.crashed .arcade-crash-number{color:#f9828a}
+.arcade-crash-display small{color:#c1d6e6;font-size:13px;z-index:1}
+.arcade-round-panel{display:grid;justify-items:center;gap:15px}
+.arcade-round-panel p{margin:0;text-align:center}
+.arcade-disclaimer{margin:0 0 8px;color:#839bb6;font-size:12px;line-height:1.65}
+@media(max-width:1050px){.arcade-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.arcade-game-card{min-height:220px}.arcade-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:720px){.arcade-header{align-items:stretch;flex-direction:column;padding:18px}.arcade-wallet{min-width:0;text-align:left}.arcade-two-columns{grid-template-columns:1fr}.arcade-root{gap:16px}.arcade-game-art{font-size:54px}.arcade-game-card{min-height:205px;padding:14px}.arcade-game-info strong{font-size:18px}.arcade-metrics strong{font-size:23px}.arcade-result-value{text-align:left}.arcade-challenge{align-items:flex-start}}
+@media(max-width:380px){.arcade-grid{grid-template-columns:1fr}.arcade-game-card{min-height:160px}.arcade-game-art{padding:0;font-size:50px}}
+@media(prefers-reduced-motion:reduce){.arcade-game-card,.arcade-coin-disc.animated,.arcade-reel.animated{transition:none;animation:none}}
