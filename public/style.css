@@ -879,3 +879,6 @@ input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;ba
 .dm-count[hidden]{display:none}
 @media(max-width:900px){.dm-grid{grid-template-columns:1fr}.dm-history{height:54vh}.dm-conversation-header{padding:12px}.dm-bubble{max-width:91%}}
 @media(max-width:550px){.dm-compose-actions{flex-direction:column;align-items:stretch}.dm-history{padding:12px}.dm-bubble{max-width:94%}.dm-conversation-header b{font-size:14px}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.dm-thread[hidden]{display:none!important}
