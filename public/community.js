@@ -108,6 +108,11 @@
     try{
       const data=await get('/messages/'+threadId+'/updates?after='+lastMessage);
       const atBottom=history.scrollHeight-history.scrollTop-history.clientHeight<130;
+      for(const m of data.changes||[]){
+        const existing=history.querySelector('[data-message-id="'+m.id+'"]');
+        const updated=decorateCard(m.html);
+        if(existing&&updated)existing.replaceWith(updated);
+      }
       for(const m of data.messages||[]){
         if(m.id<=lastMessage)continue;
         const item=decorateCard(m.html);
@@ -209,7 +214,8 @@
     stream.addEventListener('ready',()=>{showConnection('Live');refreshCounts();refreshFeed();updateMessages();});
     stream.addEventListener('feed-update',e=>{
       let data;try{data=JSON.parse(e.data)}catch{return;}
-      if(data.kind==='create'||data.kind==='repost')refreshFeed();
+      if(data.kind==='create')refreshFeed();
+      else if(data.kind==='repost'){refreshFeed();refreshVisibleCards();}
       else refreshVisibleCards();
     });
     stream.addEventListener('dm-update',e=>{
