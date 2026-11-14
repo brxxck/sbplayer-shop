@@ -68,7 +68,7 @@ export function newTicket(ctx,{category}){
  </form></div>`);
 }
 export function myTickets(ctx,{tickets=[]}){
- const appCount=tickets.filter(t=>t.type==='application').length;
+ const appCount=tickets.filter(t=>['application','team_application'].includes(t.category)).length;
  return shell(ctx,'My Tickets',`<div class="support-container">
  ${titlebar('MY SUPPORT','Your <span class="gradient">tickets.</span>','','<a class="btn btn-primary" href="/tickets/new">+ Submit Ticket</a>')}
  <div class="panel"><div class="panel-heading"><h2>History</h2><span class="muted">${tickets.length} total · ${appCount} application${appCount===1?'':'s'}</span></div>
@@ -96,7 +96,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  const initialFiles=attachments.filter(f=>!f.message_id);
  return shell(ctx,'Ticket #'+ticket.id,`<div class="support-container ticket-view">
  <a class="support-back" href="${back}">← Back to tickets</a>
- ${titlebar('PRIVATE SUPPORT TICKET','Ticket <span class="gradient">#${ticket.id}</span>','Opened '+date(ticket.created_at))}
+ ${titlebar('PRIVATE SUPPORT TICKET','Ticket <span class="gradient">#'+ticket.id+'</span>','Opened '+date(ticket.created_at))}
  <div class="ticket-detail-head"><span class="ticket-type-label ticket-type-${val(ticket.category)}">${categoryLabel(ticket.category)}</span> ${tag(caseState(ticket))}
  ${privateTier?`<span class="pill pill-protected">${privateTier}</span>`:''}</div>
  <div class="ticket-detail-layout">
@@ -133,13 +133,13 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
 }
 export function staffTicketQueue(ctx,{tickets=[],status='active'}){
  const label=status==='all'?'All accessible cases':'Active Cases';
- return shell(ctx,'Support Tickets',`<div class="support-container">
+ return shell(ctx,'All Tickets',`<div class="support-container">
  ${titlebar('STAFF TICKETS','Ticket <span class="gradient">queue.</span>','')}
  <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets">Active</a>
  <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All</a>
  <a class="btn btn-outline" href="/tickets/mine">My tickets</a></div>
- <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} ticket${tickets.length===1?'':'s'}</span></div>
- <div class="queue-filters" data-case-filters><label>Search cases<input type="search" data-case-search placeholder="Applicant, case ID, type…"></label><label>Type<select data-case-type><option value="">All types</option>${[...new Set(tickets.map(t=>t.category))].map(v=>`<option value="${val(v)}">${val(categoryLabel(v))}</option>`).join('')}</select></label><label>Status<select data-case-status><option value="">All states</option>${[...new Set(tickets.map(t=>t.queue_status||t.status))].map(v=>`<option value="${val(v)}">${val(v.replaceAll('_',' '))}</option>`).join('')}</select></label><label>Sort<select data-case-sort><option value="updated">Last update</option><option value="waiting">Longest waiting</option><option value="attention">Needs attention first</option></select></label><button class="btn btn-outline btn-sm" type="button" data-case-reset>Reset Filters</button></div><p class="muted tiny" data-case-result role="status"></p>${queueRows(tickets)||'<div class="empty">No active tickets.</div>'}</div></div>`);
+ <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} case${tickets.length===1?'':'s'}</span></div>
+ <div class="queue-filters" data-case-filters><label>Search cases<input type="search" data-case-search placeholder="Applicant, case ID, type…"></label><label>Type<select data-case-type><option value="">All types</option>${[...new Set(tickets.map(t=>t.category))].map(v=>`<option value="${val(v)}">${val(categoryLabel(v))}</option>`).join('')}</select></label><label>Status<select data-case-status><option value="">All states</option>${[...new Set(tickets.map(t=>t.queue_status||t.status))].map(v=>`<option value="${val(v)}">${val(v.replaceAll('_',' '))}</option>`).join('')}</select></label><label>Sort<select data-case-sort><option value="updated">Last update</option><option value="waiting">Longest waiting</option><option value="attention">Needs attention first</option></select></label><button class="btn btn-outline btn-sm" type="button" data-case-reset>Reset Filters</button></div><p class="muted tiny" data-case-result role="status"></p>${queueRows(tickets)||'<div class="empty">No cases match this view.</div>'}</div></div>`);
 }
 export function queueRows(tickets=[]){
  if(!tickets.length)return '';
