@@ -4,8 +4,10 @@ import {appendAudit} from './audit.js';
 import {manageableRoles,protectedRole,consensus,isFinal} from './logic.js';
 import {config} from './config.js';
 import {TEMP_MOD_ROLE_ID} from './team-categories.js';
-export const application=(id)=>one('SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?',id);
+const awaitingOwnerSql="EXISTS(SELECT 1 FROM admin_decisions d WHERE d.application_id=a.id GROUP BY d.choice HAVING COUNT(*)>=2)";
+export const application=(id)=>one('SELECT a.*,u.username,u.display_name,u.avatar,'+awaitingOwnerSql+' AS awaiting_owner FROM applications a JOIN users u ON u.id=a.user_id WHERE a.id=?',id);
 export const ownApplications=id=>all(`SELECT a.*,
+  ${awaitingOwnerSql} AS awaiting_owner,
   (SELECT COUNT(*) FROM ticket_messages m WHERE m.application_id=a.id AND m.author_id!=a.user_id AND m.created_at>a.applicant_seen_at) AS unread_replies
   FROM applications a WHERE a.user_id=? ORDER BY a.created_at DESC LIMIT 100`,id);
 export const activeApplication=id=>one("SELECT id FROM applications WHERE user_id=? AND status NOT IN ('accepted','denied') ORDER BY created_at DESC LIMIT 1",id);
