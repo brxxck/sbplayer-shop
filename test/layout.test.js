@@ -168,7 +168,7 @@ test('full social toolbar appears beside profile name with desktop icons and mob
   assert.match(page,/class="top-social-link top-social-feed" href="\/feed"/);
   assert.match(page,/class="top-social-link top-social-members" href="\/members"/);
   assert.match(page,/class="top-social-link top-social-notifications" href="\/notifications"/);
-  assert.match(page,/class="top-social-badge">7<\/span>/);
+  assert.match(page,/class="top-social-badge" data-notification-unread >7<\/span>/);
   assert.match(page,/class="top-social-link top-social-saved" href="\/saved"/);
   assert.match(page,/class="account-profile-link" href="\/profile"/);
   assert.match(page,/class="top-account-dropdown"/);
