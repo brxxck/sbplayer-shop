@@ -16,7 +16,7 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as teamApplicationViews from './team-application-views.js';
-import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
+import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
 import * as view from './views.js';
 import * as microsoftView from './owner-microsoft-views.js';
 import {megaSessionPage} from './mega-session-views.js';
@@ -310,7 +310,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id})),
         ...recruitment.map(a=>({...a,displayId:'TA-'+a.id,category:'team_application',href:'/team-applications/review/'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
+      return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
@@ -819,11 +819,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/team-applications/review'&&req.method==='GET'){
       teamReviewRequired();
       rate(ctx,'team.application.queue',60,60000);
-      const status=String(url.searchParams.get('status')||'active');
+      const status=String(url.searchParams.get('status')||'all');
       const sort=String(url.searchParams.get('sort')||'newest');
       const q=String(url.searchParams.get('q')||'').slice(0,60);
       return html(teamApplicationViews.teamReviewQueue(ctx,{
-        items:teamApplicationQueue({status,sort,q}),status,sort,q
+        items:teamApplicationQueue({status,sort,q}),status,sort,q,counts:teamApplicationCounts()
       }));
     }
     const teamReviewMatch=/^\/team-applications\/review\/(\d+)$/.exec(pathname);
@@ -1369,7 +1369,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
         ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope}));
+      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
