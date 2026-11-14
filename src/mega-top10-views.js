@@ -16,7 +16,7 @@ export function teamBankText(team){
 }
 const mainTeam=listing=>listing.teams.find(t=>t.id===MEGA_TEAM_ID)||null;
 const lastLabel=listing=>listing.live?
-  (Date.now()-listing.status.last_success>15*60000?'Saved listing (stale)':'Latest verified listing'):
+  (Date.now()-listing.status.last_success>15*60000?'Stale captured listing · not live':'Recent captured listing · not live'):
   'Reference links · live ranking not verified';
 
 function teamAnchor(team,label){
@@ -34,9 +34,20 @@ function teamRows(listing){
 }
 const statusText=listing=>'<div class="mega-top-status">'+
  '<span>'+esc(lastLabel(listing))+'</span>'+
- '<span>Last source check: '+esc(date(listing.status.last_success))+'</span>'+
+ '<span>Last successful ranking capture: '+esc(date(listing.status.last_success))+'</span>'+
  (listing.status.last_error?'<span>Collector notice: '+esc(listing.status.last_error)+'</span>':'')+
  '</div>';
+function captureDisclosure(listing){
+  const at=listing.status?.last_success||0;
+  const isStale=!at||Date.now()-at>15*60000;
+  const label=listing.live?'Saved InPvP ranking · NOT LIVE':'Reference teams · NO VERIFIED RANKING';
+  const detail=listing.live
+    ? 'Rankings are stored from the last successfully completed ten-team InPvP capture'+(isStale?' and are now older than 15 minutes':'')+'. Positions follow the source ranking; they are not sorted by the bank column. Bank values may be rounded or captured at different times; team rosters update separately.'
+    : 'No successful ten-team ranking capture is available. These entries are saved reference links, not current ranks. Bank values and player lists can be missing or outdated.';
+  return '<section class="mega-data-clarity" role="status" aria-label="MegaSMP data provenance">'+
+    '<b>'+esc(label)+'</b><p>'+esc(detail)+'</p><p>Last successful ranking capture: <strong>'+
+    esc(date(at))+'</strong>. For the source, open the official InPvP leaderboard.</p></section>';
+}
 function topTable(listing){
  return '<div class="table-wrap panel"><table class="mega-table mega-top-table">'+
    '<thead><tr><th>PLACE</th><th>TEAM</th><th>TEAM BANK</th><th>OFFICIAL PAGE</th></tr></thead>'+
@@ -59,7 +70,7 @@ export function megaHubPage(ctx,{listing,megaContent}){
     icon('user-round-check',{size:17})+' Link profiles</a>':'')+
    '</div></div>'+statusText(listing);
  return shell(ctx,'MegaSMP Team','<div class="mega-top-page" data-top10-board>'+
-   intro+megaContent+'</div>');
+   intro+captureDisclosure(listing)+megaContent+'</div>');
 }
 export function megaLeaderboardPage(ctx,listing){
  const intro=titlebar('MEGASMP LEADERBOARD',
@@ -74,7 +85,7 @@ export function megaLeaderboardPage(ctx,listing){
   icon('arrow-left',{size:17})+' SBsxScam</a>'+
   '<a href="https://inpvp.net/megasmp/teams" target="_blank" rel="noopener noreferrer" class="btn btn-outline">'+
   icon('external-link',{size:17})+' InPvP leaderboard</a></div>'+
-  statusText(listing)+notice+topTable(listing)+
+  statusText(listing)+captureDisclosure(listing)+notice+topTable(listing)+
   '<p class="muted tiny">Rankings and rosters refresh separately. Missing names are not estimated.</p>'+
   '</div>');
 }
@@ -102,7 +113,7 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
  const complete=!!team.rosterComplete&&total!==null&&captured===total;
  const sourceBank=teamBankText(team);
  const bank='<div class="mega-top-kpis">'+
-   '<div class="mega-stat panel"><span class="mega-stat-label">Team bank balance</span>'+
+   '<div class="mega-stat panel"><span class="mega-stat-label">Last captured team bank</span>'+
      '<strong>'+esc(sourceBank||'Not available')+'</strong>'+
      (team.approximate&&sourceBank?'<small>Rounded by InPvP</small>':'')+'</div>'+
    '<div class="mega-stat panel"><span class="mega-stat-label">Top 10 placement</span>'+
@@ -127,7 +138,13 @@ export function megaTeamDetailsPage(ctx,{team,links=[]}){
    '<a class="btn btn-outline" target="_blank" rel="noopener noreferrer" href="'+attr(team.url)+'">'+
    icon('external-link',{size:17})+' Official InPvP team</a>'+
    (ctx.role==='owner'?'<a class="btn btn-outline" href="/mega-team/links">Link player profiles</a>':'')+
-   '</div>'+bank+
+   '</div>'+
+   '<section class="mega-data-clarity" role="status" aria-label="Saved team data status">'+
+   '<b>Saved team snapshot · NOT LIVE</b>'+
+   '<p>Last details captured: <strong>'+esc(date(team.detailObservedAt))+
+   '</strong>. Last ranking captured: '+esc(date(team.rankObservedAt))+
+   '. Bank figures may be rounded or older than the ranking. Player names were collected separately and may be partial.</p>'+
+   '<p>'+esc(progress)+'</p></section>'+bank+
    '<section class="mega-section"><div class="mega-section-head"><h3>Team members</h3>'+
    '<p>'+esc(progress)+' · Last names captured: '+esc(date(rosterDate))+
    '. Click a linked name to open its Discord website profile.</p></div>'+
