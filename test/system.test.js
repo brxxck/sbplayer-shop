@@ -401,6 +401,22 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.equal(submitted.status,303);
  const app=one('SELECT id,status FROM team_applications WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member5);
  assert.ok(app?.id,'the team application is persisted');
+ // The dedicated recruitment route must show all statuses and real stored counts.
+ const recruitment=await (await get('/team-applications/review','owner')).text();
+ assert.match(recruitment,/Stored team applications: [1-9]\d*/);
+ assert.ok(recruitment.includes('href="/team-applications/review/'+app.id+'"'));
+ assert.match(recruitment,/All submissions/);
+ assert.match(recruitment,/Check database/);
+ const allRecruitment=await (await get('/team-applications/review?status=all','adminA')).text();
+ assert.ok(allRecruitment.includes('href="/team-applications/review/'+app.id+'"'));
+ assert.equal((await get('/team-applications/review','reviewer')).status,403);
+ assert.equal((await get('/owner/recruitment-diagnostics','adminA')).status,403);
+ assert.equal((await get('/owner/recruitment-diagnostics','member5')).status,403);
+ const diag=await (await get('/owner/recruitment-diagnostics','owner')).text();
+ assert.match(diag,/Stored team applications:<\/b> [1-9]\d*/);
+ assert.match(diag,/Submission audit events:<\/b> [1-9]\d*/);
+ assert.match(diag,/Database location/);
+ assert.match(diag,/Open all team applications/);
  const adminActive=await (await get('/staff/tickets','adminA')).text();
  const ownerActive=await (await get('/staff/tickets','owner')).text();
  for(const html of [adminActive,ownerActive]){
@@ -409,6 +425,8 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
   assert.match(html,/SBsxScam Team Application/,'recruitment has a readable category label');
  }
  const dashboard=await (await get('/','owner')).text();
+ assert.match(dashboard,/TEAM APPLICATIONS/);
+ assert.match(dashboard,/total stored submissions/);
  assert.ok(dashboard.includes('href="/team-applications/review/'+app.id+'"'),'owner dashboard includes recruitment cases');
  assert.match(dashboard,/team applications/,'dashboard case counts distinguish recruitment from support');
  const reviewerQueue=await (await get('/staff/tickets?status=all','reviewer')).text();
