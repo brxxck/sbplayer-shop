@@ -816,6 +816,37 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }catch{ /* Notification delivery must not reverse an already saved application. */ }
       return success('/team-applications/'+id,'Your team application was submitted.');
     }
+    // Owner-only read-only diagnosis of missing recruitment records.
+    // Do not reset SQLite or infer that a zero count means applicants never applied.
+    if(pathname==='/owner/recruitment-diagnostics'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.recruitment.diagnostics',20,60000);
+      const counts=teamApplicationCounts();
+      const submitted=one("SELECT COUNT(*) n,MAX(at) last_at FROM owner_audit_log WHERE action='team_application.submitted'")||{n:0,last_at:0};
+      const database=db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');
+      const dbLocation=String(database?.file||config.dbPath);
+      const pathConfigured=!!process.env.DB_PATH;
+      const persistentLocation=dbLocation.includes('/app/data/');
+      const message=Number(counts.total)===0?
+        'No team application records exist in this running database. Check the submission confirmation URL, Railway service/replica, DB_PATH and persistent volume or backups. Do not reset storage.':
+        'Team application records are present. Open the unfiltered recruitment queue; if records still do not display, check the authenticated Discord role and filters.';
+      return html(view.shell(ctx,'Recruitment Diagnostics',
+        '<section class="panel padded"><h1>Recruitment data diagnostics</h1>'+
+        '<p>Owner-only, read-only view of the SQLite database currently serving this request.</p>'+
+        '<p><b>Stored team applications:</b> '+Number(counts.total||0)+'</p>'+
+        '<p><b>Active:</b> '+Number(counts.active||0)+
+        ' · <b>Accepted:</b> '+Number(counts.accepted||0)+
+        ' · <b>Denied:</b> '+Number(counts.denied||0)+'</p>'+
+        '<p><b>Last team submission:</b> '+(counts.last_submitted_at?new Date(counts.last_submitted_at).toISOString():'None recorded')+'</p>'+
+        '<p><b>Submission audit events:</b> '+Number(submitted.n||0)+
+        ' · <b>Last audit submission:</b> '+(submitted.last_at?new Date(submitted.last_at).toISOString():'None recorded')+'</p>'+
+        '<p><b>Database location:</b> <code>'+view.esc(dbLocation)+'</code></p>'+
+        '<p><b>DB_PATH explicitly configured:</b> '+(pathConfigured?'Yes':'No — using code default')+
+        ' · <b>Uses /app/data:</b> '+(persistentLocation?'Yes':'No or different deployment path')+'</p>'+
+        '<p>'+view.esc(message)+'</p>'+
+        '<p><a class="btn btn-outline" href="/team-applications/review?status=all">Open all team applications</a></p>'+
+        '</section>'));
+    }
     if(pathname==='/team-applications/review'&&req.method==='GET'){
       teamReviewRequired();
       rate(ctx,'team.application.queue',60,60000);
