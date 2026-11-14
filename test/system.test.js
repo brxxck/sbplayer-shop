@@ -414,10 +414,10 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  const adminTicket=await get('/staff/tickets/'+archive.id,'adminA');
  assert.equal(adminTicket.status,303);
  assert.equal(adminTicket.headers.get('location'),'/team-applications/review/'+app.id);
- assert.equal((await get('/staff/tickets/'+archive.id,'reviewer')).status,403,
-  'ordinary reviewers must not view confidential recruitment archive tickets');
- assert.equal((await get('/tickets/'+archive.id,'member2')).status,403,
-  'other members cannot open an applicant recruitment archive');
+ assert.equal((await get('/staff/tickets/'+archive.id,'reviewer')).status,404,
+  'ordinary reviewers must not learn whether confidential recruitment archives exist');
+ assert.equal((await get('/tickets/'+archive.id,'member2')).status,404,
+  'other members cannot discover an applicant recruitment archive');
  assert.equal((await post('/staff/tickets/'+archive.id+'/status','adminA',{status:'resolved'})).status,400,
   'generic support status cannot bypass recruitment decisions');
  // The dedicated recruitment route must show all statuses and real stored counts.
