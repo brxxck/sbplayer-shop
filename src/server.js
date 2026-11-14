@@ -2,6 +2,9 @@
 import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
+import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
+ createChallenge,joinChallenge,cancelChallenge,openChallenges,recentRounds,getRound,currentRound,transfersFor,sweepArcade} from './arcade.js';
+import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
 import {voteOnSuggestion,setSuggestionStatus,suggestionHistory,filteredSuggestions,decorateCases,markCaseRead,unifiedTransactions} from './upgrade-data.js';
@@ -152,7 +155,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -288,7 +291,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.19.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.20.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/api/integrations/botghost/levels'&&req.method==='POST'){
       rate(ctx,'level_points.sync',120,60000);
       try{
@@ -296,6 +299,72 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const result=syncLevelSnapshot(await readLevelSyncJson(req));
         return respond(res,200,JSON.stringify(result),'application/json; charset=utf-8');
       }catch(error){return respond(res,error.status||500,JSON.stringify({ok:false,error:error.status?error.message:'Level sync failed.'}),'application/json; charset=utf-8');}
+    }
+    // V1.20 Phase 1 Arcade: Discord membership and CSRF protect every wallet operation.
+    if(pathname==='/arcade'||pathname.startsWith('/arcade/')){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Arcade games require server membership.');
+      const user=ctx.user.id,summary=()=>arcadeSummary(user);
+      if(req.method==='GET'&&pathname==='/arcade')
+        return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
+      if(req.method==='GET'&&pathname==='/arcade/history')
+        return html(arcadeView.arcadeHistoryPage(ctx,summary(),recentRounds(user,null,80),transfersFor(user)));
+      if(req.method==='GET'&&pathname==='/arcade/coinflip'){
+        const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'coinflip'):null;
+        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),challenges:openChallenges(user)}));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/slots'){
+        const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
+        return html(arcadeView.slotsPage(ctx,summary(),{round,rounds:recentRounds(user,'slots',15)}));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/mines'){
+        const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
+        return html(arcadeView.minesPage(ctx,summary(),{round,rounds:recentRounds(user,'mines',15)}));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/crash')
+        return html(arcadeView.crashPage(ctx,summary(),crashStatus(user),recentRounds(user,'crash',15)));
+      if(req.method==='GET'&&pathname==='/arcade/api/crash/state'){
+        rate(ctx,'arcade.crash.state',120,60000);
+        return respond(res,200,JSON.stringify(crashStatus(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/coinflip/house'){
+        const {fields}=await form();rate(ctx,'arcade.house.flip',35,60000);
+        const id=houseCoin(user,fields);return redirect(res,'/arcade/coinflip?round='+id);
+      }
+      if(req.method==='POST'&&pathname==='/arcade/coinflip/challenges'){
+        const {fields}=await form();rate(ctx,'arcade.challenge.create',20,60000);
+        const id=createChallenge(user,fields);return success('/arcade/coinflip','Challenge #'+id+' created. Points are reserved until matched or cancelled.');
+      }
+      const pvp=/^\/arcade\/coinflip\/challenges\/(\d+)\/(join|cancel)$/.exec(pathname);
+      if(req.method==='POST'&&pvp){
+        await form();rate(ctx,'arcade.challenge.action',35,60000);
+        if(pvp[2]==='join'){joinChallenge(user,pvp[1]);return success('/arcade/coinflip','Coin flip complete. Check your result below.');}
+        cancelChallenge(user,pvp[1]);return success('/arcade/coinflip','Challenge cancelled and points returned.');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/slots/spin'){
+        const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
+        return redirect(res,'/arcade/slots?round='+spinSlots(user,fields));
+      }
+      if(req.method==='POST'&&pathname==='/arcade/mines/start'){
+        const {fields}=await form();rate(ctx,'arcade.mines.start',30,60000);
+        return redirect(res,'/arcade/mines?round='+createMines(user,fields));
+      }
+      const mineAction=/^\/arcade\/mines\/(\d+)\/(reveal|collect)$/.exec(pathname);
+      if(req.method==='POST'&&mineAction){
+        const {fields}=await form();rate(ctx,'arcade.mines.action',70,60000);
+        const id=mineAction[2]==='reveal'?revealMines(user,mineAction[1],fields.tile):cashMines(user,mineAction[1]);
+        return redirect(res,'/arcade/mines?round='+id);
+      }
+      if(req.method==='POST'&&pathname==='/arcade/crash/start'){
+        const {fields}=await form();rate(ctx,'arcade.crash.start',30,60000);
+        const id=startCrash(user,fields);return redirect(res,'/arcade/crash?round='+id);
+      }
+      const crashCollect=/^\/arcade\/crash\/(\d+)\/collect$/.exec(pathname);
+      if(req.method==='POST'&&crashCollect){
+        await form();rate(ctx,'arcade.crash.collect',45,60000);
+        const id=cashCrash(user,crashCollect[1]);return redirect(res,'/arcade/crash?round='+id);
+      }
+      missing();
     }
     if(pathname==='/points'&&req.method==='GET'){
       await member();return html(levelPointsPage(ctx,levelWallet(ctx.user.id),levelConnection()));
@@ -2196,10 +2265,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   });
   megaSync.start();
   megaBrowser.start();
-  website.on('close',()=>{megaSync.stop();megaBrowser.stop();});
+  const arcadeTicker=setInterval(()=>{try{sweepArcade();}catch(error){console.error('[Arcade maintenance]',String(error.message));}},5000);
+  arcadeTicker.unref();
+  website.on('close',()=>{clearInterval(arcadeTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.4 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.20.0 running at ${config.baseUrl}`));
 }
