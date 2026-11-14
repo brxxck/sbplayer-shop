@@ -1,5 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import http from 'node:http';
+import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
+import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
 import {voteOnSuggestion,setSuggestionStatus,suggestionHistory,filteredSuggestions,decorateCases,markCaseRead,unifiedTransactions} from './upgrade-data.js';
@@ -286,7 +288,32 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.4',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.19.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/api/integrations/botghost/levels'&&req.method==='POST'){
+      rate(ctx,'level_points.sync',120,60000);
+      try{
+        authenticateLevelSync(req.headers.authorization);
+        const result=syncLevelSnapshot(await readLevelSyncJson(req));
+        return respond(res,200,JSON.stringify(result),'application/json; charset=utf-8');
+      }catch(error){return respond(res,error.status||500,JSON.stringify({ok:false,error:error.status?error.message:'Level sync failed.'}),'application/json; charset=utf-8');}
+    }
+    if(pathname==='/points'&&req.method==='GET'){
+      await member();return html(levelPointsPage(ctx,levelWallet(ctx.user.id),levelConnection()));
+    }
+    if(pathname==='/points/claim'&&req.method==='POST'){
+      await member();await form();rate(ctx,'level_points.claim',12,60000);
+      const points=claimLevelPoints(ctx.user.id);return success('/points',points.toLocaleString('en-GB')+' points claimed.');
+    }
+    if(pathname==='/owner/level-points'&&req.method==='GET'){
+      await authorize('owner');return html(levelConnectionPage(ctx,levelConnection()));
+    }
+    if(pathname==='/owner/level-points/key'&&req.method==='POST'){
+      await authorize('owner');await form();rate(ctx,'level_points.key',5,3600000);
+      const key=rotateLevelKey(ctx.user.id);return html(levelConnectionPage(ctx,levelConnection(),key));
+    }
+    if(pathname==='/owner/level-points/revoke'&&req.method==='POST'){
+      await authorize('owner');await form();revokeLevelKey(ctx.user.id);return success('/owner/level-points','Level sync disconnected.');
+    }
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
