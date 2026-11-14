@@ -16,6 +16,12 @@
     return r.json();
   };
   let stream;
+  document.querySelector('[data-dm-filter]')?.addEventListener('input',event=>{
+    const q=event.target.value.trim().toLocaleLowerCase();
+    for(const item of document.querySelectorAll('[data-dm-list] .dm-thread')){
+      item.hidden=!!q&&!item.textContent.toLocaleLowerCase().includes(q);
+    }
+  });
   const feed=document.querySelector('[data-live-feed]');
   const list=feed?.querySelector('[data-feed-list]');
   const banner=feed?.querySelector('[data-feed-banner]');
