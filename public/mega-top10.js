@@ -68,12 +68,23 @@
    if(rank)rank.textContent=live&&sb?.rank?'#'+sb.rank+' ↗':'Unverified ↗';
    const titleRank=root.querySelector('[data-mega-title-rank]');
    if(titleRank)titleRank.textContent=live&&sb?.rank?'#'+sb.rank:'Unverified';
+   const sourceNote=root.querySelector('[data-top10-provenance]');
+   if(sourceNote){
+     const stamp=data.status.last_success||0;
+     const stale=!stamp||Date.now()-stamp>900000;
+     const heading=sourceNote.querySelector('b'),body=sourceNote.querySelector('[data-top10-provenance-detail]');
+     if(heading)heading.textContent=live?'Saved InPvP ranking · NOT LIVE':'Reference teams · NO VERIFIED RANKING';
+     if(body)body.textContent=live
+       ? 'Rankings were last captured '+date(stamp)+(stale?' (older than 15 minutes)':'')+
+         '. Rank positions come from InPvP, not from sorting team bank values. Bank and roster details update separately.'
+       : 'No completed ten-team ranking is available; saved reference links are not verified current ranks.';
+   }
    const status=root.querySelector('.mega-top-status');
    if(status){
      const spans=status.querySelectorAll('span');
      if(spans[0])spans[0].textContent=!live?'Reference links · live ranking not verified':
-       Date.now()-data.status.last_success>900000?'Saved listing (stale)':'Latest verified listing';
-     if(spans[1])spans[1].textContent='Last source check: '+date(data.status.last_success);
+       Date.now()-data.status.last_success>900000?'Stale captured listing · not live':'Recent captured listing · not live';
+     if(spans[1])spans[1].textContent='Last successful ranking capture: '+date(data.status.last_success);
      if(spans[2])spans[2].textContent=data.status.last_error?
        'Collector notice: '+String(data.status.last_error):'';
    }
