@@ -112,6 +112,7 @@ function socialHeaderAccount(ctx){
     '<button class="btn btn-quiet btn-xs" type="submit">Log out</button></form>';
   const unread=Math.max(0,Number(ctx.notificationCount)||0);
   const number=unread>99?'99+':String(unread);
+  const dmUnread=dmUnreadCount(u.id);
   const quick=[
     ['feed','/feed','newspaper','Main Feed'],
     ['members','/members','user-round-search','Find Members'],
@@ -122,7 +123,7 @@ function socialHeaderAccount(ctx){
     '<a class="top-social-link top-social-'+key+'" href="'+url+'" aria-label="'+label+
     (key==='notifications'&&unread?' ('+unread+' unread)':'')+'" title="'+label+'">'+
     '<span class="top-social-symbol" aria-hidden="true">'+icon(iconName,{size:19})+'</span>'+
-    (key==='notifications'&&unread?'<span class="top-social-badge">'+number+'</span>':'')+
+    (key==='notifications'?'<span class="top-social-badge" data-notification-unread '+(unread?'':'hidden')+'>'+number+'</span>':key==='messages'?'<span class="top-social-badge" data-dm-unread '+(dmUnread?'':'hidden')+'>'+Math.min(dmUnread,99)+'</span>':'')+
     '</a>').join('');
   const own='/u/'+attr(u.id);
   const menuLink=(href,iconName,label)=>'<a href="'+href+'"><span class="menu-action-icon" aria-hidden="true">'+icon(iconName,{size:19})+'</span><span>'+label+'</span></a>';
@@ -178,7 +179,7 @@ export function shell(ctx,title,content) {
 ${user&&role!=='appeal-only'?`<div class="sidebar-title">MY SOCIAL</div><nav>${navLink('/profile','My Profile','◉',ctx)}${navLink('/notifications',unread?'Notifications ('+unread+')':'Notifications','♢',ctx)}${navLink('/messages',messageUnread?'Messages ('+messageUnread+')':'Messages','✉',ctx)}${navLink('/saved','Saved Posts','▤',ctx)}${navLink('/profile/edit','Customize Profile','✦',ctx)}</nav>`:''}
 ${staff?`<div class="sidebar-title">STAFF TOOLS</div><nav>${navLink('/staff/tickets','All Tickets','▣',ctx)}${navLink('/staff','Application Reviews','▤',ctx)}${admin?navLink('/staff/promotions','Promotion Reviews','♛',ctx):''}${admin?`${navLink('/admin/roles','Role Management','⬡',ctx)}${navLink('/admin/settings','Admin Settings','⚙',ctx)}${navLink('/admin/moderation','Moderation','⚑',ctx)}`:''}${role==='owner'?`${navLink('/owner/approvals','Final Approvals','✓',ctx)}${navLink('/owner/audit','Owner Audit Log','☷',ctx)}${navLink('/owner/owners','Owner Access','♜',ctx)}`:''}</nav>`:''}
 </div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/profile'}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
-<div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><b>${esc(title)}</b></div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
+<div class="main"><header class="topbar"><a class="mobile-brand" href="/"><img src="/static/sb-logo.png?v=${assetVersion}" alt="SB" width="36" height="36" style="width:36px;height:36px;max-width:36px;max-height:36px;object-fit:cover"><span>SB's & Cam's Store</span></a><div class="breadcrumbs"><b>${esc(title)}</b>${user&&role!=='appeal-only'?'<span class="live-connection" data-live-connection>Connecting</span>':''}</div><div class="top-account">${socialHeaderAccount(ctx)}</div></header>
 ${user?`<nav class="mobile-nav">${role==='appeal-only'?'<a href="/tickets/new/ban_appeal">Ban Appeal</a><a href="/tickets/mine">My Appeals</a><a href="/team">Meet the Team</a>':'<a href="/tickets/new">Submit Ticket</a>'+(staffNavigation?'':'<a href="/tickets/mine">My Tickets</a><a href="/dashboard">Applications</a>')+'<a href="/feed">Feed</a>'}${role==='appeal-only'?'':'<a href="/suggestions">Suggestions</a><a href="/members">Members</a><a href="/team">Team</a><a href="/mega-team">MegaSMP</a>'}${role==='appeal-only'?'':'<a href="/profile">My Profile</a><a href="/notifications">Notifications</a><a href="/messages">Messages</a><a href="/saved">Saved</a>'}${staff?'<a href="/staff">Reviews</a>':''}${role==='owner'?'<a href="/owner/audit">Audit</a>':''}</nav>`:''}
 <main class="content">${ctx.notice?`<div class="alert ${ctx.noticeType==='error'?'alert-error':'alert-success'}" role="status">${esc(ctx.notice)}</div>`:''}${content}</main><footer class="footer"><span>© ${new Date().getFullYear()} SB's & Cam's Store</span><span>V1.11.0</span></footer></div></div>${evidenceViewerDialog()}</body></html>`;
 }
