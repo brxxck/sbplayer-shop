@@ -1386,7 +1386,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/staff/tickets'&&req.method==='GET'){
       await authorize('staff');
-      const scope=url.searchParams.get('status')==='all'?'all':'active';
+      const scope=url.searchParams.get('status')==='active'?'active':'all';
       const available=await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
        const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
       const apps=scope==='all'
@@ -1400,7 +1400,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
         ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
+      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null,type:ctx.teamRecruiter&&url.searchParams.get('type')==='team_application'?'team_application':''}));
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
