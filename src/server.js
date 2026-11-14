@@ -1371,8 +1371,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     let ownTicketMatch=/^\/dashboard\/applications\/(\d+)$/.exec(pathname);
     if(ownTicketMatch&&req.method==='GET'){
       const id=idFrom(ownTicketMatch[1]);
-      const ticket=one('SELECT * FROM applications WHERE id=? AND user_id=?',id,ctx.user.id);
-      if(!ticket)missing();
+      const ticket=application(id);
+      if(!ticket||ticket.user_id!==ctx.user.id)missing();
       const messages=ticketMessages(id);
       run('UPDATE applications SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'application.access','application:'+id,{access:'applicant'});
