@@ -1,7 +1,19 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.9.2
+# SB's & Cam's Store — Community Portal V1.11.0
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.11.0 — Live Community and Private Messaging
+
+- **Real-time live events:** authenticated Server-Sent Events carry non-sensitive activity signals for the Main Feed, private message inbox, notification badges, online status, and staff chat. All protected content is re-fetched by each signed-in participant via authorized endpoints.
+- **Main Feed:** new posts arrive automatically at the top; if you're reading older posts, a banner queues new posts without losing your scroll. Like/repost/comment counts are refreshed in place, with a fallback sync every 20 seconds.
+- **Private 1:1 DMs:** a Messages area and a Message action on member profiles, with persistent threads, image attachments (up to three per message), typing indicators, read receipts, message edits (15-minute window), delete, search by known username or Discord ID, unread counts, block and report tools.
+- **Privacy:** membership-required access, immutable thread participant authorization, conversation content excluded from global events, CSRF validation, participant-only download links, recipient controls for new message requests, invisible presence, optional read receipts, and staff access only to explicitly reported message snapshots.
+- **Online status:** active, away and offline states tracked via the site's own browser heartbeats. Invisible users always render offline. This does not reflect Discord or Minecraft presence.
+- **Safe migration:** creates additive \`dm_*\` SQLite tables without modifying existing tickets, posts, profiles, verified Xbox gamertags, audit history, or MegaSMP snapshots. Existing Railway DB and uploads must remain on persistent storage.
+- **Deployment constraint:** the SSE bus and presence map are local to **one** Node server process. Do not scale Railway to multiple replicas until a shared broker and coordinated presence store are introduced.
+- **Degradation:** existing server-rendered pages, forms and authenticated HTTP routes still work without SSE; the browser performs fallback refreshes for open pages.
+- **Validation:** run \`npm test\`, check \`/health\` responds with \`1.11.0\`, then verify two real Discord members exchanging messages and browsing the live feed on separate sessions. Back up the persistent volume before deployment.
 
 ## V1.9.2 — Fix the Microsoft/Xbox button returning to SBStore
 

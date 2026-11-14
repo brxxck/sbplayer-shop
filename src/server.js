@@ -27,6 +27,9 @@ import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
 import * as homeView from './home-views.js';
 import * as socialView from './social-views.js';
+import * as communityView from './community-views.js';
+import {dmInbox,dmUnreadCount,dmHistory,dmSettings,updateDmSettings,startDm,requireDm,dmSend,dmMarkRead,dmEdit,dmDelete,dmAttachment,dmReport,dmReports,dmResolveReport,setBlock,dmError} from './community-data.js';
+import {subscribe,notifyUser,notifyEveryone,ping,onlineStatus,presencePreferenceChanged,setSessionValidator,revokeSession} from './community-live.js';
 import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMember,setMegaMemberStatus,addMegaTransaction,recordMegaBank,createMegaSeason} from './mega-team.js';
 import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
@@ -131,7 +134,7 @@ const ipOf=req=>{
   const remote=String(req.socket.remoteAddress||'').slice(0,90);
   return config.trustProxy?String(req.headers['x-forwarded-for']||remote).split(',')[0].trim().slice(0,90):remote;
 };
-function headerError(err){if(err instanceof HttpError)return err;if([400,413,415].includes(err?.status))return new HttpError(err.status,String(err.message).slice(0,300));return new HttpError(500,'An unexpected error occurred.');}
+function headerError(err){if(err instanceof HttpError)return err;if(Number.isInteger(err?.status)&&err.status>=400&&err.status<500)return new HttpError(err.status,String(err.message).slice(0,300));return new HttpError(500,'An unexpected error occurred.');}
 function csrfForm(form,ctx){if(!ctx.session || !secureEqual(form.fields._csrf,ctx.session.csrf))forbidden('Session verification failed. Refresh the page and retry.');}
 const formValue=(fields,name,max,min=0)=>{const val=limitText(fields[name],max,min);if(val===null)invalid(`Invalid or missing field: ${name}`);return val;};
 const validVote=choice=>['accept','deny'].includes(choice);
@@ -144,7 +147,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path) {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -164,6 +167,7 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
+  setSessionValidator((hash,userId)=>!!one('SELECT 1 FROM sessions WHERE token_hash=? AND user_id=? AND expires_at>?',hash,userId,now()));
   const megaSync=createMegaTeamSync();
   const megaBrowser=createMegaBrowserRunner();
   const microsoftAuth=createOwnerMicrosoftAuth({baseUrl:config.baseUrl});
@@ -275,7 +279,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.10.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.11.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -337,7 +341,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await form();
       if(isStaffRole(ctx.role))logAction(ctx,'staff.logout',ctx.user.id);
       if(ctx.session?.token_hash)xboxLinkAuth.forget(ctx.session.token_hash,ctx.user.id);
-      if(c.sid)run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));setCookie(res,'sid','');return redirect(res,'/');
+      if(c.sid){revokeSession(sha256(c.sid));run('DELETE FROM sessions WHERE token_hash=?',sha256(c.sid));}setCookie(res,'sid','');return redirect(res,'/');
     }
 
     // One-use local InPvP browser handoff. No Discord cookie required: a
@@ -516,6 +520,161 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return success('/owner/microsoft','Local Microsoft authorization cleared.');
     }
 
+    // V1.11 private community. Only verified guild members reach these routes.
+    if(pathname==='/live/events'&&req.method==='GET'){
+      if(ctx.role==='appeal-only')forbidden();
+      return subscribe(res,ctx.user.id,ctx.session.token_hash);
+    }
+    if(pathname==='/live/ping'&&req.method==='POST'){
+      if(ctx.role==='appeal-only')forbidden();
+      rate(ctx,'live.ping',120,60000);
+      const {fields}=await form();
+      ping(ctx.user.id,fields.active!=='0');
+      return respond(res,200,JSON.stringify({ok:true}),'application/json; charset=utf-8');
+    }
+    if(pathname==='/live/state'&&req.method==='GET'){
+      if(ctx.role==='appeal-only')forbidden();
+      rate(ctx,'live.state',60,60000);
+      const ids=String(url.searchParams.get('ids')||'').split(',').filter(id=>/^\d{15,22}$/.test(id)).slice(0,50);
+      const statuses={};for(const id of ids)statuses[id]=onlineStatus(id);
+      return respond(res,200,JSON.stringify({statuses,unreadMessages:dmUnreadCount(ctx.user.id),unreadNotifications:notificationCount(ctx.user.id)}),'application/json; charset=utf-8');
+    }
+    if(pathname==='/live/feed/updates'&&req.method==='GET'){
+      if(ctx.role==='appeal-only')forbidden();
+      rate(ctx,'live.feed',60,60000);
+      const last=idFrom(url.searchParams.get('after'))||0,following=url.searchParams.get('tab')==='following';
+      const posts=listPosts(ctx.user.id,{limit:20,following}).filter(p=>p.id>last);
+      return respond(res,200,JSON.stringify({posts:posts.map(p=>({id:p.id,html:view.postCard(ctx,p,{feedPage:0,feedTab:following?'following':'all'})})),head:listPosts(ctx.user.id,{limit:1,following})[0]?.id||0}),'application/json; charset=utf-8');
+    }
+    if(pathname==='/messages'&&req.method==='GET')return html(communityView.inbox(ctx,dmInbox(ctx.user.id)));
+    if(pathname==='/messages/unread'&&req.method==='GET'){
+      rate(ctx,'dm.unread',60,60000);
+      return respond(res,200,JSON.stringify({unread:dmUnreadCount(ctx.user.id)}),'application/json; charset=utf-8');
+    }
+    if(pathname==='/messages/settings'&&req.method==='POST'){
+      rate(ctx,'dm.settings',20,60000);
+      const {fields}=await form();
+      updateDmSettings(ctx.user.id,fields);
+      presencePreferenceChanged(ctx.user.id);
+      return success('/messages','Messaging preferences saved.');
+    }
+    if(pathname==='/messages/start'&&req.method==='POST'){
+      rate(ctx,'dm.start',20,60000);
+      const {fields}=await form(),q=String(fields.q||'').trim().replace(/^@/,'');
+      let recipient=null;
+      if(/^\d{15,22}$/.test(q)){
+        const member=await discord.getGuildMember(q);
+        if(member?.user&&!member.pending){upsertUser(member);ensureProfile(q);recipient=q;}
+      }else if(/^[\w.]{2,32}$/.test(q)){
+        const found=all('SELECT id FROM users WHERE LOWER(username)=LOWER(?) ORDER BY updated_at DESC LIMIT 2',q);
+        if(found.length===1){
+          const member=await discord.getGuildMember(found[0].id);
+          if(member?.user&&!member.pending)recipient=found[0].id;
+        }
+      }
+      if(!recipient)return warn('/messages','Member not found. Ask them to sign in or search the member directory.');
+      try{return redirect(res,'/messages/'+startDm(ctx.user.id,recipient));}
+      catch(error){if(error.status)return warn('/messages',error.message);throw error;}
+    }
+    let dmMatch=/^\/messages\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='GET'){
+      const id=idFrom(dmMatch[1]);if(!id)missing();
+      dmMarkRead(id,ctx.user.id);
+      const details=dmHistory(id,ctx.user.id);
+      notifyUser(details.thread.other_id,'dm-read',{threadId:id});
+      return html(communityView.conversation(ctx,details));
+    }
+    dmMatch=/^\/messages\/(\d+)\/updates$/.exec(pathname);
+    if(dmMatch&&req.method==='GET'){
+      rate(ctx,'dm.updates',90,60000);
+      const id=idFrom(dmMatch[1]),after=Number(url.searchParams.get('after')||0);
+      if(!Number.isSafeInteger(after)||after<0)invalid();
+      const details=dmHistory(id,ctx.user.id);
+      const messages=details.messages.filter(m=>m.id>after);
+      return respond(res,200,JSON.stringify({messages:messages.map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,details.otherRead)})),changes:details.messages.filter(m=>m.id<=after&&(m.edited_at||m.deleted_at)).map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,details.otherRead)})),lastRead:details.otherRead,readAllowed:details.readAllowed}),'application/json; charset=utf-8');
+    }
+    dmMatch=/^\/messages\/(\d+)\/send$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.send',30,60000);
+      const id=idFrom(dmMatch[1]);
+      requireDm(id,ctx.user.id);
+      const {fields,files}=await form();
+      const attachments=files.evidence||[];
+      if(attachments.length>3)invalid('Maximum three attachments.');
+      const saved=attachments.length?saveTicketEvidence(attachments):[];
+      try{
+        const sent=dmSend(id,ctx.user.id,String(fields.body||''),saved);
+        notifyUser(sent.recipientId,'dm-update',{threadId:id});
+        notifyUser(ctx.user.id,'dm-update',{threadId:id});
+        if(String(req.headers.accept||'').includes('application/json'))
+          return respond(res,200,JSON.stringify({ok:true,id:sent.id}),'application/json; charset=utf-8');
+        return redirect(res,'/messages/'+id);
+      }catch(error){deleteTicketEvidence(saved);throw error;}
+    }
+    dmMatch=/^\/messages\/(\d+)\/read$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.read',90,60000);await form();
+      const read=dmMarkRead(idFrom(dmMatch[1]),ctx.user.id);
+      notifyUser(read.otherId,'dm-read',{threadId:idFrom(dmMatch[1])});
+      return respond(res,200,JSON.stringify({ok:true}),'application/json; charset=utf-8');
+    }
+    dmMatch=/^\/messages\/(\d+)\/typing$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.typing',30,60000);await form();
+      const thread=requireDm(idFrom(dmMatch[1]),ctx.user.id);
+      notifyUser(thread.other_id,'dm-typing',{threadId:thread.id});
+      return respond(res,200,JSON.stringify({ok:true}),'application/json; charset=utf-8');
+    }
+    dmMatch=/^\/messages\/(\d+)\/edit\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.edit',30,60000);
+      const {fields}=await form(),recipient=dmEdit(idFrom(dmMatch[1]),idFrom(dmMatch[2]),ctx.user.id,fields.body);
+      notifyUser(recipient,'dm-update',{threadId:idFrom(dmMatch[1])});
+      notifyUser(ctx.user.id,'dm-update',{threadId:idFrom(dmMatch[1])});
+      return redirect(res,'/messages/'+dmMatch[1]);
+    }
+    dmMatch=/^\/messages\/(\d+)\/delete\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.delete',30,60000);await form();
+      const recipient=dmDelete(idFrom(dmMatch[1]),idFrom(dmMatch[2]),ctx.user.id);
+      notifyUser(recipient,'dm-update',{threadId:idFrom(dmMatch[1])});
+      notifyUser(ctx.user.id,'dm-update',{threadId:idFrom(dmMatch[1])});
+      return redirect(res,'/messages/'+dmMatch[1]);
+    }
+    dmMatch=/^\/messages\/(\d+)\/report\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.report',5,3600000);
+      const {fields}=await form(),reportId=dmReport(idFrom(dmMatch[1]),idFrom(dmMatch[2]),ctx.user.id,fields.reason);
+      logAction(ctx,'dm.report.submit','dm_report:'+reportId,{messageId:idFrom(dmMatch[2])});
+      return success('/messages/'+dmMatch[1],'Message report submitted.');
+    }
+    dmMatch=/^\/messages\/block\/(\d{15,22})$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      rate(ctx,'dm.block',30,60000);
+      const {fields}=await form();setBlock(ctx.user.id,dmMatch[1],fields.block==='1');
+      return success('/messages','Block settings updated.');
+    }
+    dmMatch=/^\/messages\/files\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='GET'){
+      rate(ctx,'dm.attachment',100,60000);
+      const file=dmAttachment(idFrom(dmMatch[1]),ctx.user.id);
+      const loc=safeTicketFile(file.stored_path);if(!loc)missing();
+      return respond(res,200,readFileSync(loc),file.mime_type,{
+        'content-disposition':'attachment; filename="attachment"',
+        'x-content-type-options':'nosniff'
+      });
+    }
+    if(pathname==='/admin/dm-reports'&&req.method==='GET'){
+      await authorize('admin');return html(communityView.reportsPage(ctx,dmReports()));
+    }
+    dmMatch=/^\/admin\/dm-reports\/(\d+)$/.exec(pathname);
+    if(dmMatch&&req.method==='POST'){
+      await authorize('admin');rate(ctx,'dm.reports.review',30,60000);
+      const {fields}=await form();dmResolveReport(idFrom(dmMatch[1]),ctx.user.id,fields.status);
+      logAction(ctx,'dm.report.review','dm_report:'+dmMatch[1],{status:fields.status});
+      return redirect(res,'/admin/dm-reports');
+    }
+
     // V1.5: an obvious canonical entry to each user's own public or private profile.
     if(pathname==='/profile'&&req.method==='GET')return redirect(res,'/u/'+ctx.user.id);
     if(pathname==='/notifications'&&req.method==='GET')
@@ -523,12 +682,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/notifications/read'&&req.method==='POST'){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id);
+      notifyUser(ctx.user.id,'notifications-update',{});
       return redirect(res,'/notifications');
     }
     const notificationMatch=/^\/notifications\/(\d+)\/read$/.exec(pathname);
     if(notificationMatch&&req.method==='POST'){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id,idFrom(notificationMatch[1]));
+      notifyUser(ctx.user.id,'notifications-update',{});
       return redirect(res,'/notifications');
     }
     if(pathname==='/saved'&&req.method==='GET'){
@@ -1192,6 +1353,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const {fields}=await form();
       const body=formValue(fields,'body',1500,1);
       sendStaffChat({userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+      for(const user of all('SELECT DISTINCT user_id FROM sessions WHERE expires_at>?',now()))notifyUser(user.user_id,'staff-chat-update',{});
       return success('/','Message sent to staff chat.');
     }
 
@@ -1364,6 +1526,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const image=files.image?saveImage(files.image):'';
       const result=run('INSERT INTO posts(user_id,body,image_path,created_at) VALUES(?,?,?,?)',ctx.user.id,body,image,now());
       if(isStaffRole(ctx.role))logAction(ctx,'social.post.create','post:'+result.lastInsertRowid,{preview:body.slice(0,120)});
+      notifyEveryone('feed-update',{kind:'create',id:Number(result.lastInsertRowid)});
       return success('/feed','Post published.');
     }
     m=/^\/post\/(\d+)$/.exec(pathname);
@@ -1379,6 +1542,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const exists=one('SELECT 1 FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
         if(exists)run('DELETE FROM post_likes WHERE post_id=? AND user_id=?',id,ctx.user.id);
         else {run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,ctx.user.id,now());notifySocial(post.user_id,ctx.user.id,'like',id);}
+        notifyEveryone('feed-update',{kind:'like',id});
+        notifyUser(post.user_id,'notifications-update',{});
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.like',`post:${id}`,{before:!!exists,after:!exists});
         // JavaScript-enhanced likes update in place so scrolling the feed never opens Post Details.
         if(String(req.headers.accept||'').includes('application/json')){
@@ -1392,6 +1557,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const existing=one('SELECT id FROM posts WHERE user_id=? AND repost_of=? AND deleted_at IS NULL',ctx.user.id,id);
         if(existing)run('UPDATE posts SET deleted_at=? WHERE id=?',now(),existing.id);
         else {run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ctx.user.id,'',id,now());notifySocial(post.user_id,ctx.user.id,'repost',id);}
+        notifyEveryone('feed-update',{kind:'repost',id});
+        notifyUser(post.user_id,'notifications-update',{});
         if(isStaffRole(ctx.role))logAction(ctx,'social.post.repost',`post:${id}`,{before:!!existing,after:!existing});
         if(String(req.headers.accept||'').includes('application/json')){
           const count=one('SELECT COUNT(*) AS count FROM posts WHERE repost_of=? AND deleted_at IS NULL',id)?.count||0;
@@ -1409,6 +1576,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(action==='comment'){
         const body=formValue(fields,'body',1000,1);run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','post',String(id),ctx.user.id,body,now());notifySocial(post.user_id,ctx.user.id,'comment',id);
+        notifyEveryone('feed-update',{kind:'comment',id});
+        notifyUser(post.user_id,'notifications-update',{});
         if(isStaffRole(ctx.role))logAction(ctx,'social.comment.create','post:'+id,{body:body.slice(0,100)});
         return redirect(res,`/post/${id}`);
       }
@@ -1593,6 +1762,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const already=one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
         if(already)run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
         else {run('INSERT INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)',ctx.user.id,id,now());notifySocial(id,ctx.user.id,'follow',id);}
+        notifyUser(id,'notifications-update',{});
         if(isStaffRole(ctx.role))logAction(ctx,'profile.follow','profile:'+id,{before:!!already,after:!already});
         return redirect(res,`/u/${id}`);
       }
@@ -1600,6 +1770,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const body=formValue(fields,'body',1000,1);
       run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','profile',id,ctx.user.id,body,now());
       notifySocial(id,ctx.user.id,'profile_comment',id);
+      notifyUser(id,'notifications-update',{});
       if(isStaffRole(ctx.role))logAction(ctx,'profile.comment','profile:'+id,{body:body.slice(0,100)});
       return redirect(res,`/u/${id}`);
     }
@@ -1881,5 +2052,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.10.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.11.0 running at ${config.baseUrl}`));
 }

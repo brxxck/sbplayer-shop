@@ -836,3 +836,49 @@ input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;ba
 /* V1.10.2: SBsxScam recruitment entry in the existing support picker. */
 .support-choice.tone-blue .support-choice-icon{background:#16334b;color:#80c8ff}
 .support-choice.tone-blue:hover{border-color:#3b79b5}
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.11 private messaging and responsive live community UI */
+.live-feed-banner{width:100%;justify-content:center;cursor:pointer;color:#9ccfff}
+.live-feed-banner[hidden]{display:none!important}
+.dm-page{max-width:1120px;margin:auto;display:grid;gap:17px}
+.dm-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.9fr);gap:20px;align-items:start}
+.dm-thread{display:flex;align-items:center;gap:15px;padding:17px 20px;color:var(--text)}
+.dm-thread:hover{border-color:#3c83cc;color:var(--text)}
+.dm-thread-body{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px}
+.dm-thread-body b{font-size:14px}
+.dm-thread-body small{display:block;flex-basis:100%;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-unread{border-radius:100%;min-width:24px;padding:4px 7px;background:#246ddb;color:white;font-size:11px;text-align:center}
+.dm-conversation-header{display:flex;align-items:center;gap:14px;padding:16px 20px}
+.dm-conversation-header>div{display:flex;flex-direction:column;gap:4px;flex:1}
+.dm-conversation-header b{font-size:16px}
+.dm-block-form{margin:0}
+.dm-history{height:min(62vh,680px);min-height:320px;padding:22px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.dm-bubble{display:flex;flex-direction:column;max-width:min(78%,590px);width:fit-content;gap:5px;border-radius:15px;padding:13px 17px;background:#1a3659;border:1px solid #305173;overflow-wrap:anywhere}
+.dm-bubble.dm-mine{align-self:flex-end;background:#174b8d;border-color:#2c70c4}
+.dm-bubble.dm-theirs{align-self:flex-start}
+.dm-bubble-body{font-size:13px;line-height:1.6}
+.dm-bubble small{color:#acc6e4;font-size:10px}
+.dm-bubble-tools{display:flex;gap:3px;align-items:center}
+.dm-bubble-tools form{margin:0}
+.dm-attachment{display:block;color:#c7e4ff;background:#14335d;border-radius:8px;padding:7px;margin-top:7px;font-size:12px}
+.dm-compose textarea{min-height:75px}
+.dm-compose-actions{display:flex;gap:20px;justify-content:space-between;align-items:end}
+.dm-compose-actions .upload-label{flex:1}
+.dm-compose-actions button{flex:none}
+.presence-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:550;color:#91a4c0}
+.presence-dot{width:8px;height:8px;border-radius:50%;background:#8290a4;flex:none}
+.presence-chip[data-status="online"] .presence-dot{background:#30d48d;box-shadow:0 0 6px #30d48d66}
+.presence-chip[data-status="away"] .presence-dot{background:#e3b55c}
+.presence-chip[data-status="online"]{color:#65e2ab}
+.presence-chip[data-status="away"]{color:#ffd98a}
+.live-connection{display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;color:#91c5ff}
+.dm-quick-link{position:relative}
+.dm-count{position:absolute;right:-4px;top:-5px;background:#236ddc;border-radius:999px;padding:2px 5px;font-size:10px;color:#fff;min-width:17px;text-align:center}
+.dm-count[hidden]{display:none}
+@media(max-width:900px){.dm-grid{grid-template-columns:1fr}.dm-history{height:54vh}.dm-conversation-header{padding:12px}.dm-bubble{max-width:91%}}
+@media(max-width:550px){.dm-compose-actions{flex-direction:column;align-items:stretch}.dm-history{padding:12px}.dm-bubble{max-width:94%}.dm-conversation-header b{font-size:14px}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.dm-thread[hidden]{display:none!important}

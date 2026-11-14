@@ -24,8 +24,8 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.10\.2-ticket-applications/);
-  assert.match(page,/\/static\/app\.js\?v=1\.10\.2-ticket-applications/);
+  assert.match(page,/\/static\/style\.css\?v=1\.11\.0-live-community/);
+  assert.match(page,/\/static\/app\.js\?v=1\.11\.0-live-community/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -98,8 +98,8 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
 
 test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  const page=home(signed);
- assert.match(page,/\/static\/mega-team\.js\?v=1\.10\.2-ticket-applications/);
- assert.match(page,/\/static\/mega-top10\.js\?v=1\.10\.2-ticket-applications/);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.11\.0-live-community/);
+ assert.match(page,/\/static\/mega-top10\.js\?v=1\.11\.0-live-community/);
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {megaTeamPanel}=await import('../src/mega-team-views.js');
  const dashboard=megaDashboard();
@@ -168,7 +168,7 @@ test('full social toolbar appears beside profile name with desktop icons and mob
   assert.match(page,/class="top-social-link top-social-feed" href="\/feed"/);
   assert.match(page,/class="top-social-link top-social-members" href="\/members"/);
   assert.match(page,/class="top-social-link top-social-notifications" href="\/notifications"/);
-  assert.match(page,/class="top-social-badge">7<\/span>/);
+  assert.match(page,/class="top-social-badge" data-notification-unread >7<\/span>/);
   assert.match(page,/class="top-social-link top-social-saved" href="\/saved"/);
   assert.match(page,/class="account-profile-link" href="\/profile"/);
   assert.match(page,/class="top-account-dropdown"/);
