@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.18.2
+# SB's & Cam's Store — Community Portal V1.18.3
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.18.3 — All Tickets is the single staff queue, with recruitment diagnostics
+
+- **All Tickets** opens with every authorized case (including accepted/denied team applications) by default. **Active** remains a selectable filter; both use the same ticket table.
+- SBsxScam recruitment cases appear alongside support tickets, staff applications and promotions as **SBsxScam Team Application** with a **TA-#** identifier. Use the **Type** dropdown to show only team applications when needed.
+- Staff dashboard and navigation point into the shared All Tickets list, rather than a second recruitment inbox. Authorized non-staff SBs team leaders retain their restricted leadership page; ordinary reviewers do not gain private recruitment access.
+- The staff queue displays actual team-application table totals. For owners, **Check stored submissions** opens a read-only diagnostic showing database path, whether DB_PATH was configured, submitted-audit counts and counts of other records. This distinguishes an empty UI filter from missing records in the database the running server has opened.
+- The older private review endpoint is retained for existing ticket links, leadership workflow and audit history; no applications are moved, copied, reset or deleted.
+- **Production investigation:** If applicants have a valid submitted application URL but the live database reports zero rows, check the Railway persistent volume and DB_PATH configuration, service/replica and backups. Do not reset SQLite. GitHub alone cannot inspect production records.
+- Test by signing in as the owner/admin, opening `/staff/tickets`, selecting **Team applications** in Type, and verifying a submitted TA-# case. Check as a reviewer and original applicant to confirm privacy.
+- No migrations or package additions. Expect `/health` version `1.18.3` after the production deployment.
 
 ## V1.18.2 — Ticket numbers and SBsxScam applications in ticket lists
 
