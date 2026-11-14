@@ -9,7 +9,7 @@ const applicant='100000000000001111',leader='100000000000001112',another='100000
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'data.sqlite')});
 const {db,run,one}=await import('../src/db.js');
 const {validateTeamApplication,submitTeamApplication,activeTeamApplication,teamApplication,
- myTeamApplications,teamApplicationQueue,updateTeamApplication,saveTeamApplicationNote}=await import('../src/team-applications.js');
+ myTeamApplications,teamApplicationQueue,teamApplicationCounts,updateTeamApplication,saveTeamApplicationNote}=await import('../src/team-applications.js');
 const {verifyAudit}=await import('../src/audit.js');
 const {saveXboxLink}=await import('../src/xbox-gamertag-links.js');
 for(const id of [applicant,leader,another])
@@ -49,6 +49,9 @@ test('submission has one-active uniqueness; private note and status audit',()=>{
  assert.equal(activeTeamApplication(applicant).id,id);
  assert.equal(myTeamApplications(applicant).length,1);
  assert.equal(teamApplicationQueue({status:'active'}).length,1);
+ assert.equal(teamApplicationCounts().total,1);
+ assert.equal(teamApplicationCounts().active,1);
+ assert.ok(teamApplicationCounts().last_submitted_at>0);
  assert.throws(()=>submitTeamApplication({userId:applicant,data}),/already have/);
  assert.throws(()=>saveTeamApplicationNote({id,actorId:applicant,note:'Fake own note'}),/own/);
  saveTeamApplicationNote({id,actorId:leader,note:'Good contributions'});
@@ -62,6 +65,9 @@ test('submission has one-active uniqueness; private note and status audit',()=>{
  const second=submitTeamApplication({userId:applicant,data});
  assert.ok(second>id);
  assert.equal(teamApplicationQueue({status:'all',sort:'earnings'}).length,2);
+ assert.equal(teamApplicationCounts().total,2);
+ assert.equal(teamApplicationCounts().accepted,1);
+ assert.equal(teamApplicationCounts().active,1);
  assert.equal(teamApplicationQueue({q:'RealXbox'}).length,1);
  assert.equal(teamApplication(second).status,'pending');
  assert.equal(one('SELECT COUNT(*) n FROM team_applications WHERE user_id=?',applicant).n,2);

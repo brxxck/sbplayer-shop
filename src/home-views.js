@@ -40,7 +40,7 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
    </div>
  </div>`);
 }
-export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activeCount=0,ownerCount=0}={}){
+export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activeCount=0,ownerCount=0,teamCounts=null}={}){
  const items=tickets;
  const awaitingMember=items.filter(t=>t.queue_status==='awaiting_member').length;
  const awaitingOwner=items.filter(t=>t.queue_status==='awaiting_owner').length;
@@ -54,9 +54,10 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
        <a href="/applications" class="btn btn-outline">Application management</a></div></div>
    </section>
    <div class="dash-summary-row">
-     <a class="dash-summary-card" href="/staff/tickets"><span>ACTIVE CASES</span><strong>${items.length}</strong><small>View →</small></a>
-     <a class="dash-summary-card" href="/staff"><span>APPLICATIONS</span><strong>${applications.length}</strong><small>View →</small></a>
-     <a class="dash-summary-card" href="${ctx.role==='owner'?'/owner/approvals':'/staff/tickets'}"><span>${ctx.role==='owner'?'FINAL APPROVALS':'NEEDS MY ATTENTION'}</span>
+     <a class="dash-summary-card" href="/staff/tickets?status=active"><span>ACTIVE CASES</span><strong>${items.length}</strong><small>View →</small></a>
+     <a class="dash-summary-card" href="/staff"><span>STAFF APPLICATIONS</span><strong>${applications.length}</strong><small>View →</small></a>
+     ${teamCounts!==null?`<a class="dash-summary-card" href="/staff/tickets?type=team_application"><span>TEAM APPLICATIONS</span><strong>${Number(teamCounts.total||0)}</strong><small>All submissions →</small></a>`:''}
+     <a class="dash-summary-card" href="${ctx.role==='owner'?'/owner/approvals':'/staff/tickets?status=active'}"><span>${ctx.role==='owner'?'FINAL APPROVALS':'NEEDS MY ATTENTION'}</span>
        <strong>${ctx.role==='owner'?ownerCount:needsAttention}</strong><small>${ctx.role==='owner'?'Review':'Edit'} →</small></a>
    </div>
    <div class="staff-dashboard-columns">
@@ -75,8 +76,9 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
      </section>
      <section class="panel padded dash-staff-tickets">
        <div class="section-heading"><div><h2>Active Cases</h2></div>
-       <a href="/staff/tickets" class="table-link">Full queue →</a></div>
-       <p class="muted tiny">${items.filter(t=>!['application','promotion','team_application'].includes(t.category)).length} support · ${items.filter(t=>t.category==='application').length} staff applications · ${items.filter(t=>t.category==='promotion').length} promotions · ${items.filter(t=>t.category==='team_application').length} team applications</p><p class="muted tiny">${needsAttention} need attention · ${awaitingMember} awaiting member · ${awaitingOwner} awaiting owner</p><div class="dash-ticket-list">${items.length?items.map(t=>`<a class="dash-ticket-row" href="${t.href}">
+       <a href="/staff/tickets?status=active" class="table-link">Active queue →</a></div>
+       <p class="muted tiny">${items.filter(t=>!['application','promotion','team_application'].includes(t.category)).length} support · ${items.filter(t=>t.category==='application').length} staff applications · ${items.filter(t=>t.category==='promotion').length} promotions · ${items.filter(t=>t.category==='team_application').length} active team applications</p>
+       ${teamCounts!==null?`<p class="muted tiny"><a href="/staff/tickets?type=team_application">Team recruitment: ${Number(teamCounts.total||0)} total stored submissions, ${Number(teamCounts.active||0)} active. View all →</a></p>`:''}<p class="muted tiny">${needsAttention} need attention · ${awaitingMember} awaiting member · ${awaitingOwner} awaiting owner</p><div class="dash-ticket-list">${items.length?items.map(t=>`<a class="dash-ticket-row" href="${t.href}">
          <span class="ticket-type-label ticket-type-${esc(t.category)}">${categoryLabel(t.category)}</span>
          <span class="dash-ticket-member"><b>${esc(t.display_name||'Member')}</b><small>#${esc(t.displayId||t.id)} · ${date(t.updated_at)} · <span data-wait-since="${t.updated_at}"></span></small></span>
          <span class="dash-ticket-status">${tag(t.queue_status||t.status)}${t.unread?`<span class="pill">${t.unread} unread</span>`:''}</span>

@@ -131,15 +131,16 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
    </form>
  </section></div></div>`);
 }
-export function staffTicketQueue(ctx,{tickets=[],status='active'}){
- const label=status==='all'?'All accessible cases':'Active Cases';
+export function staffTicketQueue(ctx,{tickets=[],status='all',teamCounts=null,type=''}){
+ const label=status==='all'?'All Tickets':'Active Cases';
  return shell(ctx,'All Tickets',`<div class="support-container">
  ${titlebar('STAFF TICKETS','Ticket <span class="gradient">queue.</span>','')}
- <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets">Active</a>
- <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All</a>
+ <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=active">Active</a>
+ <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets">All Tickets</a>
  <a class="btn btn-outline" href="/tickets/mine">My tickets</a></div>
+ ${teamCounts!==null?'<p class="muted tiny" role="status"><b>Team applications:</b> '+Number(teamCounts.total||0)+' stored · '+Number(teamCounts.active||0)+' active. <a href="/staff/tickets?type=team_application">Filter team applications →</a>'+(ctx.role==='owner'?' · <a href="/owner/recruitment-diagnostics">Check stored submissions</a>':'')+(Number(teamCounts.total||0)===0?' <span> No team applications are present in the database used by this website instance.</span>':'')+'</p>':''}
  <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} case${tickets.length===1?'':'s'}</span></div>
- <div class="queue-filters" data-case-filters><label>Search cases<input type="search" data-case-search placeholder="Applicant, case ID, type…"></label><label>Type<select data-case-type><option value="">All types</option>${[...new Set(tickets.map(t=>t.category))].map(v=>`<option value="${val(v)}">${val(categoryLabel(v))}</option>`).join('')}</select></label><label>Status<select data-case-status><option value="">All states</option>${[...new Set(tickets.map(t=>t.queue_status||t.status))].map(v=>`<option value="${val(v)}">${val(v.replaceAll('_',' '))}</option>`).join('')}</select></label><label>Sort<select data-case-sort><option value="updated">Last update</option><option value="waiting">Longest waiting</option><option value="attention">Needs attention first</option></select></label><button class="btn btn-outline btn-sm" type="button" data-case-reset>Reset Filters</button></div><p class="muted tiny" data-case-result role="status"></p>${queueRows(tickets)||'<div class="empty">No cases match this view.</div>'}</div></div>`);
+ <div class="queue-filters" data-case-filters><label>Search cases<input type="search" data-case-search placeholder="Applicant, case ID, type…"></label><label>Type<select data-case-type><option value="">All types</option>${[...new Set([...tickets.map(t=>t.category),...(teamCounts!==null?['team_application']:[])])].map(v=>`<option value="${val(v)}"${type===v?' selected':''}>${val(categoryLabel(v))}</option>`).join('')}</select></label><label>Status<select data-case-status><option value="">All states</option>${[...new Set(tickets.map(t=>t.queue_status||t.status))].map(v=>`<option value="${val(v)}">${val(v.replaceAll('_',' '))}</option>`).join('')}</select></label><label>Sort<select data-case-sort><option value="updated">Last update</option><option value="waiting">Longest waiting</option><option value="attention">Needs attention first</option></select></label><button class="btn btn-outline btn-sm" type="button" data-case-reset>Reset Filters</button></div><p class="muted tiny" data-case-result role="status"></p>${queueRows(tickets)||'<div class="empty">No cases match this view.</div>'}</div></div>`);
 }
 export function queueRows(tickets=[]){
  if(!tickets.length)return '';

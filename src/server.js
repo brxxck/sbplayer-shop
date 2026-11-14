@@ -16,7 +16,7 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as teamApplicationViews from './team-application-views.js';
-import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
+import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
 import * as view from './views.js';
 import * as microsoftView from './owner-microsoft-views.js';
 import {megaSessionPage} from './mega-session-views.js';
@@ -286,7 +286,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.3',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -310,7 +310,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id})),
         ...recruitment.map(a=>({...a,displayId:'TA-'+a.id,category:'team_application',href:'/team-applications/review/'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
+      return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
@@ -816,14 +816,52 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }catch{ /* Notification delivery must not reverse an already saved application. */ }
       return success('/team-applications/'+id,'Your team application was submitted.');
     }
+    // Owner-only read-only diagnosis of missing recruitment records.
+    // Do not reset SQLite or infer that a zero count means applicants never applied.
+    if(pathname==='/owner/recruitment-diagnostics'&&req.method==='GET'){
+      await authorize('owner');
+      rate(ctx,'owner.recruitment.diagnostics',20,60000);
+      const counts=teamApplicationCounts();
+      const submitted=one("SELECT COUNT(*) n,MAX(at) last_at FROM owner_audit_log WHERE action='team_application.submitted'")||{n:0,last_at:0};
+      const otherCounts=one('SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM support_tickets) support,(SELECT COUNT(*) FROM applications) staff_apps');
+      const database=db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');
+      const dbLocation=String(database?.file||config.dbPath);
+      const pathConfigured=!!process.env.DB_PATH;
+      const persistentLocation=dbLocation.includes('/app/data/');
+      const message=Number(counts.total)>0
+        ?'Team application records exist. They should appear under All Tickets for authorized admins/owners; check the current filter and role.'
+        :Number(submitted.n)>0
+        ?'Warning: submission events exist in this audit log, but the matching application rows are missing. Preserve the database and inspect backups, service history and volume mounts before making changes.'
+        :Number(otherCounts.support)+Number(otherCounts.staff_apps)>0
+        ?'This database contains other tickets but no team applications or team-submission audits. Compare applicant confirmation URLs and earlier Railway deployment volumes or database paths.'
+        :'No team application rows or submission events exist in this running database. Verify Railway DB_PATH, service, persistent volume and earlier backups. Do not reset storage.';
+      return html(view.shell(ctx,'Recruitment Diagnostics',
+        '<section class="panel padded"><h1>Recruitment data diagnostics</h1>'+
+        '<p>Owner-only, read-only view of the SQLite database currently serving this request.</p>'+
+        '<p><b>Stored team applications:</b> '+Number(counts.total||0)+'</p>'+
+        '<p><b>Active:</b> '+Number(counts.active||0)+
+        ' · <b>Accepted:</b> '+Number(counts.accepted||0)+
+        ' · <b>Denied:</b> '+Number(counts.denied||0)+'</p>'+
+        '<p><b>Last team submission:</b> '+(counts.last_submitted_at?new Date(counts.last_submitted_at).toISOString():'None recorded')+'</p>'+
+        '<p><b>Submission audit events:</b> '+Number(submitted.n||0)+
+        ' · <b>Last audit submission:</b> '+(submitted.last_at?new Date(submitted.last_at).toISOString():'None recorded')+'</p>'+
+        '<p><b>Other records in this database:</b> '+Number(otherCounts.users||0)+' users · '+
+        Number(otherCounts.support||0)+' support tickets · '+Number(otherCounts.staff_apps||0)+' staff applications</p>'+
+        '<p><b>Database location:</b> <code>'+view.esc(dbLocation)+'</code></p>'+
+        '<p><b>DB_PATH explicitly configured:</b> '+(pathConfigured?'Yes':'No — using code default')+
+        ' · <b>Uses /app/data:</b> '+(persistentLocation?'Yes':'No or different deployment path')+'</p>'+
+        '<p>'+view.esc(message)+'</p>'+
+        '<p><a class="btn btn-outline" href="/staff/tickets?type=team_application">Open team applications in All Tickets</a></p>'+
+        '</section>'));
+    }
     if(pathname==='/team-applications/review'&&req.method==='GET'){
       teamReviewRequired();
       rate(ctx,'team.application.queue',60,60000);
-      const status=String(url.searchParams.get('status')||'active');
+      const status=String(url.searchParams.get('status')||'all');
       const sort=String(url.searchParams.get('sort')||'newest');
       const q=String(url.searchParams.get('q')||'').slice(0,60);
       return html(teamApplicationViews.teamReviewQueue(ctx,{
-        items:teamApplicationQueue({status,sort,q}),status,sort,q
+        items:teamApplicationQueue({status,sort,q}),status,sort,q,counts:teamApplicationCounts()
       }));
     }
     const teamReviewMatch=/^\/team-applications\/review\/(\d+)$/.exec(pathname);
@@ -1355,7 +1393,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/staff/tickets'&&req.method==='GET'){
       await authorize('staff');
-      const scope=url.searchParams.get('status')==='all'?'all':'active';
+      const scope=url.searchParams.get('status')==='active'?'active':'all';
       const available=await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
        const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
       const apps=scope==='all'
@@ -1369,7 +1407,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
         ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope}));
+      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null,type:ctx.teamRecruiter&&url.searchParams.get('type')==='team_application'?'team_application':''}));
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
@@ -2120,5 +2158,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.3 running at ${config.baseUrl}`));
 }

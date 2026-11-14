@@ -55,21 +55,33 @@ export function myTeamApplicationPage(ctx,{application:a}={}) {
  '<p><b>Minecraft IGN:</b> '+esc(a.minecraft_ign)+'</p><p><b>Daily income:</b> $'+displayMoney(a.daily_earnings)+'</p><p><b>Net worth:</b> $'+displayMoney(a.net_worth)+'</p><p><b>Activity:</b> '+esc(a.play_days)+' days/week, '+esc(a.play_hours)+' hours/active day</p></section>'+
  '<a class="btn btn-outline" href="/team-applications/apply">Back to applications</a></div>');
 }
-export function teamReviewQueue(ctx,{items=[],status='active',sort='newest',q=''}={}) {
+export function teamReviewQueue(ctx,{items=[],status='all',sort='newest',q='',counts=null}={}) {
  const options=[['active','Active'],['pending','Pending'],['reviewing','Reviewing'],['interview','Interview'],['accepted','Accepted'],['denied','Denied'],['all','All']];
  const sorts=[['newest','Newest'],['earnings','Highest earnings'],['wealth','Highest net worth'],['activity','Most active']];
  const select=(name,current,values)=>'<select name="'+name+'">'+values.map(([key,label])=>'<option value="'+key+'"'+(key===current?' selected':'')+'>'+label+'</option>').join('')+'</select>';
+ const total=Number(counts?.total??items.length),active=Number(counts?.active??0);
+ const accepted=Number(counts?.accepted??0),denied=Number(counts?.denied??0);
+ const sourceNote=total===0
+   ?'No team applications are stored in the database used by this deployment. If an applicant has a submitted ticket link, check the Railway DB_PATH setting and persistent volume before making database changes.'
+   :!items.length?'No applications match these filters. Choose All and clear the search to see stored submissions.':'';
+ const summary='<section class="panel padded" role="status" aria-label="Stored recruitment totals">'+
+  '<div class="section-heading"><h2>Stored team applications: '+total+'</h2><a class="btn btn-outline btn-sm" href="/team-applications/review?status=all">All submissions</a>'+
+  (ctx.role==='owner'?'<a class="btn btn-outline btn-sm" href="/owner/recruitment-diagnostics">Check database</a>':'')+'</div>'+
+  '<p class="muted">Active: '+active+' · Accepted: '+accepted+' · Denied: '+denied+
+  ' · Last submitted: '+(counts?.last_submitted_at?when(counts.last_submitted_at):'none')+'</p>'+
+  (sourceNote?'<p class="muted">'+esc(sourceNote)+'</p>':'')+'</section>';
  return shell(ctx,'SBs Team Recruitment',titlebar('PRIVATE TEAM LEADERSHIP','Team <span class="gradient">recruitment.</span>','')+
+ summary+
  '<section class="panel padded"><form action="/team-applications/review" method="get" class="field-grid"><label>Status'+select('status',status,options)+'</label>'+
  '<label>Sort by'+select('sort',sort,sorts)+'</label><label>Search<input name="q" value="'+esc(q)+'" maxlength="60" placeholder="Search applicants"></label>'+
  '<div class="form-actions"><button class="btn btn-primary" type="submit">Filter</button></div></form></section>'+
  '<section class="panel"><div class="panel-heading"><h2>Applications</h2><span class="muted">'+items.length+' displayed</span></div>'+
  '<div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Earnings/day</th><th>Net worth</th><th>Hours/week</th><th>Status</th><th></th></tr></thead><tbody>'+
- items.map(a=>'<tr><td><a class="member-inline" href="/u/'+esc(a.user_id)+'">'+avatar(a,'sm')+'<span><b>'+esc(a.minecraft_ign)+'</b><small>@'+esc(a.username)+'</small></span></a></td>'+
+ items.map(a=>'<tr><td><a class="member-inline" href="/u/'+esc(a.user_id)+'">'+avatar(a,'sm')+'<span><b>'+esc(a.minecraft_ign)+'</b><small>@'+esc(a.username||a.minecraft_ign)+'</small></span></a></td>'+
  '<td>$'+displayMoney(a.daily_earnings)+'</td><td>$'+displayMoney(a.net_worth)+'</td>'+
  '<td>'+Number(a.play_days*a.play_hours).toLocaleString('en-GB')+'</td><td>'+tag(a.status)+'</td>'+
  '<td><a class="table-link" href="/team-applications/review/'+a.id+'">Review →</a></td></tr>').join('')+
- '</tbody></table>'+(items.length?'':'<div class="empty">No matching applications.</div>')+'</div></section>');
+ '</tbody></table>'+(items.length?'':'<div class="empty">No matching applications. <a href="/team-applications/review?status=all">Show all submissions</a></div>')+'</div></section>');
 }
 export function teamReviewDetail(ctx,{application:a}={}) {
  const skills=JSON.parse(a.skills_json||'[]').map(k=>TEAM_SKILLS.find(s=>s.key===k)?.label||k).join(', ');

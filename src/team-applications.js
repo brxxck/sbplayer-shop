@@ -84,19 +84,29 @@ export function validateTeamApplication(fields,{linkedGamertag=''}={}) {
  };
 }
 
+// Keep historical applications visible to authorized reviewers even if the
+// corresponding profile row is temporarily absent from a restored database.
 export const teamApplication=id=>one(
- 'SELECT a.*,u.username,u.display_name,u.avatar FROM team_applications a JOIN users u ON u.id=a.user_id WHERE a.id=?',id)||null;
+ 'SELECT a.*,COALESCE(u.username,a.minecraft_ign) username,COALESCE(u.display_name,u.username,a.minecraft_ign) display_name,u.avatar FROM team_applications a LEFT JOIN users u ON u.id=a.user_id WHERE a.id=?',id)||null;
 export const myTeamApplications=userId=>all(
  'SELECT * FROM team_applications WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 60',userId);
 export const activeTeamApplication=userId=>one(
  "SELECT * FROM team_applications WHERE user_id=? AND status IN ('pending','reviewing','interview') ORDER BY id DESC LIMIT 1",userId)||null;
+
+// Aggregate directly from the source table: unlike a filtered queue, these
+// counts reveal whether the active database contains any submissions at all.
+export const teamApplicationCounts=()=>one(`SELECT COUNT(*) total,
+ COALESCE(SUM(CASE WHEN status IN ('pending','reviewing','interview') THEN 1 ELSE 0 END),0) active,
+ COALESCE(SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END),0) accepted,
+ COALESCE(SUM(CASE WHEN status='denied' THEN 1 ELSE 0 END),0) denied,
+ MAX(created_at) last_submitted_at FROM team_applications`);
 
 export function teamApplicationQueue({status='active',sort='newest',q=''}={}) {
  const statusMap={active:"a.status IN ('pending','reviewing','interview')",pending:"a.status='pending'",reviewing:"a.status='reviewing'",interview:"a.status='interview'",accepted:"a.status='accepted'",denied:"a.status='denied'",all:'1=1'};
  const sortMap={newest:'a.created_at DESC,a.id DESC',earnings:'a.daily_earnings DESC,a.created_at DESC',wealth:'a.net_worth DESC,a.created_at DESC',activity:'(a.play_days*a.play_hours) DESC,a.created_at DESC'};
  const filter=statusMap[status]||statusMap.active,order=sortMap[sort]||sortMap.newest;
  const search=String(q||'').trim().slice(0,60).replace(/[\\%_]/g,'\\$&');
- return all("SELECT a.*,u.username,u.display_name,u.avatar FROM team_applications a JOIN users u ON u.id=a.user_id WHERE "+
+ return all("SELECT a.*,COALESCE(u.username,a.minecraft_ign) username,COALESCE(u.display_name,u.username,a.minecraft_ign) display_name,u.avatar FROM team_applications a LEFT JOIN users u ON u.id=a.user_id WHERE "+
   filter+(search?" AND (a.minecraft_ign LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\' OR u.display_name LIKE ? ESCAPE '\\')":'')+
   ' ORDER BY '+order+' LIMIT 200',...(search?Array(3).fill('%'+search+'%'):[]));
 }

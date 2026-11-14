@@ -401,14 +401,38 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.equal(submitted.status,303);
  const app=one('SELECT id,status FROM team_applications WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member5);
  assert.ok(app?.id,'the team application is persisted');
+ // The dedicated recruitment route must show all statuses and real stored counts.
+ const recruitment=await (await get('/team-applications/review','owner')).text();
+ assert.match(recruitment,/Stored team applications: [1-9]\d*/);
+ assert.ok(recruitment.includes('href="/team-applications/review/'+app.id+'"'));
+ assert.match(recruitment,/All submissions/);
+ assert.match(recruitment,/Check database/);
+ const allRecruitment=await (await get('/team-applications/review?status=all','adminA')).text();
+ assert.ok(allRecruitment.includes('href="/team-applications/review/'+app.id+'"'));
+ assert.equal((await get('/team-applications/review','reviewer')).status,403);
+ assert.equal((await get('/owner/recruitment-diagnostics','adminA')).status,403);
+ assert.equal((await get('/owner/recruitment-diagnostics','member5')).status,403);
+ const diag=await (await get('/owner/recruitment-diagnostics','owner')).text();
+ assert.match(diag,/Stored team applications:<\/b> [1-9]\d*/);
+ assert.match(diag,/Submission audit events:<\/b> [1-9]\d*/);
+ assert.match(diag,/Database location/);
+ assert.match(diag,/Open team applications in All Tickets/);
+ assert.match(diag,/Other records in this database/);
  const adminActive=await (await get('/staff/tickets','adminA')).text();
  const ownerActive=await (await get('/staff/tickets','owner')).text();
+ const filtered=await (await get('/staff/tickets?type=team_application','owner')).text();
+ assert.match(filtered,/All Tickets/,'combined queue defaults to all cases');
+ assert.match(filtered,/option value="team_application" selected/,'team applications filter is preselected in the same ticket list');
+ assert.ok(filtered.includes('href="/team-applications/review/'+app.id+'"'),'filtered combined tickets include team applications');
+ assert.match(filtered,/Check stored submissions/,'owner can investigate missing records without leaving the ticket area');
  for(const html of [adminActive,ownerActive]){
   assert.ok(html.includes('href="/team-applications/review/'+app.id+'"'),'authorized staff see the team case');
   assert.ok(html.includes('#TA-'+app.id),'team case has a distinct identifier');
   assert.match(html,/SBsxScam Team Application/,'recruitment has a readable category label');
  }
  const dashboard=await (await get('/','owner')).text();
+ assert.match(dashboard,/TEAM APPLICATIONS/);
+ assert.match(dashboard,/total stored submissions/);
  assert.ok(dashboard.includes('href="/team-applications/review/'+app.id+'"'),'owner dashboard includes recruitment cases');
  assert.match(dashboard,/team applications/,'dashboard case counts distinguish recruitment from support');
  const reviewerQueue=await (await get('/staff/tickets?status=all','reviewer')).text();
@@ -420,9 +444,9 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.ok(ownTickets.includes('href="/team-applications/'+app.id+'"'),'applicant can find their recruitment history in My Tickets');
  assert.ok(!ownTickets.includes('href="/team-applications/review/'+app.id+'"'),'applicant does not gain leadership access');
  assert.equal((await post('/team-applications/review/'+app.id+'/status','adminA',{status:'accepted',note:'Application reviewed'})).status,303);
- const activeAfter=await (await get('/staff/tickets','owner')).text();
+ const activeAfter=await (await get('/staff/tickets?status=active','owner')).text();
  assert.ok(!activeAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment leaves active queue');
- const allAfter=await (await get('/staff/tickets?status=all','owner')).text();
+ const allAfter=await (await get('/staff/tickets','owner')).text();
  assert.ok(allAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment remains in All');
  const ownAfter=await (await get('/tickets/mine','member5')).text();
  assert.ok(ownAfter.includes('href="/team-applications/'+app.id+'"'),'applicant history survives finalized recruitment');
