@@ -52,6 +52,7 @@ if(staffChatLog){
  }
  staffChatLog.scrollTop=staffChatLog.scrollHeight;
  setInterval(pollStaffChat,8000);
+ window.addEventListener('sb:staff-chat-update',pollStaffChat);
  if(staffChatForm){
    staffChatForm.addEventListener('submit',async event=>{
      event.preventDefault();
