@@ -419,6 +419,11 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.match(diag,/Open all team applications/);
  const adminActive=await (await get('/staff/tickets','adminA')).text();
  const ownerActive=await (await get('/staff/tickets','owner')).text();
+ const filtered=await (await get('/staff/tickets?type=team_application','owner')).text();
+ assert.match(filtered,/All Tickets/,'combined queue defaults to all cases');
+ assert.match(filtered,/option value="team_application" selected/,'team applications filter is preselected in the same ticket list');
+ assert.ok(filtered.includes('href="/team-applications/review/'+app.id+'"'),'filtered combined tickets include team applications');
+ assert.match(filtered,/Check stored submissions/,'owner can investigate missing records without leaving the ticket area');
  for(const html of [adminActive,ownerActive]){
   assert.ok(html.includes('href="/team-applications/review/'+app.id+'"'),'authorized staff see the team case');
   assert.ok(html.includes('#TA-'+app.id),'team case has a distinct identifier');
@@ -438,9 +443,9 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.ok(ownTickets.includes('href="/team-applications/'+app.id+'"'),'applicant can find their recruitment history in My Tickets');
  assert.ok(!ownTickets.includes('href="/team-applications/review/'+app.id+'"'),'applicant does not gain leadership access');
  assert.equal((await post('/team-applications/review/'+app.id+'/status','adminA',{status:'accepted',note:'Application reviewed'})).status,303);
- const activeAfter=await (await get('/staff/tickets','owner')).text();
+ const activeAfter=await (await get('/staff/tickets?status=active','owner')).text();
  assert.ok(!activeAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment leaves active queue');
- const allAfter=await (await get('/staff/tickets?status=all','owner')).text();
+ const allAfter=await (await get('/staff/tickets','owner')).text();
  assert.ok(allAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment remains in All');
  const ownAfter=await (await get('/tickets/mine','member5')).text();
  assert.ok(ownAfter.includes('href="/team-applications/'+app.id+'"'),'applicant history survives finalized recruitment');
