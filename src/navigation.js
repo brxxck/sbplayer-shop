@@ -10,7 +10,7 @@ export function navigationGroups(ctx){
  groups.push({label:'People',items:[['/members','Members'],['/team','Teams']]},
   {label:'MegaSMP',items:[['/mega-team','Overview'],['/mega-team/leaderboard','Top 10'],['/mega-team/transactions','Transactions']]},
   {label:'Support',items:[['/tickets/new','New Ticket'],['/tickets/mine','My Tickets'],['/applications','Applications']]});
- if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','Active Cases'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[]),...(ctx.teamRecruiter?[['/team-applications/review','Team Recruitment']]:[])]});
+ if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','All Tickets'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[]),...(ctx.teamRecruiter&&!staff?[['/team-applications/review','Team Recruitment']]:[])]});
  else if(ctx.teamRecruiter)groups.push({label:'Recruitment',collapsible:true,items:[['/team-applications/review','Team Recruitment']]});
  if(admin)groups.push({label:'Administration',collapsible:true,items:[['/admin/roles','Roles'],['/admin/moderation','Moderation'],['/admin/dm-reports','Message Reports'],['/admin/settings','Settings']]});
  if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/owners','Owner Access'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});
