@@ -29,7 +29,8 @@ export function ping(userId,active=true){
   const old=stateOf(userId);
   const stamp=Date.now(),record=presence.get(userId)||{seen:stamp,active:stamp};
   record.seen=stamp;
-  if(active)record.active=stamp;
+  if(active){record.active=stamp;record.awayNotified=false;}
+  record.offlineNotified=false;
   presence.set(userId,record);
   if(old!==stateOf(userId))notifyEveryone('presence',{userId,status:stateOf(userId)});
 }
@@ -71,7 +72,8 @@ export function revokeSession(hash){
 }
 export function tickPresence(){
   for(const [userId,record] of presence){
-    if(Date.now()-record.seen>HEARTBEAT_STALE*2){presence.delete(userId);notifyEveryone('presence',{userId,status:'offline'});}
+    if(Date.now()-record.seen>HEARTBEAT_STALE*2){presence.delete(userId);}
+    else if(Date.now()-record.seen>HEARTBEAT_STALE&&!record.offlineNotified){record.offlineNotified=true;notifyEveryone('presence',{userId,status:'offline'});}
     else if(Date.now()-record.active>AWAY_MS&&record.awayNotified!==true){
       record.awayNotified=true;
       notifyEveryone('presence',{userId,status:stateOf(userId)});
