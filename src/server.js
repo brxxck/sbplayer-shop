@@ -301,10 +301,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const applications=all("SELECT a.*,u.display_name,u.username,"+
         "EXISTS(SELECT 1 FROM admin_decisions d WHERE d.application_id=a.id GROUP BY d.choice HAVING COUNT(*)>=2) AS awaiting_owner "+
         "FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
+      // Team recruitment is private. Include it only for verified recruiters,
+      // using the same eligibility gate as the dedicated review route.
+      const recruitment=ctx.teamRecruiter?teamApplicationQueue({status:'active'}):[];
       const tickets=[
         ...supports.map(t=>({...t,displayId:'T-'+t.id,href:'/staff/tickets/'+t.id})),
-         ...promotions.map(t=>({...t,displayId:'P-'+t.id,category:'promotion',href:'/staff/promotions/'+t.id})),
-        ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id}))
+        ...promotions.map(t=>({...t,displayId:'P-'+t.id,category:'promotion',href:'/staff/promotions/'+t.id})),
+        ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id})),
+        ...recruitment.map(a=>({...a,displayId:'TA-'+a.id,category:'team_application',href:'/team-applications/review/'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
       return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
     }
@@ -1283,7 +1287,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const promotions=ctx.role==='appeal-only'?[]:ownPromotions(ctx.user.id).map(p=>({...p,category:'promotion',href:'/promotions/'+p.id}));
        const apps=ctx.role==='appeal-only'?[]:ownApplications(ctx.user.id)
         .map(a=>({...a,category:'application',unread:a.unread_replies||0,href:'/dashboard/applications/'+a.id}));
-      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps,...promotions].sort((a,b)=>b.updated_at-a.updated_at)}));
+      const teamApps=ctx.role==='appeal-only'?[]:myTeamApplications(ctx.user.id)
+        .map(a=>({...a,category:'team_application',href:'/team-applications/'+a.id}));
+      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps,...promotions,...teamApps].sort((a,b)=>b.updated_at-a.updated_at)}));
     }
     const applicationAttachmentMatch=/^\/applications\/attachments\/(\d+)$/.exec(pathname);
     if(applicationAttachmentMatch&&req.method==='GET'){
@@ -1355,10 +1361,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const apps=scope==='all'
         ?all('SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.updated_at DESC LIMIT 150')
         :all("SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
+      // Other staff must not discover private team applications in the shared queue.
+      const recruitment=ctx.teamRecruiter?teamApplicationQueue({status:scope}):[];
       const tickets=[
         ...available.map(t=>({...t,href:'/staff/tickets/'+t.id,displayId:'T-'+t.id})),
-         ...promotions.map(t=>({...t,category:'promotion',href:'/staff/promotions/'+t.id,displayId:'P-'+t.id})),
-        ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id}))
+        ...promotions.map(t=>({...t,category:'promotion',href:'/staff/promotions/'+t.id,displayId:'P-'+t.id})),
+        ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
+        ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
       return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope}));
     }
