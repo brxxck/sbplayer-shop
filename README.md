@@ -1,7 +1,24 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.12.0 (Phase 1)
+# SB's & Cam's Store — Community Portal V1.18.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.18.1 — Search, date validation and release consistency
+
+This patch builds on V1.18.0 without replacing its data or permissions. Searches for messages, suggestions, MegaSMP transactions and owner audit records now treat `%`, `_` and backslashes as literal user-entered characters instead of SQL wildcard patterns. Date filters reject impossible calendar days and reversed ranges; the same validation applies to the owner audit. Release version, package lockfile, static asset URLs and health endpoint are synchronized. No new database migrations or dependencies. Details: [RELEASE-V1.18.1.md](RELEASE-V1.18.1.md).
+
+## V1.18.0 — Community, messaging and staff upgrade
+
+This build implements the consolidated interface and correctness upgrade. See [RELEASE-V1.18.0.md](RELEASE-V1.18.0.md) for scope, migration behavior and the checks still required on Railway. Production deployment is not verified by local test results.
+
+- Group navigation into Community, People, MegaSMP, Support, Staff, Administration and Owner. Keep account activities within profiles; retain the notification bell and unread Messages shortcut. Add a keyboard-accessible page finder and compact mobile navigation.
+- Correct Active Cases counts and add per-staff unread activity, reply-derived waiting states, queue search/type/status filters, urgency/age ordering, application timelines and a shared Applications entry point.
+- Close implemented/declined suggestion voting on the server, preserve votes, and add status explanations/history plus search, status filters and sorting.
+- Add two-pane desktop messaging, single-pane mobile threads, participant-authorized history pagination/search, removable upload previews, draft preservation and optional browser alerts.
+- Add a paginated Transactions view with manual/captured source filters, player/date/type filters and exact amounts. Keep source records independent; unknown source dates are never substituted with capture times.
+- Improve profiles, member discovery, role presentation, attachment controls, failed-form feedback, notification browsing, owner audit filtering/pagination, responsive layouts and reduced-motion support.
+- Preserve Phase 1 approval/repost fixes, existing SQLite records, uploads and audit chains. New tables are additive. Before this release's additive migration in production, create a consistent SQLite snapshot next to the database as `<DB_PATH>.pre-v118.backup` if absent.
+- Keep one Railway application replica: live presence, rate limits and the SSE bus are process-local. Use the existing persistent volume for both database and uploads.
 
 ## V1.12.0 — Phase 1: Correctness and Trust
 

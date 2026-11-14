@@ -11,7 +11,7 @@ const sourceLabel=key=>key==='authorized_feed'?'Authorized feed':key==='manual_i
 const moneyCell=v=>v===null?'<span class="mega-unknown">Not recorded</span>':fmtMoney(v);
 const summaryCard=(key,label,amount,detail,iconName)=>'<div class="mega-stat panel">'+
  '<div class="mega-stat-label">'+icon(iconName,{size:20})+' '+label+'</div>'+
- '<strong data-mega-value="'+key+'">'+fmtShort(amount)+'</strong>'+
+ '<strong title="'+esc(fmtMoney(amount))+'" data-mega-value="'+key+'">'+fmtMoney(amount)+'</strong>'+
  '<small>'+detail+'</small></div>';
 function memberRow(m,linked){
  const id=linked&&/^\d{15,22}$/.test(String(linked.discordId||''))?linked.discordId:null;
@@ -88,7 +88,7 @@ function manager(ctx,data){
   '<form method="post" action="/team/mega/import">'+csrf+base+
   '<label>JSON export<textarea name="snapshot" rows="7" maxlength="100000" required placeholder="'+attr(JSON.stringify(sample,null,2))+'"></textarea></label>'+
   '<button class="btn btn-outline" type="submit">'+icon('upload',{size:17})+' Import snapshot</button></form></details>';
- return edit+owner+importForm+'</section>';
+ return '<details class="mega-advanced panel padded"><summary>Administration · team records</summary>'+edit+owner+importForm+'</section></details>';
 }
 export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncEnabled=false}){
  const admin=['owner','admin'].includes(ctx.role),restricted=ctx.role==='appeal-only';
@@ -140,32 +140,28 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   icon('external-link',{size:17})+' Open on InPvP</a></div>'+
   '<div class="mega-status-line"><span data-mega-syncstatus>'+esc(syncLabel)+'</span><span data-mega-capturestatus>'+esc(captureText)+'</span>'+
   '<span data-mega-updated>Updated: '+date(sourceUpdated||data.bank?.as_of)+'</span></div>'+
-  '<p class="mega-disclaimer">Captured figures can be incomplete and do not prove current membership. Manual totals stay separate. Updates need a configured collector.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
+  '<details><summary>Data Sources</summary><p class="mega-disclaimer">Captured figures can be incomplete and do not prove current membership. Manual totals stay separate. Updates need a configured collector.</p>'+ (captureStatus?.last_error?'<p class="mega-disclaimer" data-mega-captureerror>Collector warning: '+esc(captureStatus.last_error)+'</p>':'<p class="mega-disclaimer" data-mega-captureerror></p>')+
+  '</details>'+
   '</section>'+
   '<div class="mega-toolbar"><form method="get" action="/mega-team" class="mega-season-select">'+
   '<label>Season <select name="season">'+seasons+'</select></label><button class="btn btn-outline btn-sm" type="submit">View</button></form>'+
-  '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh</button>'+
+  '<button class="btn btn-outline btn-sm" type="button" data-mega-refresh>'+icon('refresh-cw',{size:17})+' Refresh saved records</button>'+
   '<span class="mega-muted" data-mega-timestamp aria-live="polite"></span></div>'+
   '<section class="mega-data-clarity" role="status" aria-label="Team bank data quality">'+
-  '<b>Saved team records · NOT REAL-TIME</b>'+
+  '<b>Saved team records · NOT REAL-TIME</b><details><summary>Sources, freshness and completeness</summary>'+
   '<p>The reported team bank, manually recorded contributions and observed bank events are separate figures. Captured events may be incomplete and do not establish lifetime deposits or withdrawals. Linked Discord members and captured player names do not prove the current complete in-game roster.</p>'+
-  '<p>Source status: <strong data-mega-banner-sync>'+esc(syncLabel)+'</strong> · <span data-mega-banner-coverage>'+esc(stateLabel)+'</span></p></section>'+
+  '<p>Source status: <strong data-mega-banner-sync>'+esc(syncLabel)+'</strong> · <span data-mega-banner-coverage>'+esc(stateLabel)+'</span></p></details></section>'+
   summary+'<div class="mega-coverage" data-mega-coverage>'+icon('info',{size:17})+' '+esc(stateLabel)+'</div>'+
-  '<nav class="mega-section-links" aria-label="MegaSMP dashboard sections"><a href="#mega-members">Members</a>'+
-  '<a href="#mega-leaderboard">Leaderboard</a><a href="#mega-bank-history">Bank activity</a>'+
-  '<a href="/team/mega/history?season='+encodeURIComponent(data.season.season)+'">Bank history</a>'+
-  '<a href="#mega-observed">Captured events</a><a href="#mega-discord-roster">Discord members</a>'+
-  (ctx.role==='owner'?'<a href="/team/mega/matches?season='+encodeURIComponent(data.season.season)+'">Match accounts</a>':'')+'</nav>'+
   '<section class="mega-section" id="mega-members"><div class="mega-section-head"><div><h3>In-game team roster</h3>'+
   '<p>Recorded players; Discord roles shown separately.</p></div>'+
   '<span class="mega-source-badge"><span data-mega-count>'+full.length+'</span> recorded</span></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>PLAYER</th><th>DEPOSITED</th><th>WITHDRAWN</th><th>NET</th></tr></thead>'+
   '<tbody data-mega-rows>'+rows+'</tbody></table></div></section>'+
-  '<section class="mega-section" id="mega-leaderboard"><div class="mega-section-head"><div><h3>Contribution leaderboard</h3>'+
+  '<section class="mega-section" id="mega-leaderboard"><div class="mega-section-head"><div><h3>Contributions</h3>'+
   '<p>Deposit totals may be incomplete.</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>RANK</th><th>GAMERTAG</th><th>DEPOSITED</th></tr></thead>'+
   '<tbody data-mega-leaderboard>'+rank+'</tbody></table></div></section>'+
-  '<section class="mega-section" id="mega-bank-history"><div class="mega-section-head"><div><h3>Recorded bank activity</h3>'+
+  '<details class="mega-advanced"><summary>Advanced records and captured excerpts</summary><p><a class="btn btn-outline" href="/mega-team/transactions?season='+encodeURIComponent(data.season.season)+'">Browse all Transactions</a></p><section class="mega-section" id="mega-bank-history"><div class="mega-section-head"><div><h3>Recorded bank activity</h3>'+
   '<p>Manual entries, not full InPvP history.</p></div></div>'+
   '<div class="table-wrap panel"><table class="mega-table"><thead><tr><th>DATE</th><th>PLAYER</th><th>TYPE</th><th>AMOUNT</th></tr></thead>'+
   '<tbody data-mega-history>'+history+'</tbody></table></div></section>'+
@@ -178,5 +174,5 @@ export function megaTeamPanel(ctx,{data,discordGroups=[],discordMatches=[],syncE
   '</div><div class="table-wrap panel"><table class="mega-table"><thead><tr><th>DISPLAYED TIME</th><th>PLAYER</th><th>TYPE</th><th>AMOUNT</th></tr></thead>'+
   '<tbody data-mega-observed>'+((data.capturedTransactions||[]).map(t=>'<tr><td>'+esc(t.time||'Not available')+'</td><td>'+esc(t.gamertag)+'</td><td>'+esc(t.kind)+'</td><td class="mega-number">$'+esc(t.amount)+'</td></tr>').join('')||
   '<tr><td colspan="4">No browser-captured bank events yet.</td></tr>')+'</tbody></table></div></section>'+
-  discordRoster(discordGroups,restricted)+(admin&&data.season.season===data.activeSeason?manager(ctx,data):'')+'</div>';
+  '</details>'+discordRoster(discordGroups,restricted)+(admin&&data.season.season===data.activeSeason?manager(ctx,data):'')+'</div>';
 }

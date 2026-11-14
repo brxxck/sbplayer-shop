@@ -48,7 +48,7 @@ export function subscribe(res,userId,sessionHash){
   let sockets=sessionStreams.get(sessionHash);
   if(!sockets){sockets=new Set();sessionStreams.set(sessionHash,sockets);}
   sockets.add(res);
-  ping(userId,true);
+  // Visible-tab heartbeat owns presence; a hidden SSE reconnect must not mark a member online.
   send(res,'ready',{connected:true});
   const timer=setInterval(()=>{
     if(res.writableEnded||res.destroyed){cleanup();return;}

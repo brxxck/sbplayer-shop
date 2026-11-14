@@ -2,6 +2,7 @@
 import {shell,esc,token,avatar,tag,titlebar} from './views.js';
 import {SUPPORT_CATEGORIES,categoryLabel,ticketFields} from './support.js';
 import {icon} from './icons.js';
+import {caseState} from './upgrade-data.js';
 import {evidenceGallery} from './evidence-views.js';
 
 const types=[
@@ -36,12 +37,12 @@ export function chooseTicket(ctx){
 export function newTicket(ctx,{category}){
  const definition=types.find(t=>t.id===category);
  const labels={
-   bug_report:field('description','Describe the bug',{multiline:true,placeholder:'What went wrong?'}),
-   player_report:field('reported_player','Player',{placeholder:"Player's username"})+
+   bug_report:field('affected_page','Affected page',{required:false,placeholder:'/feed, profile, messages…'})+field('steps','Steps to reproduce',{multiline:true,required:false})+field('expected','Expected result',{multiline:true,required:false})+field('actual','Actual result',{multiline:true,required:false})+field('description','Description',{multiline:true,placeholder:'What went wrong?'}),
+   player_report:field('reported_player','Player',{placeholder:"Player's username or Discord ID"})+
      field('rule_broken','Rule',{placeholder:'e.g. Hard-R, Spamming, Threats'})+
      field('description','Details',{multiline:true,placeholder:'What happened?'}),
    reward_claim:field('prize','Reward / Prize',{placeholder:'e.g. Discord Nitro'}),
-   staff_report:field('staff_username','Staff member',{placeholder:"Staff member's username"})+
+   staff_report:field('staff_username','Staff member',{placeholder:"Staff member's username or Discord ID"})+
      field('description','Details',{multiline:true,placeholder:'What happened?'}),
    ban_appeal:field('minecraft_username','Minecraft Username',{placeholder:'Your Minecraft username'})+
      field('ban_reason','Ban reason',{placeholder:'e.g. Hard-R, Spamming, Threats'})+
@@ -56,12 +57,13 @@ export function newTicket(ctx,{category}){
  <label>Discord <span class="verified-discord">${icon('badge-check',{size:16})} Verified via Discord</span>
  <input value="@${val(ctx.user?.username||'Discord member')}" readonly class="discord-identity"></label>
  ${labels[category]||''}
- <label class="support-upload-label">${evidenceText}
+ ${required?field('evidence_unavailable_reason','If evidence is unavailable, explain why',{required:false,multiline:true,help:'Attach evidence below, or give a detailed explanation (at least 30 characters).'}):''}
+ <label class="support-upload-label">${required?'Evidence or explanation required':evidenceText}
  <span class="ticket-field-help">Images or video · 5 files max · 12 MB each</span>
  <span class="support-upload"><span>Upload files</span>
- <input type="file" name="evidence" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm" multiple ${required?'required':''}></span>
+ <input type="file" name="evidence" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm" multiple></span>
  </label>
- 
+
  <button class="btn support-submit ${category==='ban_appeal'?'appeal-submit':''}" type="submit">${category==='ban_appeal'?'Submit Appeal':'Submit Ticket'}</button>
  </form></div>`);
 }
@@ -72,19 +74,19 @@ export function myTickets(ctx,{tickets=[]}){
  <div class="panel"><div class="panel-heading"><h2>History</h2><span class="muted">${tickets.length} total · ${appCount} application${appCount===1?'':'s'}</span></div>
  ${tickets.length?`<div class="table-wrap"><table><thead><tr><th>TICKET</th><th>TYPE</th><th>STATUS</th><th>LAST UPDATED</th><th></th></tr></thead>
  <tbody>${tickets.map(t=>`<tr><td><b>#${t.id}</b></td><td><span class="ticket-type-label ticket-type-${val(t.category)}">${val(categoryLabel(t.category))}</span></td>
- <td>${tag(t.status)}${t.unread?` <span class="pill pill-reviewing">${t.unread} new</span>`:''}</td><td>${date(t.updated_at)}</td>
+ <td>${tag(caseState(t))}${t.unread?` <span class="pill pill-reviewing">${t.unread} new</span>`:''}</td><td>${date(t.updated_at)}</td>
  <td><a class="table-link" href="${t.href}">Open →</a></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No tickets yet.</div>'}</div></div>`);
 }
 function fieldList(ticket){
  const data=ticketFields(ticket);
  const pairs={
-  bug_report:[['Bug Description',data.description]],
-  player_report:[['Player',data.reported_player],['Rule',data.rule_broken],['Details',data.description]],
+  bug_report:[['Affected page',data.affected_page],['Steps to reproduce',data.steps],['Expected',data.expected],['Actual',data.actual],['Description',data.description]],
+  player_report:[['Player',data.reported_player],['Rule',data.rule_broken],['Details',data.description],['Evidence unavailable',data.evidence_unavailable_reason]],
   reward_claim:[['Reward / Prize',data.prize]],
-  staff_report:[['Staff member',data.staff_username],['Details',data.description]],
+  staff_report:[['Staff member',data.staff_username],['Details',data.description],['Evidence unavailable',data.evidence_unavailable_reason]],
   ban_appeal:[['Minecraft Username',data.minecraft_username],['Ban reason',data.ban_reason],['Appeal reason',data.appeal_reason]]
  };
- return (pairs[ticket.category]||[]).map(([label,v])=>`<div class="answer"><b>${label}</b><p>${text(v)}</p></div>`).join('');
+ return (pairs[ticket.category]||[]).filter(([,v])=>v).map(([label,v])=>`<div class="answer"><b>${label}</b><p>${text(v)}</p></div>`).join('');
 }
 export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=false}){
  const privateTier=ticket.category==='staff_report'?(ticket.visibility==='owner'?'Owner Confidential':'Admin Confidential'):'';
@@ -95,7 +97,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  return shell(ctx,'Ticket #'+ticket.id,`<div class="support-container ticket-view">
  <a class="support-back" href="${back}">← Back to tickets</a>
  ${titlebar('PRIVATE SUPPORT TICKET','Ticket <span class="gradient">#${ticket.id}</span>','Opened '+date(ticket.created_at))}
- <div class="ticket-detail-head"><span class="ticket-type-label ticket-type-${val(ticket.category)}">${categoryLabel(ticket.category)}</span> ${tag(ticket.status)}
+ <div class="ticket-detail-head"><span class="ticket-type-label ticket-type-${val(ticket.category)}">${categoryLabel(ticket.category)}</span> ${tag(caseState(ticket))}
  ${privateTier?`<span class="pill pill-protected">${privateTier}</span>`:''}</div>
  <div class="ticket-detail-layout">
  <section class="panel padded ticket-detail-card"><h2>Request details</h2>
@@ -103,7 +105,7 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)}</small></span></div>
  ${fieldList(ticket)}
  ${initialFiles.length?`<h3>Original evidence</h3>${evidenceGallery(initialFiles)}`:'<p class="muted tiny">No attachments.</p>'}
- ${staff?`<form class="ticket-status-form" method="post" action="/staff/tickets/${ticket.id}/status">${token(ctx)}
+ ${staff?`<form data-confirm="Update this ticket status? Resolving closes the active case." class="ticket-status-form" method="post" action="/staff/tickets/${ticket.id}/status">${token(ctx)}
   <label>Ticket status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
   <button class="btn btn-outline">Update status</button></form>
   ${ticket.status!=='resolved'?`<form method="post" action="/staff/tickets/${ticket.id}/status" class="ticket-resolve-form">${token(ctx)}
@@ -130,19 +132,19 @@ export function supportTicketPage(ctx,{ticket,messages=[],attachments=[],staff=f
  </section></div></div>`);
 }
 export function staffTicketQueue(ctx,{tickets=[],status='active'}){
- const label=status==='all'?'All accessible tickets':'All active tickets';
+ const label=status==='all'?'All accessible cases':'Active Cases';
  return shell(ctx,'Support Tickets',`<div class="support-container">
  ${titlebar('STAFF TICKETS','Ticket <span class="gradient">queue.</span>','')}
  <div class="actions"><a class="btn ${status==='active'?'btn-primary':'btn-outline'}" href="/staff/tickets">Active</a>
  <a class="btn ${status==='all'?'btn-primary':'btn-outline'}" href="/staff/tickets?status=all">All</a>
  <a class="btn btn-outline" href="/tickets/mine">My tickets</a></div>
  <div class="panel ticket-queue-panel"><div class="panel-heading"><h2>${label}</h2><span class="muted">${tickets.length} ticket${tickets.length===1?'':'s'}</span></div>
- ${queueRows(tickets)||'<div class="empty">No active tickets.</div>'}</div></div>`);
+ <div class="queue-filters" data-case-filters><label>Search cases<input type="search" data-case-search placeholder="Applicant, case ID, type…"></label><label>Type<select data-case-type><option value="">All types</option>${[...new Set(tickets.map(t=>t.category))].map(v=>`<option value="${val(v)}">${val(categoryLabel(v))}</option>`).join('')}</select></label><label>Status<select data-case-status><option value="">All states</option>${[...new Set(tickets.map(t=>t.queue_status||t.status))].map(v=>`<option value="${val(v)}">${val(v.replaceAll('_',' '))}</option>`).join('')}</select></label><label>Sort<select data-case-sort><option value="updated">Last update</option><option value="waiting">Longest waiting</option><option value="attention">Needs attention first</option></select></label><button class="btn btn-outline btn-sm" type="button" data-case-reset>Reset Filters</button></div><p class="muted tiny" data-case-result role="status"></p>${queueRows(tickets)||'<div class="empty">No active tickets.</div>'}</div></div>`);
 }
 export function queueRows(tickets=[]){
  if(!tickets.length)return '';
  return `<div class="table-wrap"><table><thead><tr><th>USER</th><th>TYPE</th><th>STATUS</th><th>UPDATED</th><th></th></tr></thead><tbody>
- ${tickets.map(t=>`<tr><td><b>${val(t.display_name||t.username||'Member')}</b><br><small class="muted">#${val(t.displayId||t.id)}</small></td>
+ ${tickets.map(t=>`<tr data-updated="${t.updated_at}" data-case-type="${val(t.category)}" data-case-status="${val(t.queue_status||t.status)}"><td><b>${val(t.display_name||t.username||'Member')}</b><br><small class="muted">#${val(t.displayId||t.id)}</small></td>
  <td><span class="ticket-type-label ticket-type-${val(t.category)}">${categoryLabel(t.category)}</span></td>
- <td>${tag(t.status)}</td><td>${date(t.updated_at)}</td><td><a class="table-link" href="${t.href}">Open →</a></td></tr>`).join('')}</tbody></table></div>`;
+ <td>${tag(t.queue_status||t.status)}${t.unread?`<span class="pill">${t.unread} unread</span>`:''}</td><td>${date(t.updated_at)}<small data-wait-since="${t.updated_at}"></small></td><td><a class="table-link" href="${t.href}">Open →</a></td></tr>`).join('')}</tbody></table></div>`;
 }

@@ -78,7 +78,8 @@ test('role-aware homepages, correct ticket categories, Discord identity and plac
  const staff=await (await get('/','reviewer')).text();
  assert.match(staff,/Staff command/);
  assert.match(staff,/staff-chat-messages/);
- assert.match(staff,/Customize Profile/);
+ assert.match(staff,/Application management/);
+ assert.match(staff,/ACTIVE CASES/);
  const picker=await (await get('/tickets/new','member')).text();
  for(const label of ['Bug Report','Player Report','Reward Claim','Staff Report','Ban Appeal','View My Tickets'])
   assert.ok(picker.includes(label));

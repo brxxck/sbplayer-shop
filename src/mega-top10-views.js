@@ -55,22 +55,11 @@ function topTable(listing){
 }
 export function megaHubPage(ctx,{listing,megaContent}){
  const own=mainTeam(listing),rank=listing.live&&own?.rank?'#'+own.rank:'Unverified';
- const intro=titlebar('MEGASMP PORTAL',
-   'SBsxScam <span class="gradient">MegaSMP.</span> <a href="/mega-team/leaderboard" class="mega-title-place" data-mega-title-rank>'+esc(rank)+'</a>',
-   'Captured team rankings and bank data.')+
-   '<div class="mega-top-hero panel"><div>'+
-   '<a href="/mega-team/leaderboard" class="mega-top-rank" data-mega-sb-rank>'+
-   esc(rank)+' '+icon('arrow-up-right',{size:24})+'</a>'+
-   '<p>Rank shown when verified.</p></div>'+
-   '<div class="mega-top-actions"><a class="btn btn-primary" href="/mega-team/leaderboard">'+
-   icon('trophy',{size:17})+' Top 10</a>'+
-   '<a class="btn btn-outline" href="/mega-team/teams/'+attr(MEGA_TEAM_ID)+'">'+
-   icon('users',{size:17})+' Team</a>'+
-   (ctx.role==='owner'?'<a class="btn btn-outline" href="/mega-team/links">'+
-    icon('user-round-check',{size:17})+' Link profiles</a>':'')+
-   '</div></div>'+statusText(listing);
+ const intro=titlebar('MEGASMP PORTAL','SBsxScam <span class="gradient">MegaSMP.</span>',
+  'Saved ranking: '+rank+' · ranking capture '+date(listing.status.last_success))+
+  '<nav class="social-tabs" aria-label="MegaSMP"><a class="active" aria-current="page" href="/mega-team">Overview</a><a href="/mega-team/leaderboard">Top 10</a><a href="#mega-members">Members</a><a href="/mega-team/transactions">Transactions</a></nav>';
  return shell(ctx,'MegaSMP Team','<div class="mega-top-page" data-top10-board>'+
-   intro+captureDisclosure(listing)+megaContent+'</div>');
+   intro+'<details class="mega-advanced"><summary>Ranking data sources</summary>'+captureDisclosure(listing)+'</details>'+megaContent+'</div>');
 }
 export function megaLeaderboardPage(ctx,listing){
  const intro=titlebar('MEGASMP LEADERBOARD',

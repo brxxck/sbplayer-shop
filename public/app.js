@@ -1,9 +1,8 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-for(const form of document.querySelectorAll('form[data-confirm]')){
-  form.addEventListener('submit',event=>{
-    if(!window.confirm(form.getAttribute('data-confirm')||'Confirm this action?'))event.preventDefault();
-  });
-}
+document.addEventListener('submit',event=>{
+  const form=event.target.closest('form[data-confirm]');
+  if(form&&!window.confirm(form.getAttribute('data-confirm')||'Confirm this action?')){event.preventDefault();event.stopImmediatePropagation();}
+},true);
 // Keep long text input status visible without leaking client content to third parties.
 for(const field of document.querySelectorAll('textarea[maxlength]')){
   const count=document.createElement('small');count.className='char-count muted';
@@ -20,6 +19,7 @@ if(staffChatLog){
  let lastId=Number(staffChatLog.dataset.lastId||0),loading=false;
  const addMessage=m=>{
    if(!m || !Number.isSafeInteger(Number(m.id)) || Number(m.id)<=lastId)return;
+   const atBottom=staffChatLog.scrollHeight-staffChatLog.scrollTop-staffChatLog.clientHeight<100;
    lastId=Number(m.id);staffChatLog.dataset.lastId=String(lastId);
    staffChatLog.querySelector('.staff-chat-empty')?.remove();
    const article=document.createElement('article');article.className='staff-chat-message';
@@ -36,7 +36,8 @@ if(staffChatLog){
    entry.append(top,content);article.append(bubble,entry);staffChatLog.append(article);
    while(staffChatLog.querySelectorAll('.staff-chat-message').length>80)
      staffChatLog.querySelector('.staff-chat-message')?.remove();
-   staffChatLog.scrollTop=staffChatLog.scrollHeight;
+   if(atBottom)staffChatLog.scrollTop=staffChatLog.scrollHeight;
+   else if(!staffChatLog.querySelector('.staff-new-messages')){const marker=document.createElement('div');marker.className='staff-new-messages';marker.textContent='New messages';article.before(marker);}
  };
  async function pollStaffChat(){
    if(loading||document.visibilityState==='hidden')return;

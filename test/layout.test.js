@@ -24,9 +24,9 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.12\.0-phase1/);
-  assert.match(page,/\/static\/polish\.css\?v=1\.12\.0-phase1/);
-  assert.match(page,/\/static\/app\.js\?v=1\.12\.0-phase1/);
+  assert.match(page,/\/static\/style\.css\?v=1\.18\.1/);
+  assert.match(page,/\/static\/polish\.css\?v=1\.18\.1/);
+  assert.match(page,/\/static\/app\.js\?v=1\.18\.1/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -99,8 +99,8 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
 
 test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  const page=home(signed);
- assert.match(page,/\/static\/mega-team\.js\?v=1\.12\.0-phase1/);
- assert.match(page,/\/static\/mega-top10\.js\?v=1\.12\.0-phase1/);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.18\.1/);
+ assert.match(page,/\/static\/mega-top10\.js\?v=1\.18\.1/);
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {megaTeamPanel}=await import('../src/mega-team-views.js');
  const dashboard=megaDashboard();
@@ -112,7 +112,7 @@ test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  assert.match(html,/data-mega-banner-sync/);
  assert.match(html,/In-game team roster/);
  assert.match(html,/Discord team roster/);
- assert.match(html,/Contribution leaderboard/);
+ assert.match(html,/Contributions/);
  assert.match(html,/Reported team bank/);
  assert.match(html,/Not recorded|No in-game roster imported yet/);
  assert.ok(html.includes('href="https://inpvp.net/megasmp/teams?team=SBsxScam&amp;gamemode=megasmp&amp;id=5638a504-3347-43fc-89d6-424dad53b7f6"'));
@@ -145,17 +145,14 @@ test('promotion and SBsxScam application links live only in the role-appropriate
  for(const item of variants){
   const context={...blank,...item,user,csrf:'fixture'};
   const page=home(context);
-  const discover=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
-  const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
+  const discover=page.split('<div class="sidebar-title">SUPPORT</div>')[1]?.split('</nav>')[0]||'';
+  const mobile=page.split('<nav class="mobile-nav" aria-label="Mobile navigation">')[1]?.split('</nav>')[0]||'';
   for(const route of ['/promotions','/team-applications/apply']){
    assert.ok(!discover.includes('href="'+route+'"'),item.kind+' has no separate desktop tab '+route);
    assert.ok(!mobile.includes('href="'+route+'"'),item.kind+' has no separate mobile tab '+route);
   }
-  if(item.staffNavigation){
-   assert.ok(!discover.includes('href="/apply"'),item.kind+' does not get a new staff application shortcut');
-  }else{
-   assert.ok(discover.includes('href="/apply"'),item.kind+' keeps staff applications');
-  }
+  assert.ok(discover.includes('href="/applications"'),item.kind+' has one application hub');
+  assert.ok(!discover.includes('href="/apply"'),item.kind+' does not duplicate staff application links');
   const picker=chooseTicket(context);
   assert.equal(picker.includes('href="/promotions/new"'),item.promotionEligible,
    'promotion card matches verified Temp Mod/Mod eligibility for '+item.kind);
@@ -165,25 +162,25 @@ test('promotion and SBsxScam application links live only in the role-appropriate
  }
 });
 
-test('full social toolbar appears beside profile name with desktop icons and mobile account menu',()=>{
+test('compact social toolbar and account menu avoid duplicated profile activities',()=>{
   const member={...signed,role:'member',notificationCount:7};
   const page=home(member);
   assert.match(page,/class="top-account">[\s\S]*class="top-social-shortcuts"/);
-  assert.match(page,/class="top-social-link top-social-feed" href="\/feed"/);
-  assert.match(page,/class="top-social-link top-social-members" href="\/members"/);
+  assert.doesNotMatch(page,/class="top-social-link top-social-feed"/);
+  assert.doesNotMatch(page,/class="top-social-link top-social-members"/);
   assert.match(page,/class="top-social-link top-social-notifications" href="\/notifications"/);
   assert.match(page,/class="top-social-badge" data-notification-unread >7<\/span>/);
-  assert.match(page,/class="top-social-link top-social-saved" href="\/saved"/);
+  assert.match(page,/href="\/saved"/);
   assert.match(page,/class="account-profile-link" href="\/profile"/);
   assert.match(page,/class="top-account-dropdown"/);
   assert.match(page,/href="\/profile\/edit">/);
   for(const tab of ['posts','replies','media','likes'])
-    assert.ok(page.includes('href="/u/'+member.user.id+'?tab='+tab+'"'),tab+' available in menu');
-  for(const name of ['Followers','Following','Following Feed','Find Members','Saved Posts','Notifications'])
+    assert.ok(!page.includes('href="/u/'+member.user.id+'?tab='+tab+'"'),tab+' stays on the actual profile');
+  for(const name of ['Saved Posts','Notifications','Messages','Edit Profile'])
     assert.ok(page.includes(name),name+' appears in social menus');
   assert.match(page,/class="top-account-menu-signout">[\s\S]*action="\/auth\/logout"/);
-  assert.match(page,/class="mobile-nav">[\s\S]*href="\/profile">My Profile<\/a>/);
-  assert.match(page,/class="mobile-nav">[\s\S]*href="\/notifications">Notifications<\/a>/);
+  assert.match(page,/class="mobile-more"/);
+  assert.match(page,/class="top-social-link top-social-messages"/);
   assert.ok(!home(blank).includes('top-account-dropdown'),'signed-out home must not expose a social menu');
   assert.ok(!home({...signed,role:'appeal-only'}).includes('top-account-dropdown'),'appeal-only accounts must not see member social options');
   const css=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
@@ -279,7 +276,7 @@ test('static CSS and JS are served no-store even with version query; logo is rec
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/no-store/);
   }
-  for(const path of ['/static/style.css?v=1.12.0-phase1','/static/polish.css?v=1.12.0-phase1','/static/community.js?v=1.12.0-phase1']){
+  for(const path of ['/static/style.css?v=1.18.1','/static/polish.css?v=1.18.1','/static/community.js?v=1.18.1']){
     const resp=await fetch(base+path);
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/public, max-age=31536000, immutable/);

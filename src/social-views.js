@@ -22,8 +22,8 @@ export function notifications(ctx,{items=[]}={}){
   const list=items.map(n=>{
     const name=esc(n.nickname||n.display_name||n.username);
     const classes='social-notification panel'+(!n.read_at?' unread':'');
-    return '<article class="'+classes+'">'+
-      '<a href="'+target(n)+'" class="social-notification-person">'+
+    return '<article data-notification-kind="'+esc(n.kind)+'" data-notification-read="'+(n.read_at?'1':'0')+'" class="'+classes+'">'+
+      '<a data-notification-open="'+n.id+'" href="'+target(n)+'" class="social-notification-person">'+
       avatar({id:n.actor_id,avatar:n.avatar,display_name:n.display_name,nickname:n.nickname,avatar_path:n.avatar_path},'md',true)+
       '<span><b>'+name+'</b> '+esc(kindText[n.kind]||'interacted with you')+
       '<small>'+date(n.created_at)+'</small></span></a>'+
@@ -34,13 +34,13 @@ export function notifications(ctx,{items=[]}={}){
   return shell(ctx,'Notifications','<div class="social-page">'+
     titlebar('YOUR ACTIVITY','<span class="gradient">Notifications.</span>',
       '',unread?action:'')+
-    '<div class="social-notifications-list">'+
+    '<div class="filter-grid"><label>Read state<select data-notification-state><option value="">All activity</option><option value="0">Unread</option><option value="1">Read</option></select></label><label>Activity<select data-notification-type><option value="">All types</option>'+Object.keys(kindText).map(k=>'<option value="'+k+'">'+esc(k.replaceAll('_',' '))+'</option>').join('')+'</select></label></div><div class="social-notifications-list">'+
     (list||'<div class="panel empty">No notifications yet.</div>')+
     '</div></div>');
 }
 export function savedPosts(ctx,{posts=[],page=0}={}){
   const html=posts.length?posts.map(p=>postCard(ctx,p,{fromSaved:true})).join(''):
-    '<div class="panel empty">No saved posts yet.</div>';
+    '<div class="panel empty">No saved posts yet. Use Save on a post to collect it here. Only you can see this collection.</div>';
   const prev=page?'<a class="btn btn-outline btn-sm" href="/saved?page='+(page-1)+'">← Newer</a>':'';
   const next=posts.length===20?'<a class="btn btn-outline btn-sm" href="/saved?page='+(page+1)+'">Older →</a>':'';
   return shell(ctx,'Saved Posts','<div class="social-page">'+

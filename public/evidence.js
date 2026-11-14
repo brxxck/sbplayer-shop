@@ -152,6 +152,7 @@
   const createdUrls=new Set();
   const fieldUrls=new WeakMap();
   for(const field of document.querySelectorAll('input[type="file"][name="evidence"]')){
+    if(field.dataset.uploadEnhanced==='1')continue;
     const anchor=field.closest('.support-upload-label, .ticket-compose-actions')||field.parentElement;
     if(!anchor)continue;
     const preview=document.createElement('section');
