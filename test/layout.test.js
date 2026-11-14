@@ -24,8 +24,9 @@ const blank={pathname:'/',user:null,role:'none',csrf:'',config:{}};
 const signed={...blank,user:{id:'100000000000000002',username:'sbs-user',display_name:'SB'},role:'owner',csrf:'fake'};
 test('new pages request a versioned stylesheet and logo instead of reusing the previous theme',()=>{
   const page=home(blank);
-  assert.match(page,/\/static\/style\.css\?v=1\.11\.0-live-community/);
-  assert.match(page,/\/static\/app\.js\?v=1\.11\.0-live-community/);
+  assert.match(page,/\/static\/style\.css\?v=1\.11\.1-polish/);
+  assert.match(page,/\/static\/polish\.css\?v=1\.11\.1-polish/);
+  assert.match(page,/\/static\/app\.js\?v=1\.11\.1-polish/);
   assert.match(page,/class="brand-logo"[^>]+width="44" height="44"/);
   assert.match(page,/class="hero-logo"><img[^>]+width="148" height="148"/);
   assert.match(page,/<div class="sidebar-scroll">/);
@@ -98,8 +99,8 @@ test('evidence galleries use authenticated routes, safe filenames, accessible co
 
 test('standalone MegaSMP retains roster and five-minute refresh',async()=>{
  const page=home(signed);
- assert.match(page,/\/static\/mega-team\.js\?v=1\.11\.0-live-community/);
- assert.match(page,/\/static\/mega-top10\.js\?v=1\.11\.0-live-community/);
+ assert.match(page,/\/static\/mega-team\.js\?v=1\.11\.1-polish/);
+ assert.match(page,/\/static\/mega-top10\.js\?v=1\.11\.1-polish/);
  const {megaDashboard}=await import('../src/mega-team-data.js');
  const {megaTeamPanel}=await import('../src/mega-team-views.js');
  const dashboard=megaDashboard();
@@ -255,6 +256,17 @@ test('stylesheet has responsive image constraints and hides desktop mobile brand
   assert.match(css,/\.hero-logo img\s*\{[^}]*width:148px;[^}]*height:148px/);
   assert.match(css,/\.sidebar-scroll\s*\{[^}]*overflow-y:auto/);
 });
+test('polish layer respects reduced motion and in-place message updates',()=>{
+  const polish=readFileSync(new URL('../public/polish.css',import.meta.url),'utf8');
+  assert.match(polish,/\/\/ BUILT BY SB \/\/ RUNING ON WEED AND CAFFEINE/);
+  assert.match(polish,/content-visibility:auto/);
+  assert.match(polish,/prefers-reduced-motion:reduce/);
+  const client=readFileSync(new URL('../public/community.js',import.meta.url),'utf8');
+  assert.doesNotMatch(client,/window\.location\.reload\(/);
+  assert.match(client,/refreshInbox\(/);
+  assert.match(client,/dataset\.messageVersion/);
+});
+
 test('static CSS and JS are served no-store even with version query; logo is recognized',async()=>{
   server=createServer({discord:{authUrl:(state)=>'https://discord.com/oauth2/authorize?state='+encodeURIComponent(state)}});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -264,7 +276,16 @@ test('static CSS and JS are served no-store even with version query; logo is rec
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/no-store/);
   }
-  const logo=await fetch(base+'/static/sb-logo.png?v=1.4-promotions');
+  for(const path of ['/static/style.css?v=1.11.1-polish','/static/polish.css?v=1.11.1-polish','/static/community.js?v=1.11.1-polish']){
+    const resp=await fetch(base+path);
+    assert.equal(resp.status,200);
+    assert.match(resp.headers.get('cache-control'),/public, max-age=31536000, immutable/);
+    assert.match(resp.headers.get('content-type'),/css|javascript/);
+  }
+  const unversioned=await fetch(base+'/static/polish.css');
+  assert.equal(unversioned.status,200);
+  assert.match(unversioned.headers.get('cache-control'),/no-store/);
+    const logo=await fetch(base+'/static/sb-logo.png?v=1.4-promotions');
   assert.equal(logo.status,200);
   assert.equal(logo.headers.get('content-type'),'image/png');
 });

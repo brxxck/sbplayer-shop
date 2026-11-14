@@ -4,11 +4,14 @@ import {dmSettings,isBlocking} from './community-data.js';
 import {onlineStatus} from './community-live.js';
 const fmt=stamp=>new Date(stamp).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});
 function presence(userId){const status=onlineStatus(userId);return '<span class="presence-chip" data-presence-id="'+esc(userId)+'" data-status="'+status+'"><span class="presence-dot"></span><span class="presence-label">'+(status==='online'?'Online':status==='away'?'Away':'Offline')+'</span></span>';}
-export function inbox(ctx,threads=[]){
-  const contents=threads.map(t=>'<a class="dm-thread panel" href="/messages/'+t.id+'">'+avatar(t.peer,'md',true)+
+export function inboxRows(threads=[]){
+  return threads.map(t=>'<a class="dm-thread panel" href="/messages/'+t.id+'">'+avatar(t.peer,'md',true)+
     '<span class="dm-thread-body"><b>'+esc(t.peer.nickname||t.peer.display_name)+'</b>'+presence(t.peer.id)+
     '<small>'+esc(t.latest?(t.latest.deleted_at?'Message deleted':t.latest.body.slice(0,90)):'Start a conversation')+'</small></span>'+
-    (t.unread?'<b class="dm-unread">'+Math.min(t.unread,99)+'</b>':'')+'</a>').join('');
+    (t.unread?'<b class="dm-unread">'+Math.min(t.unread,99)+'</b>':'')+'</a>').join('')||'<div class="panel empty">No conversations yet. Visit a member profile or search above to send a message.</div>';
+}
+export function inbox(ctx,threads=[]){
+  const contents=inboxRows(threads);
   const settings=dmSettings(ctx.user.id);
   return shell(ctx,'Messages','<section class="dm-page" data-dm-inbox>'+titlebar('PRIVATE CONVERSATIONS','Your <span class="gradient">messages.</span>','Conversations stay private between participants.')+
     '<div class="dm-grid"><div class="stack"><form class="panel padded" method="post" action="/messages/start">'+token(ctx)+
@@ -25,7 +28,7 @@ function bubble(ctx,m,read){
   const mine=m.sender_id===ctx.user.id;
   const message=m.deleted_at?'This message was removed.':esc(m.body).replace(/\n/g,'<br>');
   const attached=(m.attachments||[]).map(file=>'<a class="dm-attachment" href="/messages/files/'+file.id+'">'+esc(file.name)+'</a>').join('');
-  return '<article class="dm-bubble '+(mine?'dm-mine':'dm-theirs')+'" data-message-id="'+m.id+'"><div class="dm-bubble-body">'+message+attached+'</div>'+
+  return '<article class="dm-bubble '+(mine?'dm-mine':'dm-theirs')+'" data-message-id="'+m.id+'" data-message-version="'+Math.max(Number(m.edited_at)||0,Number(m.deleted_at)||0)+'"><div class="dm-bubble-body">'+message+attached+'</div>'+
     '<small>'+fmt(m.created_at)+(m.edited_at?' · Edited':'')+(mine&&read>=m.id?' · Seen':'')+'</small>'+
     (!m.deleted_at&&mine?'<div class="dm-bubble-tools">'+
       '<button type="button" class="btn btn-quiet btn-xs" data-dm-edit="'+m.id+'">Edit</button>'+

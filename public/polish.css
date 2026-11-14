@@ -1,0 +1,36 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* SB Store polish layer. Load AFTER style.css. Keeps the navy/blue theme; adds smoothness only. */
+html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:#2a4468 transparent}
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.16s}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+@keyframes sb-pop{0%{transform:scale(.7)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes sb-drop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes sb-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes sb-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.btn{transition:transform .18s cubic-bezier(.2,.7,.3,1),background-color .18s,box-shadow .18s,border-color .18s}
+.btn:active{transform:scale(.97)}
+.btn-primary:hover{box-shadow:0 8px 28px rgba(32,115,240,.34)}
+.nav-link{transition:background-color .18s,color .18s,transform .18s}
+.nav-link:hover{transform:translateX(2px)}
+.topbar{backdrop-filter:blur(16px) saturate(1.3)}
+.panel{transition:border-color .2s,box-shadow .2s}
+.feed-card{content-visibility:auto;contain-intrinsic-size:auto 220px}
+.feed-card:hover{border-color:#2d4c76;box-shadow:0 16px 40px rgba(0,0,0,.24)}
+.post-actions .action-btn{border-radius:999px;transition:color .15s,background-color .15s,transform .15s}
+.post-actions .action-btn:hover{background:rgba(59,148,255,.13)}
+.post-actions .action-btn:active{transform:scale(.92)}
+.post-actions .action-btn.activated .lucide-icon{animation:sb-pop .34s cubic-bezier(.3,1.6,.5,1)}
+[data-feed-banner]:not([hidden]){animation:sb-drop .26s ease-out;box-shadow:0 8px 24px rgba(32,115,240,.25)}
+.dm-bubble{animation:sb-rise .22s ease-out;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+.dm-bubble.dm-mine{background:linear-gradient(135deg,#1b5aaa,#174b8d)}
+input:focus,textarea:focus,select:focus{border-color:#4b9cff;box-shadow:0 0 0 3px rgba(59,148,255,.2)}
+.live-connection::before{content:"";display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:#30d59a;animation:sb-pulse 2.4s ease-in-out infinite}
+.live-connection:not([data-connection="live"])::before{background:#d7a956;animation:none}
+.mobile-nav{scroll-snap-type:x proximity;scrollbar-width:none}
+.mobile-nav a{scroll-snap-align:start;transition:background-color .16s}
+@media(max-width:610px){.btn-sm,.post-actions .action-btn{min-height:40px}}
+@media(prefers-reduced-motion:reduce){
+  ::view-transition-old(root),::view-transition-new(root){animation-duration:0s!important}
+  html{scroll-behavior:auto!important}
+}
