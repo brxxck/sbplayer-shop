@@ -47,7 +47,7 @@ db.exec([
  "CREATE TABLE IF NOT EXISTS team_application_ticket_links(",
  "team_application_id INTEGER PRIMARY KEY REFERENCES team_applications(id) ON DELETE RESTRICT,",
  "support_ticket_id INTEGER NOT NULL UNIQUE REFERENCES support_tickets(id) ON DELETE RESTRICT,",
- "created_at INTEGER NOT NULL)",
+ "created_at INTEGER NOT NULL);",
  "CREATE INDEX IF NOT EXISTS idx_team_ticket_link ON team_application_ticket_links(support_ticket_id)"
 ].join('')+';');
 
