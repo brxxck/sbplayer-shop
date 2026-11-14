@@ -39,6 +39,51 @@ db.exec([
  "CREATE INDEX IF NOT EXISTS team_app_user_date ON team_applications(user_id,created_at DESC)"
 ].join(';')+';');
 
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// A team recruitment submission now has one private support-ticket archive
+// in the *same table used by normal tickets*, linked to its complete form.
+// The specialized recruitment record remains authoritative for review status.
+db.exec([
+ "CREATE TABLE IF NOT EXISTS team_application_ticket_links(",
+ "team_application_id INTEGER PRIMARY KEY REFERENCES team_applications(id) ON DELETE RESTRICT,",
+ "support_ticket_id INTEGER NOT NULL UNIQUE REFERENCES support_tickets(id) ON DELETE RESTRICT,",
+ "created_at INTEGER NOT NULL);",
+ "CREATE INDEX IF NOT EXISTS idx_team_ticket_link ON team_application_ticket_links(support_ticket_id)"
+].join('')+';');
+
+export const teamTicketForApplication=id=>one(
+ 'SELECT t.* FROM support_tickets t JOIN team_application_ticket_links l ON l.support_ticket_id=t.id WHERE l.team_application_id=?',id)||null;
+export const teamApplicationForTicket=id=>one(
+ 'SELECT team_application_id FROM team_application_ticket_links WHERE support_ticket_id=?',id)?.team_application_id||null;
+const supportStatus=status=>['accepted','denied'].includes(status)?'resolved':
+ ['reviewing','interview'].includes(status)?'reviewing':'open';
+const teamArchiveKeys=['minecraft_ign','xbox_verified','current_team','daily_earnings','net_worth',
+ 'play_days','play_hours','timezone','skills_json','strong_suits','income_method',
+ 'bank_contribution','previous_teams','motivation','contribution'];
+function saveTeamTicketArchive(a){
+ const fields={team_application_id:a.id};
+ for(const key of teamArchiveKeys)fields[key]=a[key];
+ const resolved=['accepted','denied'].includes(a.status);
+ const result=run(
+  'INSERT INTO support_tickets(user_id,category,fields_json,visibility,status,created_at,updated_at,resolved_at,resolved_by,last_staff_ping_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
+  a.user_id,'team_application',JSON.stringify(fields),'admin',supportStatus(a.status),a.created_at,
+  a.updated_at,resolved?a.updated_at:null,resolved?a.reviewed_by:null,a.created_at);
+ const ticketId=Number(result.lastInsertRowid);
+ run('INSERT INTO team_application_ticket_links(team_application_id,support_ticket_id,created_at) VALUES(?,?,?)',
+  a.id,ticketId,a.created_at);
+ return ticketId;
+}
+// Non-destructive backfill for previously submitted applications. Never guess or
+// fabricate historical submissions if the selected database contains no rows.
+export function reconcileTeamTicketArchives(){
+ return transaction(()=>{
+  const missing=all('SELECT a.* FROM team_applications a LEFT JOIN team_application_ticket_links l ON l.team_application_id=a.id WHERE l.team_application_id IS NULL ORDER BY a.id');
+  for(const a of missing)saveTeamTicketArchive(a);
+  return missing.length;
+ });
+}
+reconcileTeamTicketArchives();
+
 function requiredText(fields,key,max,min=1) {
  const value=String(fields?.[key]??'').trim();
  if(value.length<min||value.length>max)
@@ -122,6 +167,8 @@ export function submitTeamApplication({userId,data,actorRole='member',ip=''}) {
    Array(columns.length+3).fill('?').join(',')+')';
   const result=run(sql,userId,...columns.map(k=>data[k]),t,t);
   const id=Number(result.lastInsertRowid);
+  const row=one('SELECT * FROM team_applications WHERE id=?',id);
+  saveTeamTicketArchive(row);
   appendAudit(db,{actor:userId,role:actorRole,action:'team_application.submitted',
    target:'team_application:'+id,details:{minecraftIgn:data.minecraft_ign,xboxVerified:true},ip});
   return id;
@@ -138,6 +185,9 @@ export function updateTeamApplication({id,actorId,actorRole='admin',status,note=
   if(['accepted','denied'].includes(current.status))throw new Error('This application has already been finalized.');
   const time=Date.now();
   run('UPDATE team_applications SET status=?,reviewed_by=?,updated_at=? WHERE id=?',status,actorId,time,id);
+  const finalized=['accepted','denied'].includes(status);
+  run('UPDATE support_tickets SET status=?,updated_at=?,resolved_at=?,resolved_by=? WHERE id=(SELECT support_ticket_id FROM team_application_ticket_links WHERE team_application_id=?)',
+    supportStatus(status),time,finalized?time:null,finalized?actorId:null,id);
   appendAudit(db,{actor:actorId,role:actorRole,action:'team_application.status',
    target:'team_application:'+id,details:{before:current.status,after:status,decisionNote:note},ip});
   return status;
@@ -149,7 +199,9 @@ export function saveTeamApplicationNote({id,actorId,actorRole='admin',note,ip=''
   const current=one('SELECT * FROM team_applications WHERE id=?',id);
   if(!current)throw new Error('Application not found.');
   if(current.user_id===actorId)throw new Error('You cannot review your own application.');
-  run('UPDATE team_applications SET reviewer_note=?,updated_at=? WHERE id=?',note,Date.now(),id);
+  const stamp=Date.now();
+  run('UPDATE team_applications SET reviewer_note=?,updated_at=? WHERE id=?',note,stamp,id);
+  run('UPDATE support_tickets SET updated_at=? WHERE id=(SELECT support_ticket_id FROM team_application_ticket_links WHERE team_application_id=?)',stamp,id);
   appendAudit(db,{actor:actorId,role:actorRole,action:'team_application.note',
    target:'team_application:'+id,details:{previousLength:current.reviewer_note.length,newLength:note.length},ip});
  });

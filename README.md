@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.18.3
+# SB's & Cam's Store — Community Portal V1.18.4
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.18.4 — Save SBsxScam applications in the real support-ticket table
+
+- New SBsxScam applications create both the complete **team application** and a confidential **support_tickets** entry in **the same SQLite transaction**. If either insert fails, neither submission is committed, and no success confirmation is shown.
+- Each real support ticket carries category **team_application**, visibility **admin**, and the verified application answers in fields_json. A dedicated link table connects it to the existing application for decisions and history. Private leadership notes are not copied into the support archive.
+- Existing recruitment submissions are **backfilled once** on startup using original dates and answers. The link table makes the backfill repeat-safe, and completed or denied cases preserve their original status.
+- Recruitment decisions synchronize the support-ticket status to open, reviewing or resolved. Applicant and staff routes redirect to the existing role-checked recruitment detail. Regular support reply/status routes cannot modify recruitment.
+- **No duplicate queue entries:** the combined All Tickets and applicant My Tickets lists retain the dedicated recruitment row rather than displaying both linked records.
+- Existing support-ticket category CHECK constraints are upgraded with a transactional SQLite table rebuild, preserving IDs, messages, attachments and foreign keys. **Production backup:** a consistent SQLite copy is created as \`<DB_PATH>.pre-recruitment-support.backup\` before this one-time schema change; existing backups are never overwritten.
+- **Important:** both categories already used the same DB_PATH. This change does not restore records from an old/missing Railway database or volume. Preserve the current Railway volume, verify the owner-only data diagnostics, and locate previous backups for missing submissions rather than resetting storage.
+- Before production rollout back up persistent \`/app/data\`, deploy one app instance, then verify \`/health\` reports \`1.18.4\`. Submit a new verified team application, check its team-app record and corresponding support ticket, and verify owner/admin privacy.
 
 ## V1.18.3 — All Tickets is the single staff queue, with recruitment diagnostics
 

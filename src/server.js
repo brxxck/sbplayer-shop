@@ -16,7 +16,7 @@ import * as liveDiscord from './discord.js';
 import {randomToken,sha256} from './discord.js';
 import {parseRequestBody,saveImage,safeImageFile,saveTicketEvidence,deleteTicketEvidence,safeTicketFile} from './uploads.js';
 import * as teamApplicationViews from './team-application-views.js';
-import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
+import {validateTeamApplication,teamApplication,myTeamApplications,activeTeamApplication,teamApplicationQueue,teamApplicationCounts,teamApplicationForTicket,submitTeamApplication,updateTeamApplication,saveTeamApplicationNote} from './team-applications.js';
 import * as view from './views.js';
 import * as microsoftView from './owner-microsoft-views.js';
 import {megaSessionPage} from './mega-session-views.js';
@@ -286,7 +286,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.3',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.4',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -822,6 +822,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('owner');
       rate(ctx,'owner.recruitment.diagnostics',20,60000);
       const counts=teamApplicationCounts();
+      const archived=one("SELECT COUNT(*) n FROM support_tickets WHERE category='team_application'")||{n:0};
+      const linked=one('SELECT COUNT(*) n FROM team_application_ticket_links')||{n:0};
       const submitted=one("SELECT COUNT(*) n,MAX(at) last_at FROM owner_audit_log WHERE action='team_application.submitted'")||{n:0,last_at:0};
       const otherCounts=one('SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM support_tickets) support,(SELECT COUNT(*) FROM applications) staff_apps');
       const database=db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');
@@ -829,7 +831,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const pathConfigured=!!process.env.DB_PATH;
       const persistentLocation=dbLocation.includes('/app/data/');
       const message=Number(counts.total)>0
-        ?'Team application records exist. They should appear under All Tickets for authorized admins/owners; check the current filter and role.'
+        ?Number(archived.n)===Number(counts.total)&&Number(linked.n)===Number(counts.total)
+          ?'Recruitment and support-ticket archives are synchronized. They should appear in All Tickets for authorized administrators and owners.'
+          :'Recruitment source rows exist but archives are out of sync. Do not delete anything; preserve a database backup and investigate the startup backfill.'
+        :Number(archived.n)>0
+        ?'Support-ticket archives exist but original recruitment rows are missing. Preserve database backups and inspect this discrepancy before attempting manual recovery.'
         :Number(submitted.n)>0
         ?'Warning: submission events exist in this audit log, but the matching application rows are missing. Preserve the database and inspect backups, service history and volume mounts before making changes.'
         :Number(otherCounts.support)+Number(otherCounts.staff_apps)>0
@@ -839,6 +845,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         '<section class="panel padded"><h1>Recruitment data diagnostics</h1>'+
         '<p>Owner-only, read-only view of the SQLite database currently serving this request.</p>'+
         '<p><b>Stored team applications:</b> '+Number(counts.total||0)+'</p>'+
+        '<p><b>Private support-ticket archives:</b> '+Number(archived.n||0)+
+        ' · <b>Linked recruitment records:</b> '+Number(linked.n||0)+'</p>'+
         '<p><b>Active:</b> '+Number(counts.active||0)+
         ' · <b>Accepted:</b> '+Number(counts.accepted||0)+
         ' · <b>Denied:</b> '+Number(counts.denied||0)+'</p>'+
@@ -1355,6 +1363,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(forStaff)await authorize('staff');
       const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
+      if(t.category==='team_application'){
+        const applicationId=teamApplicationForTicket(id);
+        if(!applicationId)missing();
+        return redirect(res,forStaff||(t.user_id!==ctx.user.id)
+          ?'/team-applications/review/'+applicationId:'/team-applications/'+applicationId);
+      }
       if(forStaff)markCaseRead(ctx.user.id,t.category,id);
       if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:forStaff?'staff':'member'});
@@ -1368,6 +1382,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,'support.reply',12,60000);
       const id=idFrom(supportReplyMatch[2]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
+      if(t.category==='team_application')invalid('Use the team application review page for recruitment decisions.');
       const {fields,files}=await form();
       const body=formValue(fields,'body',2000,1);
       const evidence=Array.isArray(files.evidence)?files.evidence:[];
@@ -1414,6 +1429,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await authorize('staff');rate(ctx,'support.status',20,3600000);
       const id=idFrom(staffStatusMatch[1]),t=supportTicket(id);
       await requireSupportAccess(t,true);
+      if(t.category==='team_application')invalid('Use the team application review page for recruitment decisions.');
       const {fields}=await form();
       if(!['open','reviewing','resolved'].includes(fields.status))invalid('Invalid status');
       updateSupportStatus({ticketId:id,userId:ctx.user.id,role:ctx.role,ip:ctx.ip,status:fields.status});
@@ -2158,5 +2174,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.3 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.4 running at ${config.baseUrl}`));
 }

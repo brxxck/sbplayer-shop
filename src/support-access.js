@@ -31,6 +31,10 @@ export async function resolveStaffReport(discord,search,config,guildOwnerId,coow
 
 export async function accessibleSupportTicket(ctx,t,discord,config,{staffView=false}={}){
  if(!t)return false;
+ // Recruitment answers contain private financial and identity details.
+ // Team leaders retain their separate, Discord-role-checked review route.
+ if(t.category==='team_application')return staffView?['admin','owner'].includes(ctx.role):
+   t.user_id===ctx.user?.id||['admin','owner'].includes(ctx.role);
  if(t.category!=='staff_report')return staffView?['reviewer','admin','owner'].includes(ctx.role):
    t.user_id===ctx.user?.id||['reviewer','admin','owner'].includes(ctx.role);
  if(!staffView && t.user_id===ctx.user?.id)return true; // Applicants use their own ticket area, never staff queues.
