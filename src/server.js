@@ -550,6 +550,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const posts=listPosts(ctx.user.id,{limit:20,following}).filter(p=>p.id>last);
       return respond(res,200,JSON.stringify({posts:posts.map(p=>({id:p.id,html:view.postCard(ctx,p,{feedPage:0,feedTab:following?'following':'all'})})),head:listPosts(ctx.user.id,{limit:1,following})[0]?.id||0}),'application/json; charset=utf-8');
     }
+    if(pathname==='/messages/inbox-updates'&&req.method==='GET'){
+      rate(ctx,'dm.inbox.updates',60,60000);
+      return respond(res,200,JSON.stringify({html:communityView.inboxRows(dmInbox(ctx.user.id))}),'application/json; charset=utf-8');
+    }
     if(pathname==='/messages'&&req.method==='GET')return html(communityView.inbox(ctx,dmInbox(ctx.user.id)));
     if(pathname==='/messages/unread'&&req.method==='GET'){
       rate(ctx,'dm.unread',60,60000);
