@@ -283,7 +283,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.11.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.12.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -1453,6 +1453,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const {fields}=await form();if(!a)missing();
       if(action==='review'){
         if(isFinal(a.status))return warn('/staff','Application is already finalized.');
+        // Advisory reviews do not reopen a round after two admins have agreed.
+        if(ownerRecommendation(id))return warn('/staff','Admin consensus is already awaiting owner approval.');
         const choice=fields.choice;if(!validVote(choice))invalid('Invalid vote');
         const note=formValue(fields,'note',1500,0);
         if(one('SELECT 1 FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',id,ctx.user.id))return warn('/staff','You already reviewed this ticket.');
@@ -1482,6 +1484,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(action==='interview'){
         if(isFinal(a.status))return warn(`/staff/applications/${id}`,'Already finalized.');
+        if(ownerRecommendation(id))return warn(`/staff/applications/${id}`,'Admin consensus is awaiting owner approval; interview status is locked.');
+        if(a.status==='interview')return warn(`/staff/applications/${id}`,'Already marked as interviewing.');
         transaction(()=>{run("UPDATE applications SET status='interview',updated_at=? WHERE id=?",now(),id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.interview',target:'application:'+id,details:{previous:a.status},ip:ctx.ip});});
         return success(`/staff/applications/${id}`,'Marked for interview. Final decision still requires two admins.');
       }
@@ -2060,5 +2064,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.11.1 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.12.0 running at ${config.baseUrl}`));
 }
