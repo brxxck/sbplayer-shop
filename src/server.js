@@ -295,7 +295,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Use the same permission filter for the homepage, full staff queue and ticket URLs.
       const supports=await supportQueueVisible(ctx,openSupportTickets(),discord,config);
        const promotions=isAdminRole(ctx.role)?queuePromotions():[];
-      const applications=all("SELECT a.*,u.display_name,u.username FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
+      const applications=all("SELECT a.*,u.display_name,u.username,"+
+        "EXISTS(SELECT 1 FROM admin_decisions d WHERE d.application_id=a.id GROUP BY d.choice HAVING COUNT(*)>=2) AS awaiting_owner "+
+        "FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
       const tickets=[
         ...supports.map(t=>({...t,displayId:'T-'+t.id,href:'/staff/tickets/'+t.id})),
          ...promotions.map(t=>({...t,displayId:'P-'+t.id,category:'promotion',href:'/staff/promotions/'+t.id})),
