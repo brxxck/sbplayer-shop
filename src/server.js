@@ -147,7 +147,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path) {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -691,12 +691,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/notifications/read'&&req.method==='POST'){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id);
+      notifyUser(ctx.user.id,'notifications-update',{});
       return redirect(res,'/notifications');
     }
     const notificationMatch=/^\/notifications\/(\d+)\/read$/.exec(pathname);
     if(notificationMatch&&req.method==='POST'){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id,idFrom(notificationMatch[1]));
+      notifyUser(ctx.user.id,'notifications-update',{});
       return redirect(res,'/notifications');
     }
     if(pathname==='/saved'&&req.method==='GET'){
@@ -1360,6 +1362,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const {fields}=await form();
       const body=formValue(fields,'body',1500,1);
       sendStaffChat({userId:ctx.user.id,role:ctx.role,body,ip:ctx.ip});
+      for(const user of all('SELECT DISTINCT user_id FROM sessions WHERE expires_at>?',now()))notifyUser(user.user_id,'staff-chat-update',{});
       return success('/','Message sent to staff chat.');
     }
 
