@@ -86,7 +86,7 @@ test('V1.11 messaging, privacy and live feed work without granting staff access 
  const first=await get('/messages','member');
  assert.equal(first.status,200);
  assert.match(await first.text(),/Messaging settings/);
- const start=await get('/messages/new/'+ids.member2,'member');
+ const start=await post('/messages/start','member',{q:ids.member2});
  assert.equal(start.status,303);
  const url=start.headers.get('location');
  assert.match(url,/^\/messages\/\d+$/);
