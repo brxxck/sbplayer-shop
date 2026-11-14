@@ -416,7 +416,8 @@ test('SBsxScam applications appear in authorized All Tickets and in the applican
  assert.match(diag,/Stored team applications:<\/b> [1-9]\d*/);
  assert.match(diag,/Submission audit events:<\/b> [1-9]\d*/);
  assert.match(diag,/Database location/);
- assert.match(diag,/Open all team applications/);
+ assert.match(diag,/Open team applications in All Tickets/);
+ assert.match(diag,/Other records in this database/);
  const adminActive=await (await get('/staff/tickets','adminA')).text();
  const ownerActive=await (await get('/staff/tickets','owner')).text();
  const filtered=await (await get('/staff/tickets?type=team_application','owner')).text();
