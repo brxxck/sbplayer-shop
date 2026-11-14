@@ -823,13 +823,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,'owner.recruitment.diagnostics',20,60000);
       const counts=teamApplicationCounts();
       const submitted=one("SELECT COUNT(*) n,MAX(at) last_at FROM owner_audit_log WHERE action='team_application.submitted'")||{n:0,last_at:0};
+      const otherCounts=one('SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM support_tickets) support,(SELECT COUNT(*) FROM applications) staff_apps');
       const database=db.prepare('PRAGMA database_list').all().find(row=>row.name==='main');
       const dbLocation=String(database?.file||config.dbPath);
       const pathConfigured=!!process.env.DB_PATH;
       const persistentLocation=dbLocation.includes('/app/data/');
-      const message=Number(counts.total)===0?
-        'No team application records exist in this running database. Check the submission confirmation URL, Railway service/replica, DB_PATH and persistent volume or backups. Do not reset storage.':
-        'Team application records are present. Open the unfiltered recruitment queue; if records still do not display, check the authenticated Discord role and filters.';
+      const message=Number(counts.total)>0
+        ?'Team application records exist. They should appear under All Tickets for authorized admins/owners; check the current filter and role.'
+        :Number(submitted.n)>0
+        ?'Warning: submission events exist in this audit log, but the matching application rows are missing. Preserve the database and inspect backups, service history and volume mounts before making changes.'
+        :Number(otherCounts.support)+Number(otherCounts.staff_apps)>0
+        ?'This database contains other tickets but no team applications or team-submission audits. Compare applicant confirmation URLs and earlier Railway deployment volumes or database paths.'
+        :'No team application rows or submission events exist in this running database. Verify Railway DB_PATH, service, persistent volume and earlier backups. Do not reset storage.';
       return html(view.shell(ctx,'Recruitment Diagnostics',
         '<section class="panel padded"><h1>Recruitment data diagnostics</h1>'+
         '<p>Owner-only, read-only view of the SQLite database currently serving this request.</p>'+
@@ -840,11 +845,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         '<p><b>Last team submission:</b> '+(counts.last_submitted_at?new Date(counts.last_submitted_at).toISOString():'None recorded')+'</p>'+
         '<p><b>Submission audit events:</b> '+Number(submitted.n||0)+
         ' · <b>Last audit submission:</b> '+(submitted.last_at?new Date(submitted.last_at).toISOString():'None recorded')+'</p>'+
+        '<p><b>Other records in this database:</b> '+Number(otherCounts.users||0)+' users · '+
+        Number(otherCounts.support||0)+' support tickets · '+Number(otherCounts.staff_apps||0)+' staff applications</p>'+
         '<p><b>Database location:</b> <code>'+view.esc(dbLocation)+'</code></p>'+
         '<p><b>DB_PATH explicitly configured:</b> '+(pathConfigured?'Yes':'No — using code default')+
         ' · <b>Uses /app/data:</b> '+(persistentLocation?'Yes':'No or different deployment path')+'</p>'+
         '<p>'+view.esc(message)+'</p>'+
-        '<p><a class="btn btn-outline" href="/team-applications/review?status=all">Open all team applications</a></p>'+
+        '<p><a class="btn btn-outline" href="/staff/tickets?type=team_application">Open team applications in All Tickets</a></p>'+
         '</section>'));
     }
     if(pathname==='/team-applications/review'&&req.method==='GET'){
