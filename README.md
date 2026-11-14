@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.18.1
+# SB's & Cam's Store — Community Portal V1.18.2
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.18.2 — Ticket numbers and SBsxScam applications in ticket lists
+
+- Fix the support ticket heading rendering `#\${ticket.id}` literally. The actual ticket number now appears in the visible heading and browser title.
+- Show **SBsxScam team applications** in the shared staff **Active Cases / All Tickets** queue, with their own `TA-<id>` identifier, status, and link to the protected team review detail. Only verified website administrators/owners and role-authorized team recruiters can see the recruitment cases there. Ordinary reviewers still cannot view or open private team applications.
+- Show each user's own team applications under **My Tickets**, including accepted and denied applications; this is their existing applicant-only detail page, not a staff review link.
+- Include active team applications in the authorized staff dashboard. Count recruitment cases separately from support, ordinary staff applications, and promotion tickets.
+- Team application statuses and unread counts are handled independently of support-ticket chat messages; private recruiter notes remain restricted to the existing leadership route.
+- Add browser-level tests for literal ticket IDs, case queues, owner/admin/reviewer privacy, applicant history, and the Active versus All filters.
+- No schema changes, new dependencies, permissions expansion, or deletion of existing ticket/application data.
+- After merging and Railway deployment, confirm `/health` reports `1.18.2`. Check the existing `/app/data` volume and test one private team application with an admin/owner account plus its original applicant.
 
 ## V1.18.1 — Search, date validation and release consistency
 
