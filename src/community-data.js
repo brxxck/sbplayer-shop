@@ -1,6 +1,7 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // V1.11: additive private conversations, preferences and scoped abuse reports.
 import {db,one,all,run,transaction} from './db.js';
+import {literalLikePattern} from './search-utils.js';
 
 db.exec([
 "CREATE TABLE IF NOT EXISTS dm_threads (id INTEGER PRIMARY KEY AUTOINCREMENT, user_a TEXT NOT NULL REFERENCES users(id), user_b TEXT NOT NULL REFERENCES users(id), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE(user_a,user_b), CHECK(user_a<user_b))",
@@ -78,9 +79,12 @@ export function dmInbox(userId){
 export function dmUnreadCount(userId){
   return one('SELECT COUNT(*) AS n FROM dm_messages m JOIN dm_threads t ON t.id=m.thread_id LEFT JOIN dm_reads r ON r.thread_id=t.id AND r.user_id=? WHERE (t.user_a=? OR t.user_b=?) AND m.sender_id!=? AND m.deleted_at=0 AND m.id>COALESCE(r.last_read_id,0)',userId,userId,userId,userId)?.n||0;
 }
-export function dmHistory(threadId,userId,limit=100){
+export function dmHistory(threadId,userId,limit=100,{before=0,q=''}={}){
   const thread=requireDm(threadId,userId);
-  const messages=all('SELECT m.id,m.thread_id,m.sender_id,m.body,m.created_at,m.edited_at,m.deleted_at,u.display_name,u.username FROM dm_messages m JOIN users u ON u.id=m.sender_id WHERE m.thread_id=? ORDER BY m.id DESC LIMIT ?',thread.id,Math.min(Math.max(Number(limit)||100,1),100)).reverse();
+  const conditions=['m.thread_id=?'],args=[thread.id];
+  if(before){conditions.push('m.id<?');args.push(validId(before));}
+  if(q){conditions.push("m.deleted_at=0 AND m.body LIKE ? ESCAPE '\\'");args.push(literalLikePattern(q));}
+  const messages=all('SELECT m.id,m.thread_id,m.sender_id,m.body,m.created_at,m.edited_at,m.deleted_at,u.display_name,u.username FROM dm_messages m JOIN users u ON u.id=m.sender_id WHERE '+conditions.join(' AND ')+' ORDER BY m.id DESC LIMIT ?',...args,Math.min(Math.max(Number(limit)||100,1),100)).reverse();
   const byId=new Map(messages.map(m=>[m.id,m]));
   if(messages.length){
     const attachments=all('SELECT * FROM dm_attachments WHERE message_id IN ('+messages.map(()=>'?').join(',')+') ORDER BY id',...messages.map(m=>m.id));
@@ -90,7 +94,8 @@ export function dmHistory(threadId,userId,limit=100){
   const peer=one('SELECT u.id,u.username,u.display_name,u.avatar,p.nickname,p.avatar_path FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.id=?',thread.other_id);
   const otherRead=one('SELECT last_read_id FROM dm_reads WHERE thread_id=? AND user_id=?',thread.id,thread.other_id)?.last_read_id||0;
   const readAllowed=dmSettings(thread.other_id).read_receipts===1;
-  return {thread,peer,messages,otherRead:readAllowed?otherRead:0,readAllowed,blocked:isBlocked(userId,thread.other_id)};
+  const hasOlder=!!messages.length&&!!one('SELECT 1 FROM dm_messages WHERE thread_id=? AND id<? LIMIT 1',thread.id,messages[0].id);
+  return {thread,peer,messages,hasOlder,otherRead:readAllowed?otherRead:0,readAllowed,blocked:isBlocked(userId,thread.other_id)};
 }
 export function dmSend(threadId,userId,body,attachments=[]){
   const thread=requireDm(threadId,userId);

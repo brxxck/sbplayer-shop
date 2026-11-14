@@ -107,7 +107,7 @@
       deposits:data.totals.deposited??obsDeposits,
       withdrawals:data.totals.withdrawn??obsWithdrawals,
       net:data.totals.net??obsNet})){
-    const element=root.querySelector('[data-mega-value="'+key+'"]');if(element)element.textContent=short(amount);
+    const element=root.querySelector('[data-mega-value="'+key+'"]');if(element){element.textContent=money(amount);element.title=money(amount);}
    }
    for(const [key,amount] of Object.entries({'captured-deposits':data.captured?.deposited,'captured-withdrawals':data.captured?.withdrawn})){
     const element=root.querySelector('[data-mega-value="'+key+'"]');if(element)element.textContent=amount==null?'—':'$'+Number(amount).toLocaleString('en-US',{maximumFractionDigits:2});

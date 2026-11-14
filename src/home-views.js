@@ -14,7 +14,7 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
    <section class="dash-welcome">
      <div>
        <h1>Welcome back, <span class="gradient">${esc(greeting(ctx.user))}.</span></h1>
-       
+
        <div class="dash-welcome-actions"><a class="btn btn-primary" href="/tickets/new">+ Submit a Ticket</a>
        <a class="btn btn-outline" href="/feed">Community Feed →</a><a class="btn btn-outline" href="/profile">${icon('circle-user-round',{size:17})} My Profile</a></div></div>
      <img class="dash-brand-mark" src="/static/sb-logo.png" alt="SB Store" width="112" height="112">
@@ -41,20 +41,23 @@ export function memberHome(ctx,{posts=[],tickets=[],applications=[]}={}){
  </div>`);
 }
 export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activeCount=0,ownerCount=0}={}){
- const items=tickets; // Scrollable live list of all active tickets returned by the staff queue.
+ const items=tickets;
+ const awaitingMember=items.filter(t=>t.queue_status==='awaiting_member').length;
+ const awaitingOwner=items.filter(t=>t.queue_status==='awaiting_owner').length;
+ const needsAttention=items.filter(t=>ctx.role==='owner'?t.queue_status==='awaiting_owner'||t.queue_status==='awaiting_staff':!['awaiting_member','awaiting_owner'].includes(t.queue_status)).length; // Scrollable live list of all active tickets returned by the staff queue.
  return shell(ctx,'Staff Home',`<div class="dash-home">
    <section class="dash-welcome staff-hero">
      <div>
        <h1>Staff command <span class="gradient">center.</span></h1>
-       
+
        <div class="dash-welcome-actions"><a href="/staff/tickets" class="btn btn-primary">View All Tickets →</a>
-       <a href="/profile" class="btn btn-outline">${icon('circle-user-round',{size:17})} My Profile</a><a href="/profile/edit" class="btn btn-outline">${icon('user-round-pen',{size:17})} Customize Profile</a></div></div>
+       <a href="/applications" class="btn btn-outline">Application management</a></div></div>
    </section>
    <div class="dash-summary-row">
-     <a class="dash-summary-card" href="/staff/tickets"><span>OPEN TICKETS</span><strong>${activeCount}</strong><small>View →</small></a>
+     <a class="dash-summary-card" href="/staff/tickets"><span>ACTIVE CASES</span><strong>${items.length}</strong><small>View →</small></a>
      <a class="dash-summary-card" href="/staff"><span>APPLICATIONS</span><strong>${applications.length}</strong><small>View →</small></a>
-     <a class="dash-summary-card" href="${ctx.role==='owner'?'/owner/approvals':'/profile/edit'}"><span>${ctx.role==='owner'?'FINAL APPROVALS':'CUSTOMIZE PROFILE'}</span>
-       <strong>${ctx.role==='owner'?ownerCount:icon('user-round-pen',{size:29})}</strong><small>${ctx.role==='owner'?'Review':'Edit'} →</small></a>
+     <a class="dash-summary-card" href="${ctx.role==='owner'?'/owner/approvals':'/staff/tickets'}"><span>${ctx.role==='owner'?'FINAL APPROVALS':'NEEDS MY ATTENTION'}</span>
+       <strong>${ctx.role==='owner'?ownerCount:needsAttention}</strong><small>${ctx.role==='owner'?'Review':'Edit'} →</small></a>
    </div>
    <div class="staff-dashboard-columns">
      <section class="panel padded staff-chat-panel"><div class="section-heading">
@@ -71,13 +74,13 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
       </form>
      </section>
      <section class="panel padded dash-staff-tickets">
-       <div class="section-heading"><div><h2>Active tickets</h2></div>
+       <div class="section-heading"><div><h2>Active Cases</h2></div>
        <a href="/staff/tickets" class="table-link">Full queue →</a></div>
-       <div class="dash-ticket-list">${items.length?items.map(t=>`<a class="dash-ticket-row" href="${t.href}">
+       <p class="muted tiny">${items.filter(t=>!['application','promotion'].includes(t.category)).length} support · ${items.filter(t=>t.category==='application').length} applications · ${items.filter(t=>t.category==='promotion').length} promotions</p><p class="muted tiny">${needsAttention} need attention · ${awaitingMember} awaiting member · ${awaitingOwner} awaiting owner</p><div class="dash-ticket-list">${items.length?items.map(t=>`<a class="dash-ticket-row" href="${t.href}">
          <span class="ticket-type-label ticket-type-${esc(t.category)}">${categoryLabel(t.category)}</span>
-         <span class="dash-ticket-member"><b>${esc(t.display_name||'Member')}</b><small>#${esc(t.displayId||t.id)} · ${date(t.updated_at)}</small></span>
-         <span class="dash-ticket-status">${t.category==='application'?applicationStatusTag(t):tag(t.status)}</span>
-       </a>`).join(''):'<div class="empty">No active tickets.</div>'}</div>
+         <span class="dash-ticket-member"><b>${esc(t.display_name||'Member')}</b><small>#${esc(t.displayId||t.id)} · ${date(t.updated_at)} · <span data-wait-since="${t.updated_at}"></span></small></span>
+         <span class="dash-ticket-status">${tag(t.queue_status||t.status)}${t.unread?`<span class="pill">${t.unread} unread</span>`:''}</span>
+       </a>`).join(''):'<div class="empty">No active cases.</div>'}</div>
      </section>
    </div>
  </div>`);

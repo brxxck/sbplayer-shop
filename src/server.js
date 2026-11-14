@@ -1,5 +1,8 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import http from 'node:http';
+import {applicationHub,transactionsPage} from './upgrade-views.js';
+import {literalLikePattern,isoDayMillis} from './search-utils.js';
+import {voteOnSuggestion,setSuggestionStatus,suggestionHistory,filteredSuggestions,decorateCases,markCaseRead,unifiedTransactions} from './upgrade-data.js';
 import {readFileSync,statSync,existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve,basename,extname,dirname} from 'node:path';
@@ -147,7 +150,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -242,7 +245,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
        // A real Discord Administrator must not lose staff-ticket access because
        // ADMIN_ROLE_IDS is missing that particular role. Never trust role names alone.
        try {
-         const guildRoles=await discord.getRoles();
+         const guildRoles=await discord.getRoles();ctx.guildRoles=guildRoles;
          if(ctx.role!=='owner'&&hasVerifiedAdministratorPermission(actual,guildRoles))
            ctx.role='admin';
          ctx.promotionEligible=!!promotionEligibility(actual,guildRoles,config);
@@ -283,7 +286,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.12.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.18.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -303,7 +306,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          ...promotions.map(t=>({...t,displayId:'P-'+t.id,category:'promotion',href:'/staff/promotions/'+t.id})),
         ...applications.map(a=>({...a,displayId:'A-'+a.id,category:'application',href:'/staff/applications/'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(homeView.staffHome(ctx,{tickets,staffMessages:staffChatRecent(),applications,activeCount:supports.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
+      return html(homeView.staffHome(ctx,{tickets:decorateCases(tickets,ctx.user.id),staffMessages:staffChatRecent(),applications,activeCount:tickets.length,ownerCount:ctx.role==='owner'?awaitingOwnerQueue().length:0}));
     }
     if(pathname==='/auth/login'&&req.method==='GET'){
       rate(ctx,'auth.login',15);const state=randomToken(),verifier=randomToken();
@@ -592,7 +595,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       dmMarkRead(id,ctx.user.id);
       const details=dmHistory(id,ctx.user.id);
       notifyUser(details.thread.other_id,'dm-read',{threadId:id});
-      return html(communityView.conversation(ctx,details));
+      return html(communityView.conversation(ctx,{...details,threads:dmInbox(ctx.user.id)}));
+    }
+    dmMatch=/^\/messages\/(\d+)\/(search|older)$/.exec(pathname);
+    if(dmMatch&&req.method==='GET'){
+      rate(ctx,'dm.search',60,60000);
+      const id=idFrom(dmMatch[1]);
+      const before=idFrom(url.searchParams.get('before'))||0,q=text(url.searchParams.get('q'),80);
+      const d=dmHistory(id,ctx.user.id,50,dmMatch[2]==='search'?{q}:{before});
+      return respond(res,200,JSON.stringify({messages:d.messages.map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,d.otherRead)})),hasOlder:d.hasOlder}),'application/json; charset=utf-8');
     }
     dmMatch=/^\/messages\/(\d+)\/updates$/.exec(pathname);
     if(dmMatch&&req.method==='GET'){
@@ -625,6 +636,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(dmMatch&&req.method==='POST'){
       rate(ctx,'dm.read',90,60000);await form();
       const read=dmMarkRead(idFrom(dmMatch[1]),ctx.user.id);
+      notifyUser(ctx.user.id,'dm-update',{threadId:idFrom(dmMatch[1])});
       notifyUser(read.otherId,'dm-read',{threadId:idFrom(dmMatch[1])});
       return respond(res,200,JSON.stringify({ok:true}),'application/json; charset=utf-8');
     }
@@ -670,7 +682,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const file=dmAttachment(idFrom(dmMatch[1]),ctx.user.id);
       const loc=safeTicketFile(file.stored_path);if(!loc)missing();
       return respond(res,200,readFileSync(loc),file.mime_type,{
-        'content-disposition':'attachment; filename="attachment"',
+        'content-disposition':(url.searchParams.get('preview')==='1'&&file.mime_type.startsWith('image/')?'inline':'attachment')+'; filename="attachment"',
         'x-content-type-options':'nosniff'
       });
     }
@@ -693,6 +705,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id);
       notifyUser(ctx.user.id,'notifications-update',{});
+      if(String(req.headers.accept||'').includes('application/json'))return respond(res,200,JSON.stringify({ok:true,unread:notificationCount(ctx.user.id)}),'application/json; charset=utf-8');
       return redirect(res,'/notifications');
     }
     const notificationMatch=/^\/notifications\/(\d+)\/read$/.exec(pathname);
@@ -700,6 +713,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,'social.notifications.read',30,60000);await form();
       markNotificationsRead(ctx.user.id,idFrom(notificationMatch[1]));
       notifyUser(ctx.user.id,'notifications-update',{});
+      if(String(req.headers.accept||'').includes('application/json'))return respond(res,200,JSON.stringify({ok:true,unread:notificationCount(ctx.user.id)}),'application/json; charset=utf-8');
       return redirect(res,'/notifications');
     }
     if(pathname==='/saved'&&req.method==='GET'){
@@ -1161,6 +1175,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(staffView)await authorize('admin');
       if(!ticket)missing();
       if(!staffView&&ticket.user_id!==ctx.user.id)missing();
+      if(staffView)markCaseRead(ctx.user.id,'promotion',id);
       if(!staffView)run('UPDATE promotion_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'promotion.access','promotion:'+id,{staffView});
       return html(promotionView.promotionDetails(ctx,{ticket,staffView,decisions:staffView?promotionDecisions(id):[],messages:promotionMessages(id)}));
@@ -1211,7 +1226,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,category==='ban_appeal'?'ban_appeal.create':'support.create',category==='ban_appeal'?3:6,86400000);
       const {fields,files}=await form();
       const values={};
-      if(category==='bug_report')values.description=formValue(fields,'description',3000,10);
+      if(category==='bug_report'){
+        values.description=formValue(fields,'description',3000,10);
+        for(const key of ['affected_page','steps','expected','actual'])values[key]=formValue(fields,key,key==='affected_page'?150:3000,0);
+      }
       if(category==='player_report'){
         values.reported_player=formValue(fields,'reported_player',150,2);
         values.rule_broken=formValue(fields,'rule_broken',150,2);
@@ -1230,7 +1248,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           return warn('/tickets/mine','You already have an active Ban Appeal. Please use its conversation to add information.');
       }
       const evidence=Array.isArray(files.evidence)?files.evidence:[];
-      if(['player_report','staff_report'].includes(category)&&!evidence.length)invalid('Evidence is required for Player and Staff Reports.');
+      if(['player_report','staff_report'].includes(category)){
+        const reason=formValue(fields,'evidence_unavailable_reason',1500,0);
+        if(!evidence.length&&reason.length<30)invalid('Attach evidence or explain why it is unavailable in at least 30 characters.');
+        if(reason)values.evidence_unavailable_reason=reason;
+      }
       if(evidence.length>5)invalid('Upload at most five files.');
       let visibility='staff',reportedId='',reportReason='';
       if(category==='staff_report'){
@@ -1252,7 +1274,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         pingHere:!privateReport
       });
       logAction(ctx,'support_ticket.webhook','support_ticket:'+id,{category,visibility,reportReason:privateReport?reportReason:undefined,delivered});
-      return success('/tickets/'+id,'Your ticket was submitted successfully.');
+      return success('/tickets/'+id,'Ticket #'+id+' submitted. Status: Open. Staff replies appear in the private conversation below and in My Tickets.');
     }
     if(pathname==='/tickets/mine'&&req.method==='GET'){
       const supports=mySupportTickets(ctx.user.id)
@@ -1289,6 +1311,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(forStaff)await authorize('staff');
       const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
+      if(forStaff)markCaseRead(ctx.user.id,t.category,id);
       if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:forStaff?'staff':'member'});
       return html(supportView.supportTicketPage(ctx,{
@@ -1337,7 +1360,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          ...promotions.map(t=>({...t,category:'promotion',href:'/staff/promotions/'+t.id,displayId:'P-'+t.id})),
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(supportView.staffTicketQueue(ctx,{tickets,status:scope}));
+      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope}));
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
@@ -1446,6 +1469,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Reviewed tickets leave a reviewer's pending queue, but remain available for ticket conversation.
       logAction(ctx,'application.access','application:'+id,{access:'staff'});
       const voted=one('SELECT * FROM admin_decisions WHERE application_id=? AND admin_id=?',id,ctx.user.id);
+      markCaseRead(ctx.user.id,'application',id);
       return html(view.review(ctx,{app:a,reviewerVotes:isAdminRole(ctx.role)?reviewerVotes(id):[],adminVotes:isAdminRole(ctx.role)?adminVotes(id):[],myReviewerVote:reviewed,myAdminVote:voted,messages:ticketMessages(id),attachments:applicationAttachments(id),ownerRecommendation:ownerRecommendation(id)}));
     }
     m=/^\/staff\/applications\/(\d+)\/(review|decide|note|interview|sync)$/.exec(pathname);
@@ -1596,8 +1620,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return redirect(res,`/post/${id}`);
       }
     }
+    if(pathname==='/applications'&&req.method==='GET')return html(applicationHub(ctx));
+    if(pathname==='/mega-team/transactions'&&req.method==='GET'){
+      await member();if(ctx.role==='appeal-only')forbidden('Discord membership required.');
+      return html(transactionsPage(ctx,unifiedTransactions(Object.fromEntries(url.searchParams))));
+    }
     if(pathname==='/suggestions'&&req.method==='GET'){
-      const page=pageNumber(url.searchParams.get('page'));return html(view.suggestions(ctx,{items:listSuggestions(page),page}));
+      const page=pageNumber(url.searchParams.get('page'));
+      const filters={status:text(url.searchParams.get('status'),30)||'all',sort:text(url.searchParams.get('sort'),20)||'recent',q:text(url.searchParams.get('q'),80)};
+      return html(view.suggestions(ctx,{items:filteredSuggestions({...filters,page}),page,filters}));
     }
     if(pathname==='/suggestions/create'&&req.method==='POST'){
       rate(ctx,'suggestion.create',3,3600000);const {fields}=await form();
@@ -1610,7 +1641,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     m=/^\/suggestions\/(\d+)$/.exec(pathname);
     if(m&&req.method==='GET'){
       const id=idFrom(m[1]),s=suggestionDetails(id);if(!s)missing();
-      return html(view.suggestionDetail(ctx,{s,comments:listComments('suggestion',id),voters:isAdminRole(ctx.role)?suggestionVoters(id):[],myVote:one('SELECT choice FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id)?.choice||''}));
+      return html(view.suggestionDetail(ctx,{s,comments:listComments('suggestion',id),history:suggestionHistory(id),voters:isAdminRole(ctx.role)?suggestionVoters(id):[],myVote:one('SELECT choice FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id)?.choice||''}));
     }
     m=/^\/suggestions\/(\d+)\/(vote|comment|status)$/.exec(pathname);
     if(m&&req.method==='POST'){
@@ -1618,11 +1649,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       rate(ctx,`suggestions.${action}`,action==='comment'?20:80,600000);
       const {fields}=await form(),s=suggestionDetails(id);if(!s)missing();
       if(action==='vote'){
-        if(!['yes','no'].includes(fields.choice))invalid('Invalid vote');
-        const existing=one('SELECT choice FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id);
-        if(existing?.choice===fields.choice)run('DELETE FROM suggestion_votes WHERE suggestion_id=? AND user_id=?',id,ctx.user.id);
-        else run('INSERT INTO suggestion_votes(suggestion_id,user_id,choice,created_at) VALUES(?,?,?,?) ON CONFLICT(suggestion_id,user_id) DO UPDATE SET choice=excluded.choice,created_at=excluded.created_at',id,ctx.user.id,fields.choice,now());
-        if(isStaffRole(ctx.role))logAction(ctx,'suggestion.vote','suggestion:'+id,{choice:existing?.choice===fields.choice?'removed':fields.choice});
+        const choice=voteOnSuggestion(id,ctx.user.id,fields.choice);
+        if(isStaffRole(ctx.role))logAction(ctx,'suggestion.vote','suggestion:'+id,{choice});
         return redirect(res,`/suggestions/${id}`);
       }
       if(action==='comment'){
@@ -1632,7 +1660,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(action==='status'){
         if(!suggestionStates.has(fields.status))invalid('Invalid status');
-        transaction(()=>{run('UPDATE suggestions SET status=?,updated_at=? WHERE id=?',fields.status,now(),id);appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'suggestion.status',target:'suggestion:'+id,details:{before:s.status,after:fields.status},ip:ctx.ip});});
+        setSuggestionStatus(ctx,id,fields.status,fields.note||'');
         return success(`/suggestions/${id}`,'Suggestion status updated.');
       }
     }
@@ -1652,7 +1680,19 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const local=all('SELECT u.*,p.nickname,p.avatar_path FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.username LIKE ? OR u.display_name LIKE ? ORDER BY u.updated_at DESC LIMIT 30',`%${q}%`,`%${q}%`);
         const seen=new Set(found.map(m=>m.id));for(const u of local)if(!seen.has(u.id)){found.push(u);seen.add(u.id);}
       }
-      return html(view.members(ctx,{found,q,fallback}));
+      const roleFilter=text(url.searchParams.get('role'),22),teamFilter=text(url.searchParams.get('team'),20);
+      let filtered=found;
+      if(roleFilter||teamFilter){
+        // Verify current Discord membership before applying role-based discovery filters.
+        const verified=await Promise.allSettled(found.map(u=>u.id===ctx.user.id?Promise.resolve(ctx.member):discord.getGuildMember(u.id)));
+        filtered=found.filter((u,i)=>{
+          const member=verified[i].status==='fulfilled'?verified[i].value:null;
+          if(!member||member.pending){if(verified[i].status==='rejected')fallback=true;return false;}
+          const roles=member.roles||[],sbs=sbsTeamMembership(roles);
+          return (!roleFilter||roles.includes(roleFilter))&&(!teamFilter||teamFilter==='sbs'&&(sbs.member||sbs.leader)||teamFilter==='staff'&&ctx.guildRoles?.some(r=>roles.includes(r.id)&&!!storeTeamGroup(r,config)));
+        });
+      }
+      return html(view.members(ctx,{found:filtered,q,fallback,roles:ctx.guildRoles||[],roleFilter,teamFilter}));
     }
     if(pathname==='/team'&&req.method==='GET'){
       if(url.searchParams.get('tab')==='mega'){
@@ -1850,6 +1890,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(item.user_id!==ctx.user.id&&!isAdminRole(ctx.role))forbidden();
       transaction(()=>{
         run(`UPDATE ${table} SET deleted_at=? WHERE id=? AND deleted_at IS NULL`,now(),id);
+        if(kind==='post')notifyEveryone('feed-update',{kind:'delete',id});
         if(isStaffRole(ctx.role))appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'content.delete',target:kind+':'+id,details:{userId:item.user_id,staffModeration:item.user_id!==ctx.user.id},ip:ctx.ip});
       });
       return success(kind==='suggestion'?'/suggestions':'/feed','Content removed.');
@@ -1992,18 +2033,21 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/owner/audit'&&req.method==='GET'){
       await authorize('owner');
-      const filter=text(url.searchParams.get('q'),80),like='%'+filter+'%';
-      // Name search is read-only; keep the raw IDs and original hash-chained rows.
-      const actionList=VISIBLE_AUDIT_ACTIONS.map(()=>'?').join(',');
-      const events=filter?all(`SELECT a.* FROM owner_audit_log a
-        LEFT JOIN users u ON u.id=a.actor_id
-        WHERE a.action IN (${actionList}) AND
-          (a.actor_id LIKE ? OR u.username LIKE ? OR u.display_name LIKE ?
-          OR a.action LIKE ? OR a.target LIKE ? OR a.details LIKE ? OR a.outcome LIKE ?)
-        ORDER BY a.id DESC LIMIT 300`,...VISIBLE_AUDIT_ACTIONS,like,like,like,like,like,like,like):
-        all('SELECT * FROM owner_audit_log WHERE action IN ('+actionList+') ORDER BY id DESC LIMIT 300',...VISIBLE_AUDIT_ACTIONS);
+      const filter=text(url.searchParams.get('q'),80),like=literalLikePattern(filter);
+      const fields={actor:text(url.searchParams.get('actor'),80),action:text(url.searchParams.get('action'),80),result:text(url.searchParams.get('result'),20),from:text(url.searchParams.get('from'),10),to:text(url.searchParams.get('to'),10)};
+      const where=['a.action IN ('+VISIBLE_AUDIT_ACTIONS.map(()=>'?').join(',')+')'],args=[...VISIBLE_AUDIT_ACTIONS];
+      if(filter){where.push("(a.actor_id LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\' OR u.display_name LIKE ? ESCAPE '\\' OR a.action LIKE ? ESCAPE '\\' OR a.target LIKE ? ESCAPE '\\' OR a.details LIKE ? ESCAPE '\\' OR a.outcome LIKE ? ESCAPE '\\')");args.push(...Array(7).fill(like));}
+      if(fields.actor){where.push("(a.actor_id=? OR u.username LIKE ? ESCAPE '\\' OR u.display_name LIKE ? ESCAPE '\\')");const term=literalLikePattern(fields.actor);args.push(fields.actor,term,term);}
+      if(fields.action){where.push("a.action LIKE ? ESCAPE '\\'");args.push(literalLikePattern(fields.action));}
+      if(fields.result){where.push('a.outcome=?');args.push(fields.result);}
+      if(fields.from&&fields.to&&isoDayMillis(fields.from)>isoDayMillis(fields.to))invalid('Date range must start before it ends.');
+      for(const [value,op] of [[fields.from,'>='],[fields.to,'<=']])if(value){where.push('a.at '+op+' ?');args.push(isoDayMillis(value)+(op==='<='?86399999:0));}
+      const base='FROM owner_audit_log a LEFT JOIN users u ON u.id=a.actor_id WHERE '+where.join(' AND ');
+      const total=one('SELECT COUNT(*) n '+base,...args).n;
+      const pages=Math.max(1,Math.ceil(total/100)),page=Math.min(pages,pageNumber(url.searchParams.get('page'))+1);
+      const events=all('SELECT a.* '+base+' ORDER BY a.id DESC LIMIT 100 OFFSET ?',...args,(page-1)*100);
       const names=await auditUsernamesFor(events);
-      return html(view.audit(ctx,{events:readableAuditRows(events,names),verified:verifyAudit(db),filter}));
+      return html(view.audit(ctx,{events:readableAuditRows(events,names),verified:verifyAudit(db),filter,fields,page,pages,total}));
     }
     if(pathname==='/owner/audit/export'&&req.method==='GET'){
       await authorize('owner');
@@ -2051,10 +2095,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(res.headersSent){if(!res.writableEnded)res.end();return;}
       if(e instanceof Redirect)return redirect(res,e.path);
       const err=headerError(e);
-      if(err.status>=500)console.error('[Website error]',e.message);
+      if(err.status>=500)console.error('[Website error]',JSON.stringify({method:req.method,path:new URL(req.url,'http://local').pathname,status:err.status,message:String(e.message).slice(0,200)}));
       let ctx={pathname:'',user:null,role:'none',csrf:'',config,notice:''};
       try{const c=cookies(req.headers.cookie);if(c.sid){const s=one('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?',sha256(c.sid),now());if(s){ctx.session=s;ctx.user=one('SELECT * FROM users WHERE id=?',s.user_id);ctx.csrf=s.csrf;}}}catch{}
       const message=err.status===500?'An unexpected error occurred.':err.message;
+      if(String(req.headers.accept||'').includes('application/json'))return respond(res,err.status,JSON.stringify({ok:false,error:message}),'application/json; charset=utf-8');
       const out=err.status===403 && message.includes('member')?view.notMember(ctx,message):view.error(ctx,err.status,message);
       respond(res,err.status,out);
     }
@@ -2066,5 +2111,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.12.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.18.1 running at ${config.baseUrl}`));
 }

@@ -85,7 +85,7 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
 test('V1.11 messaging, privacy and live feed work without granting staff access to private DMs',async()=>{
  const first=await get('/messages','member');
  assert.equal(first.status,200);
- assert.match(await first.text(),/Messaging settings/);
+ assert.match(await first.text(),/Messaging preferences/);
  const start=await post('/messages/start','member',{q:ids.member2});
  assert.equal(start.status,303);
  const url=start.headers.get('location');
@@ -340,13 +340,14 @@ test('ticket picker shows promotion only to Temp Mods/Mods and team recruitment 
   const response=await get('/',who);
   assert.equal(response.status,200);
   const page=await response.text();
-  const nav=page.split('<div class="sidebar-title">DISCOVER</div><nav>')[1]?.split('</nav>')[0]||'';
-  const mobile=page.split('<nav class="mobile-nav">')[1]?.split('</nav>')[0]||'';
+  const nav=page.split('<div class="sidebar-title">SUPPORT</div>')[1]?.split('</nav>')[0]||'';
+  const mobile=page.split('<nav class="mobile-nav" aria-label="Mobile navigation">')[1]?.split('</nav>')[0]||'';
   for(const tab of ['/promotions','/team-applications/apply']){
    assert.ok(!nav.includes('href="'+tab+'"'),who+' should not have a separate desktop application tab');
    assert.ok(!mobile.includes('href="'+tab+'"'),who+' should not have a separate mobile application tab');
   }
-  assert.equal(nav.includes('href="/apply"'),!staff.has(who),who+' keeps correct staff application navigation');
+  assert.ok(nav.includes('href="/applications"'),who+' discovers the grouped application area');
+  assert.ok(!nav.includes('href="/apply"'),who+' avoids duplicate application navigation');
   const pickerResponse=await get('/tickets/new',who);
   assert.equal(pickerResponse.status,200);
   const picker=await pickerResponse.text();
@@ -538,7 +539,8 @@ test('MegaSMP leaderboard and owner-only profile linking are separate and secure
  assert.equal(landing.status,200);
  const html=await landing.text();
  assert.ok(html.includes('href="/mega-team/leaderboard"'));
- assert.ok(html.includes('data-mega-title-rank'));
+ assert.ok(html.includes('Saved ranking:'));
+ assert.ok(!html.includes('data-mega-title-rank'),'rank is not repeated in the title');
  assert.equal((await get('/mega-team/leaderboard','member')).status,200);
  const directory=await (await get('/mega-team/leaderboard','member')).text();
  assert.ok(directory.includes('Reference links'));
@@ -1333,4 +1335,31 @@ test('audit verification detects a changed ledger record and succeeds after rest
   assert.equal(verifyAudit(db).ok,false);
   run('UPDATE owner_audit_log SET action=? WHERE id=?',row.action,row.id);
   assert.equal(verifyAudit(db).ok,true);
+});
+
+test('upgrade hubs, transaction routes and filters preserve permission boundaries',async()=>{
+ for(const who of ['member','reviewer','adminA','owner']){
+  assert.equal((await get('/applications',who)).status,200);
+  assert.equal((await get('/mega-team/transactions',who)).status,200);
+ }
+ assert.equal((await get('/mega-team/transactions?from=invalid','member')).status,400);
+ assert.equal((await get('/mega-team/transactions?season=missing','member')).status,404);
+ assert.equal((await get('/owner/audit?actor=member&action=application&from=2026-01-01&to=2026-12-31&page=0','member')).status,403);
+ assert.equal((await get('/owner/audit?actor=member&action=application&from=2026-01-01&to=2026-12-31&page=0','owner')).status,200);
+ const filtered=await (await get('/members?role='+roles.sbsMember+'&team=sbs','member')).text();
+ assert.match(filtered,/Role and team filters verify/);
+ const thread=one('SELECT * FROM dm_threads ORDER BY id LIMIT 1');
+ if(thread){
+  assert.equal((await get('/messages/'+thread.id+'/search?q=hello','adminA')).status,404);
+  assert.equal((await get('/messages/'+thread.id+'/older?before=999999','adminA')).status,404);
+ }
+});
+
+test('final suggestion voting is locked on HTTP routes, including vote removal',async()=>{
+ const result=run('INSERT INTO suggestions(user_id,title,body,status,created_at,updated_at) VALUES(?,?,?,?,?,?)',ids.member,'Implemented HTTP regression','This has already been implemented.','implemented',Date.now(),Date.now());
+ const id=Number(result.lastInsertRowid);
+ run('INSERT INTO suggestion_votes(suggestion_id,user_id,choice,created_at) VALUES(?,?,?,?)',id,ids.member,'yes',Date.now());
+ assert.equal((await post('/suggestions/'+id+'/vote','member',{choice:'yes'})).status,409);
+ assert.equal((await post('/suggestions/'+id+'/vote','member2',{choice:'no'})).status,409);
+ assert.equal(one('SELECT COUNT(*) n FROM suggestion_votes WHERE suggestion_id=?',id).n,1);
 });

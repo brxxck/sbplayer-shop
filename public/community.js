@@ -15,7 +15,14 @@
     if(!r.ok)throw new Error('Request failed');
     return r.json();
   };
-  let stream;
+  let stream,lastBrowserAlert=0;
+  const alertButton=document.querySelector('[data-browser-notifications]');
+  const alertStatus=document.querySelector('[data-browser-notification-status]');
+  if(alertButton&&'Notification' in window){
+    alertButton.hidden=false;
+    const describe=()=>{if(alertStatus)alertStatus.textContent=Notification.permission==='granted'?'Browser alerts enabled. Manage permission in your browser site settings.':Notification.permission==='denied'?'Alerts are blocked in browser site settings.':'Optional alerts while this website is open in the background.';};
+    alertButton.addEventListener('click',async()=>{await Notification.requestPermission();describe();});describe();
+  }
   const inbox=document.querySelector('[data-dm-inbox]');
   const inboxList=inbox?.querySelector('[data-dm-list]');
   const inboxFilter=inbox?.querySelector('[data-dm-filter]');
@@ -87,7 +94,7 @@
       }
       if(Number.isSafeInteger(data.head))lastHead=Math.max(lastHead,data.head);
       if(pending.size){
-        if(window.scrollY<250&&document.activeElement?.tagName!=='TEXTAREA')showNewPosts();
+        if(window.scrollY<250&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))showNewPosts();
         else{
           banner.hidden=false;
           banner.textContent='Show '+pending.size+' new post'+(pending.size===1?'':'s')+' ↑';
@@ -98,9 +105,9 @@
   }
   function showNewPosts(){
     if(!list)return;
-    for(const [id,html] of [...pending].sort((a,b)=>b[0]-a[0])){
+    for(const [id,html] of [...pending].sort((a,b)=>a[0]-b[0])){
       const item=decorateCard(html);
-      if(item&&!list.querySelector('#post-'+id))banner.insertAdjacentElement('afterend',item);
+      if(item&&!list.querySelector('#post-'+id)){list.querySelector('.empty')?.remove();banner.insertAdjacentElement('afterend',item);}
     }
     pending.clear();banner.hidden=true;
   }
@@ -126,7 +133,7 @@
   let lastMessage=Number(history?.lastElementChild?.dataset.messageId||0);
   let historyLoading=false,typingTimer=0;
   async function updateMessages(){
-    if(!threadId||historyLoading)return;
+    if(!threadId||historyLoading||document.visibilityState==='hidden')return;
     historyLoading=true;
     try{
       const data=await get('/messages/'+threadId+'/updates?after='+lastMessage);
@@ -138,16 +145,18 @@
           existing.replaceWith(updated);
       }
       for(const m of data.messages||[]){
+        history.querySelector('[data-thread-empty]')?.remove();
         if(m.id<=lastMessage)continue;
         const item=decorateCard(m.html);
         if(item)history.append(item);
         lastMessage=Math.max(lastMessage,m.id);
       }
       if(atBottom)history.scrollTop=history.scrollHeight;
-      if(data.messages?.length){
+      if(data.messages?.length&&document.hasFocus()&&document.visibilityState==='visible'){
         await post('/messages/'+threadId+'/read');
         await refreshCounts();
       }
+      if(!data.readAllowed){for(const bubble of history.querySelectorAll('.dm-mine[data-seen]')){delete bubble.dataset.seen;const meta=bubble.querySelector('small');if(meta)meta.textContent=meta.textContent.replace(/ · Seen/g,'');}}
       if(data.readAllowed){
         for(const bubble of history.querySelectorAll('.dm-mine')){
           const id=Number(bubble.dataset.messageId);
@@ -169,7 +178,8 @@
     const error=sendForm.querySelector('[data-dm-error]');
     try{
       const result=await fetch(sendForm.action,{method:'POST',credentials:'same-origin',headers:{accept:'application/json'},body:new FormData(sendForm)});
-      if(!result.ok)throw Error('Message could not be sent. Check its length and attachment size.');
+      if(!result.ok){let data;try{data=await result.json();}catch{}throw Error(data?.error||'Message could not be sent. Your draft and attachments are still here.');}
+      sendForm.dispatchEvent(new Event('sb:submitted'));
       sendForm.reset();
       if(error)error.textContent='';
       await updateMessages();
@@ -186,7 +196,7 @@
     const edit=e.target.closest('[data-dm-edit]'),report=e.target.closest('[data-dm-report]');
     if(edit){
       const id=edit.dataset.dmEdit;
-      const original=edit.closest('.dm-bubble').querySelector('.dm-bubble-body')?.textContent||'';
+      const original=edit.closest('.dm-bubble').querySelector('[data-message-text]')?.textContent||'';
       const body=window.prompt('Edit your message (15-minute edit window):',original);
       if(body===null)return;
       const r=await fetch('/messages/'+threadId+'/edit/'+id,{
@@ -218,6 +228,27 @@
     }catch(error){window.alert(error.message);}
     finally{if(button)button.disabled=false;}
   });
+  const older=thread?.querySelector('[data-dm-older]');
+  older?.addEventListener('click',async()=>{
+    older.disabled=true;
+    try{
+      const first=history.querySelector('[data-message-id]')?.dataset.messageId||0;
+      const data=await get('/messages/'+threadId+'/older?before='+first);
+      const height=history.scrollHeight;
+      for(const m of [...data.messages].reverse())if(!history.querySelector('[data-message-id="'+m.id+'"]')){const node=decorateCard(m.html);if(node)history.prepend(node);}
+      history.scrollTop+=history.scrollHeight-height;older.hidden=!data.hasOlder;
+    }catch{older.textContent='Could not load messages · Retry';}
+    finally{older.disabled=false;}
+  });
+  const messageSearch=thread?.querySelector('[data-message-search]');
+  const results=thread?.querySelector('[data-message-results]');
+  messageSearch?.addEventListener('submit',async e=>{
+    e.preventDefault();const q=messageSearch.elements.q.value.trim();if(!q)return;
+    results.hidden=false;results.textContent='Searching…';
+    try{const data=await get('/messages/'+threadId+'/search?q='+encodeURIComponent(q));results.replaceChildren();for(const m of data.messages){const node=decorateCard(m.html);if(node)results.append(node);}if(!data.messages.length)results.textContent='No matching messages.';}
+    catch{results.textContent='Search unavailable. Try again.';}
+  });
+  thread?.querySelector('[data-search-clear]')?.addEventListener('click',()=>{messageSearch.reset();results.replaceChildren();results.hidden=true;});
   if(history)history.scrollTop=history.scrollHeight;
   const presenceEls=()=>[...document.querySelectorAll('[data-presence-id]')];
   function updatePresence(userId,status){
@@ -254,20 +285,22 @@
   function connect(){
     if(!window.EventSource)return;
     stream=new EventSource('/live/events');
-    stream.addEventListener('ready',()=>{showConnection('Live');refreshCounts();refreshFeed();updateMessages();});
+    stream.addEventListener('ready',()=>{showConnection('Live');refreshCounts();refreshFeed();updateMessages();refreshInbox();});
     stream.addEventListener('feed-update',e=>{
       let data;try{data=JSON.parse(e.data)}catch{return;}
-      if(data.kind==='create')refreshFeed();
+      if(data.kind==='delete'){document.getElementById('post-'+data.id)?.remove();refreshVisibleCards();}
+      else if(data.kind==='create')refreshFeed();
       else if(data.kind==='repost'){refreshFeed();refreshVisibleCards();}
       else refreshVisibleCards();
     });
     stream.addEventListener('dm-update',e=>{
       let data;try{data=JSON.parse(e.data)}catch{return;}
       refreshCounts();
+      if(document.visibilityState==='hidden'&&'Notification' in window&&Notification.permission==='granted'&&Date.now()-lastBrowserAlert>10000){lastBrowserAlert=Date.now();const alert=new Notification('SB Store · Message activity',{body:'Open Messages to read your private conversations.',tag:'sb-private-message'});alert.onclick=()=>{window.focus();location.assign('/messages');};}
       if(Number(data.threadId)===threadId)updateMessages();
       else refreshInbox();
     });
-    stream.addEventListener('dm-read',()=>updateMessages());
+    stream.addEventListener('dm-read',()=>{updateMessages();refreshCounts();});
     stream.addEventListener('dm-typing',e=>{
       let data;try{data=JSON.parse(e.data)}catch{return;}
       if(Number(data.threadId)!==threadId||!typing)return;
@@ -284,6 +317,8 @@
     stream.onerror=()=>showConnection('Reconnecting');
   }
   if(window.EventSource)connect();
+  window.addEventListener('pagehide',()=>stream?.close(),{once:true});
+  window.addEventListener('pageshow',e=>{if(e.persisted)connect();});
   let lastActive=Date.now();
   ['pointerdown','keydown','scroll'].forEach(name=>document.addEventListener(name,()=>{lastActive=Date.now();},{passive:true}));
   async function beat(){
@@ -292,6 +327,6 @@
   }
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){beat();refreshCounts();refreshFeed();updateMessages();refreshInbox();}});
   setInterval(beat,30000);
-  setInterval(()=>{refreshCounts();refreshFeed();updateMessages();refreshInbox();},20000);
+  setInterval(()=>{if(document.visibilityState==='visible'){refreshCounts();refreshFeed();updateMessages();refreshInbox();}},30000);
   beat();refreshCounts();refreshFeed();refreshInbox();
 })();

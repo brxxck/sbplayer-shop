@@ -22,8 +22,8 @@ export function ownerMicrosoftPage(ctx,{configured=false,connected=false,expires
   '<p class="muted tiny">Not linked from public navigation. Only the website owner can use this page.</p>'+
   section+forget+
   '<p class="muted tiny">No Microsoft passwords, refresh tokens or access tokens are saved to disk. Revealing a token displays it once and clears the server copy.</p>'+
-  '</section><section class="panel padded narrow"><h2>MegaSMP InPvP login</h2>'+ 
-  '<p class="muted">For the five-minute team-data collector, use an encrypted InPvP browser session, not a Microsoft Graph token.</p>'+ 
+  '</section><section class="panel padded narrow"><h2>MegaSMP InPvP login</h2>'+
+  '<p class="muted">For the five-minute team-data collector, use an encrypted InPvP browser session, not a Microsoft Graph token.</p>'+
   '<a class="btn btn-primary" href="/owner/mega/session">Manage InPvP Session</a></section>');
 }
 
