@@ -8,7 +8,7 @@ export function inboxRows(threads=[]){
   return threads.map(t=>'<a class="dm-thread panel" href="/messages/'+t.id+'">'+avatar(t.peer,'md',true)+
     '<span class="dm-thread-body"><b>'+esc(t.peer.nickname||t.peer.display_name)+'</b>'+presence(t.peer.id)+
     '<small>'+esc(t.latest?(t.latest.deleted_at?'Message deleted':t.latest.body.slice(0,90)):'Start a conversation')+'</small></span>'+
-    (t.unread?'<b class="dm-unread">'+Math.min(t.unread,99)+'</b>':'')+'</a>').join('');
+    (t.unread?'<b class="dm-unread">'+Math.min(t.unread,99)+'</b>':'')+'</a>').join('')||'<div class="panel empty">No conversations yet. Visit a member profile or search above to send a message.</div>';
 }
 export function inbox(ctx,threads=[]){
   const contents=inboxRows(threads);
