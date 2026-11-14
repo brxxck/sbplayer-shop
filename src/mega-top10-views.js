@@ -44,8 +44,8 @@ function captureDisclosure(listing){
   const detail=listing.live
     ? 'Rankings are stored from the last successfully completed ten-team InPvP capture'+(isStale?' and are now older than 15 minutes':'')+'. Positions follow the source ranking; they are not sorted by the bank column. Bank values may be rounded or captured at different times; team rosters update separately.'
     : 'No successful ten-team ranking capture is available. These entries are saved reference links, not current ranks. Bank values and player lists can be missing or outdated.';
-  return '<section class="mega-data-clarity" role="status" aria-label="MegaSMP data provenance">'+
-    '<b>'+esc(label)+'</b><p>'+esc(detail)+'</p><p>Last successful ranking capture: <strong>'+
+  return '<section class="mega-data-clarity" data-top10-provenance role="status" aria-label="MegaSMP data provenance">'+
+    '<b>'+esc(label)+'</b><p data-top10-provenance-detail>'+esc(detail)+'</p><p>Last successful ranking capture: <strong>'+
     esc(date(at))+'</strong>. For the source, open the official InPvP leaderboard.</p></section>';
 }
 function topTable(listing){
