@@ -547,6 +547,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return respond(res,200,JSON.stringify({posts:posts.map(p=>({id:p.id,html:view.postCard(ctx,p,{feedPage:0,feedTab:following?'following':'all'})})),head:listPosts(ctx.user.id,{limit:1,following})[0]?.id||0}),'application/json; charset=utf-8');
     }
     if(pathname==='/messages'&&req.method==='GET')return html(communityView.inbox(ctx,dmInbox(ctx.user.id)));
+    let newMessageMatch=/^\/messages\/new\/(\d{15,22})$/.exec(pathname);
+    if(newMessageMatch&&req.method==='GET'){
+      const recipient=newMessageMatch[1];
+      const member=await discord.getGuildMember(recipient);
+      if(!member?.user||member.pending)missing();
+      upsertUser(member);ensureProfile(recipient);
+      try{return redirect(res,'/messages/'+startDm(ctx.user.id,recipient));}
+      catch(error){if(error.status)return warn('/messages',error.message);throw error;}
+    }
     if(pathname==='/messages/unread'&&req.method==='GET'){
       rate(ctx,'dm.unread',60,60000);
       return respond(res,200,JSON.stringify({unread:dmUnreadCount(ctx.user.id)}),'application/json; charset=utf-8');
