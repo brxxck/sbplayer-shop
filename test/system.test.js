@@ -101,6 +101,21 @@ test('V1.11 messaging, privacy and live feed work without granting staff access 
  assert.equal(response.status,200);
  const messages=(await response.json()).messages;
  assert.ok(messages.some(m=>m.html.includes('V1.11 hello from the community')));
+ const inboxResponse=await get('/messages/inbox-updates','member2');
+ assert.equal(inboxResponse.status,200);
+ const inboxData=await inboxResponse.json();
+ assert.match(inboxData.html,/class="dm-thread panel"/);
+ assert.match(inboxData.html,/\/messages\//);
+ const msgId=messages[0].id;
+ const edited=await post(url+'/edit/'+msgId,'member',{body:'V1.11 edited without reload'});
+ assert.equal(edited.status,303);
+ const editUpdates=await get(url+'/updates?after='+msgId,'member2');
+ assert.ok((await editUpdates.json()).changes.some(m=>m.id===msgId&&m.html.includes('edited without reload')));
+ const deleted=await post(url+'/delete/'+msgId,'member',{});
+ assert.equal(deleted.status,303);
+ const deleteUpdates=await get(url+'/updates?after='+msgId,'member2');
+ assert.ok((await deleteUpdates.json()).changes.some(m=>m.id===msgId&&m.html.includes('This message was removed')));
+
  assert.equal((await get(url+'/updates?after=0','adminA')).status,404);
  assert.equal((await get('/messages/unread','member')).status,200);
  const opts=await post('/messages/settings','member2',{allow_messages:'following',presence:'invisible',read_receipts:'0'});
