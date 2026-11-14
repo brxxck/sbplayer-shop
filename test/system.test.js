@@ -139,6 +139,35 @@ test('V1.11 messaging, privacy and live feed work without granting staff access 
  assert.ok(Array.isArray(body.posts));
 });
 
+test('Phase 1: member profile renders a real Message icon instead of raw template code',async()=>{
+  const page=await (await get('/u/'+ids.member2,'member')).text();
+  assert.match(page,/action="\/messages\/start"[\s\S]{0,1200}<button[^>]*>\s*<svg/);
+  assert.doesNotMatch(page,/\+icon\('message-circle'/);
+});
+
+test('Phase 1: reposts preview safely escaped original content and hide deleted originals',async function phaseOneRepostTest(){
+  const stamp=Date.now();
+  const source=Number(run('INSERT INTO posts(user_id,body,image_path,created_at) VALUES(?,?,?,?)',ids.member2,'Original message <script>alert("x")</script>','/uploads/phase1-test.png',stamp).lastInsertRowid);
+  const repost=Number(run('INSERT INTO posts(user_id,body,repost_of,created_at) VALUES(?,?,?,?)',ids.member,'',source,stamp+1).lastInsertRowid);
+  const card=(html)=>{const start=html.indexOf('<article id="post-'+repost+'"');assert.ok(start>=0,'repost card is visible');return html.slice(start,html.indexOf('</article>',start)+10);};
+  try{
+    const first=card(await (await get('/feed','member')).text());
+    assert.match(first,/class="repost-preview"/,'repost shows inline original content');
+    assert.match(first,/Original message &lt;script&gt;/,'untrusted original text is safely escaped');
+    assert.match(first,/Original reposted image/,'original media is displayed in the preview');
+    assert.match(first,/View original post/);
+    assert.doesNotMatch(first,/<script>alert/);
+    const details=card(await (await get('/post/'+repost,'member')).text());
+    assert.match(details,/Original message &lt;script&gt;/,'repost detail also shows original');
+    run('UPDATE posts SET deleted_at=? WHERE id=?',Date.now(),source);
+    const removed=card(await (await get('/feed','member')).text());
+    assert.match(removed,/Original post unavailable/,'deleted sources do not leak old content');
+    assert.doesNotMatch(removed,/Original message/);
+  }finally{
+    run('UPDATE posts SET deleted_at=? WHERE id IN (?,?)',Date.now(),source,repost);
+  }
+});
+
 test('Xbox gamertag profile integration is disabled cleanly until configured',async()=>{
  const p=await get('/profile/edit','member');
  assert.equal(p.status,200);
@@ -808,6 +837,28 @@ test('one admin approval does not finalize; two distinct admins approve and Disc
   const dash=await (await get('/dashboard','member')).text();assert.ok(dash.includes('accepted'));
 });
 
+async function phaseOnePendingApplicationTest(app){
+  const link='/staff/applications/'+app.id;
+  const page=await (await get(link,'adminC')).text();
+  assert.match(page,/Awaiting unk\.sb final approval/);
+  assert.doesNotMatch(page,new RegExp('action="'+link+'/interview"'),'owner-pending ticket must not offer interview state');
+  assert.equal((await post(link+'/interview','adminC',{})).status,303);
+  assert.equal(one('SELECT status FROM applications WHERE id=?',app.id).status,'reviewing','consensus cannot be overwritten by interview status');
+  const oldVotes=one('SELECT COUNT(*) AS n FROM reviewer_votes WHERE application_id=?',app.id).n;
+  assert.equal((await post(link+'/review','reviewer',{choice:'accept'})).status,303);
+  assert.equal(one('SELECT COUNT(*) AS n FROM reviewer_votes WHERE application_id=?',app.id).n,oldVotes,'advisory reviews are closed after consensus');
+  const queue=await (await get('/staff','reviewer')).text();
+  assert.ok(!queue.includes('href="'+link+'"'),'owner-pending applications leave reviewer queue');
+  const adminList=await (await get('/staff','adminA')).text();
+  assert.match(adminList,/Awaiting owner/,'admin queue labels owner-pending state clearly');
+}
+async function phaseOneFinalApplicationTest(app){
+  const page=await (await get('/staff/applications/'+app.id,'adminA')).text();
+  assert.match(page,/Final owner decision:/);
+  assert.match(page,/Final outcome/,'owner final panel shows the completed outcome');
+  assert.doesNotMatch(page,/Awaiting unk\.sb final approval/,'finalized ticket must not claim pending approval');
+  assert.doesNotMatch(page,/Mark as interviewing/,'finalized ticket cannot be reopened with interview');
+}
 test('two matching admin denials finalize without assigning Discord roles',async()=>{
   assert.equal((await post('/apply','member2',answers)).status,303);
   const a=one('SELECT * FROM applications WHERE user_id=?',ids.member2);
@@ -815,8 +866,10 @@ test('two matching admin denials finalize without assigning Discord roles',async
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
   assert.equal((await post(`/staff/applications/${a.id}/decide`,'adminB',{choice:'deny'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'reviewing');
+  await phaseOnePendingApplicationTest(a);
   assert.equal((await post(`/owner/applications/${a.id}/action`,'owner',{action:'approve'})).status,303);
   assert.equal(one('SELECT status FROM applications WHERE id=?',a.id).status,'denied');
+  await phaseOneFinalApplicationTest(a);
   assert.equal(memberMap.get(ids.member2).roles.includes(roles.tempMod),false);
 });
 
