@@ -1,6 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {DatabaseSync} from 'node:sqlite';
-import {mkdirSync} from 'node:fs';
+import {mkdirSync,existsSync} from 'node:fs';
 import {dirname} from 'node:path';
 import {config} from './config.js';
 if (config.dbPath!==':memory:') mkdirSync(dirname(config.dbPath),{recursive:true});
@@ -143,6 +143,53 @@ CREATE TABLE IF NOT EXISTS owner_audit_log (
 CREATE INDEX IF NOT EXISTS idx_owner_audit_actor ON owner_audit_log(actor_id,id DESC);
 CREATE INDEX IF NOT EXISTS idx_owner_audit_action ON owner_audit_log(action,id DESC);
 `);
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// V1.18.4: allow confidential team applications inside the existing support
+// ticket table. Old support records, attachments, messages and IDs must survive.
+const supportSchema=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='support_tickets'").get()?.sql||'';
+if(!supportSchema.includes("'team_application'")){
+  // SQLite cannot change a CHECK constraint with ALTER TABLE.
+  // Back up on Railway *before* rebuilding; do not change DB_PATH.
+  if(config.production&&config.dbPath!==':memory:'){
+    const backup=config.dbPath+'.pre-recruitment-support.backup';
+    if(!existsSync(backup))db.prepare('VACUUM INTO ?').run(backup);
+  }
+  const columns=['id','user_id','category','fields_json','reported_user_id','visibility','status',
+    'created_at','updated_at','resolved_at','resolved_by','last_staff_ping_at','applicant_seen_at'];
+  const existing=db.prepare('PRAGMA table_info(support_tickets)').all().map(c=>c.name);
+  if(existing.join(',')!==columns.join(','))throw new Error('Unexpected ticket schema; recruitment migration stopped before changing data.');
+  const originalCount=db.prepare('SELECT COUNT(*) n FROM support_tickets').get().n;
+  const originalSequence=db.prepare("SELECT seq FROM sqlite_sequence WHERE name='support_tickets'").get()?.seq||0;
+  db.exec('PRAGMA foreign_keys=OFF');
+  try{
+    db.exec('BEGIN IMMEDIATE');
+    db.exec([
+      'CREATE TABLE support_tickets_recruitment_v1184 (',
+      'id INTEGER PRIMARY KEY AUTOINCREMENT,',
+      'user_id TEXT NOT NULL REFERENCES users(id),',
+      "category TEXT NOT NULL CHECK(category IN ('bug_report','player_report','reward_claim','staff_report','ban_appeal','team_application')),",
+      "fields_json TEXT NOT NULL,reported_user_id TEXT NOT NULL DEFAULT '',",
+      "visibility TEXT NOT NULL DEFAULT 'staff' CHECK(visibility IN ('staff','admin','owner')),",
+      "status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewing','resolved')),",
+      'created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,',
+      'resolved_at INTEGER,resolved_by TEXT,last_staff_ping_at INTEGER NOT NULL DEFAULT 0,',
+      'applicant_seen_at INTEGER NOT NULL DEFAULT 0)'
+    ].join(''));
+    db.exec('INSERT INTO support_tickets_recruitment_v1184 ('+columns.join(',')+
+      ') SELECT '+columns.join(',')+' FROM support_tickets');
+    if(db.prepare('SELECT COUNT(*) n FROM support_tickets_recruitment_v1184').get().n!==originalCount)
+      throw new Error('Support ticket migration count mismatch');
+    db.exec('DROP TABLE support_tickets; ALTER TABLE support_tickets_recruitment_v1184 RENAME TO support_tickets;');
+    db.exec('CREATE INDEX idx_support_owner ON support_tickets(user_id,updated_at DESC); CREATE INDEX idx_support_queue ON support_tickets(status,updated_at DESC);');
+    // Preserve AUTOINCREMENT even when the previously highest ticket was deleted.
+    db.prepare("UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name='support_tickets'").run(originalSequence);
+    if(db.prepare('PRAGMA foreign_key_check').all().length)throw new Error('Support ticket foreign keys would be broken by migration');
+    db.exec('COMMIT');
+  }catch(error){try{db.exec('ROLLBACK');}catch{}throw error;}
+  finally{db.exec('PRAGMA foreign_keys=ON');}
+  if(db.prepare('PRAGMA foreign_key_check').all().length)throw new Error('Support ticket foreign-key verification failed');
+}
+
 // Safe additive migration for databases copied from the original V1.0/V1.1 project.
 const appColumns=new Set(db.prepare('PRAGMA table_info(applications)').all().map(x=>x.name));
 for(const [name,def] of Object.entries({
