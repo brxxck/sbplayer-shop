@@ -134,7 +134,7 @@ const ipOf=req=>{
   const remote=String(req.socket.remoteAddress||'').slice(0,90);
   return config.trustProxy?String(req.headers['x-forwarded-for']||remote).split(',')[0].trim().slice(0,90):remote;
 };
-function headerError(err){if(err instanceof HttpError)return err;if([400,413,415].includes(err?.status))return new HttpError(err.status,String(err.message).slice(0,300));return new HttpError(500,'An unexpected error occurred.');}
+function headerError(err){if(err instanceof HttpError)return err;if(Number.isInteger(err?.status)&&err.status>=400&&err.status<500)return new HttpError(err.status,String(err.message).slice(0,300));return new HttpError(500,'An unexpected error occurred.');}
 function csrfForm(form,ctx){if(!ctx.session || !secureEqual(form.fields._csrf,ctx.session.csrf))forbidden('Session verification failed. Refresh the page and retry.');}
 const formValue=(fields,name,max,min=0)=>{const val=limitText(fields[name],max,min);if(val===null)invalid(`Invalid or missing field: ${name}`);return val;};
 const validVote=choice=>['accept','deny'].includes(choice);
