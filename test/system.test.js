@@ -851,6 +851,12 @@ async function phaseOnePendingApplicationTest(app){
   assert.ok(!queue.includes('href="'+link+'"'),'owner-pending applications leave reviewer queue');
   const adminList=await (await get('/staff','adminA')).text();
   assert.match(adminList,/Awaiting owner/,'admin queue labels owner-pending state clearly');
+  const applicantDashboard=await (await get('/dashboard','member2')).text();
+  assert.match(applicantDashboard,/Awaiting owner/,'applicant dashboard shows owner-pending status');
+  const applicantTicket=await (await get('/dashboard/applications/'+app.id,'member2')).text();
+  assert.match(applicantTicket,/Awaiting owner/,'private applicant ticket shows the same status');
+  const staffHome=await (await get('/','adminA')).text();
+  assert.match(staffHome,/Awaiting owner/,'staff command centre shares owner-pending status');
 }
 async function phaseOneFinalApplicationTest(app){
   const page=await (await get('/staff/applications/'+app.id,'adminA')).text();
@@ -858,6 +864,9 @@ async function phaseOneFinalApplicationTest(app){
   assert.match(page,/class="pill pill-denied"/,'the staff page shows the final denied outcome');
   assert.doesNotMatch(page,/Awaiting unk\.sb final approval/,'finalized ticket must not claim pending approval');
   assert.doesNotMatch(page,/Mark as interviewing/,'finalized ticket cannot be reopened with interview');
+  const applicant=await (await get('/dashboard/applications/'+app.id,'member2')).text();
+  assert.match(applicant,/pill-denied/,'applicant receives the final decision');
+  assert.doesNotMatch(applicant,/Awaiting owner/,'final applicant status takes priority over historic consensus');
 }
 test('two matching admin denials finalize without assigning Discord roles',async()=>{
   assert.equal((await post('/apply','member2',answers)).status,303);
