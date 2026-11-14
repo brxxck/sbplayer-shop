@@ -276,7 +276,7 @@ test('static CSS and JS are served no-store even with version query; logo is rec
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/no-store/);
   }
-  for(const path of ['/static/style.css?v=1.18.2','/static/polish.css?v=1.18.2','/static/community.js?v=1.18.2']){
+  for(const path of ['/static/style.css?v=1.18.3','/static/polish.css?v=1.18.3','/static/community.js?v=1.18.3']){
     const resp=await fetch(base+path);
     assert.equal(resp.status,200);
     assert.match(resp.headers.get('cache-control'),/public, max-age=31536000, immutable/);
