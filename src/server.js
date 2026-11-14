@@ -591,7 +591,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!Number.isSafeInteger(after)||after<0)invalid();
       const details=dmHistory(id,ctx.user.id);
       const messages=details.messages.filter(m=>m.id>after);
-      return respond(res,200,JSON.stringify({messages:messages.map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,details.otherRead)})),lastRead:details.otherRead,readAllowed:details.readAllowed}),'application/json; charset=utf-8');
+      return respond(res,200,JSON.stringify({messages:messages.map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,details.otherRead)})),changes:details.messages.filter(m=>m.id<=after&&(m.edited_at||m.deleted_at)).map(m=>({id:m.id,html:communityView.messageFragment(ctx,id,m,details.otherRead)})),lastRead:details.otherRead,readAllowed:details.readAllowed}),'application/json; charset=utf-8');
     }
     dmMatch=/^\/messages\/(\d+)\/send$/.exec(pathname);
     if(dmMatch&&req.method==='POST'){
