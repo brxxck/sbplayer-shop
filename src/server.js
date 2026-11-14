@@ -144,15 +144,19 @@ function logAction(ctx,action,target='',details={},outcome='ok') {
 }
 function loadPosts(viewerId,page=0,userId=null,limit=20){return listPosts(viewerId,{page,userId,limit});}
 const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.gif':'image/gif','.webp':'image/webp'};
-async function serveStatic(res,path) {
+async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/style.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
-  // CSS/JS change between releases. Never let an old stylesheet break a newer HTML layout.
-  const cacheControl = ['.css','.js'].includes(extname(file)) ? 'no-store, max-age=0' : 'public, max-age=3600';
+  // Only the exact deployed version is cache-immutable. Old/unversioned URLs revalidate.
+  // Bump view.assetVersion on any CSS/JS change before rolling out a new deployment.
+  const isScriptOrStyle=['.css','.js'].includes(extname(file));
+  const cacheControl=isScriptOrStyle
+    ? (requestedAssetVersion===view.assetVersion?'public, max-age=31536000, immutable':'no-store, max-age=0')
+    : 'public, max-age=3600';
   respond(res,200,readFileSync(file),safeStatic[extname(file)]||'application/octet-stream',{'cache-control':cacheControl,'x-content-type-options':'nosniff'});
   return true;
 }
@@ -278,8 +282,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const privateOwner=one('SELECT user_id FROM profiles WHERE public=0 AND (avatar_path=? OR banner_path=? OR background_path=?)',pathname,pathname,pathname);
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
-    if(req.method==='GET'&&await serveStatic(res,pathname))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.11.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.11.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/'&&req.method==='GET'){
       if(!ctx.user)return html(view.home(ctx));
       await member();
@@ -2052,5 +2056,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.11.0 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.11.1 running at ${config.baseUrl}`));
 }
