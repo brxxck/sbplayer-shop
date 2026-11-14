@@ -855,7 +855,7 @@ async function phaseOnePendingApplicationTest(app){
 async function phaseOneFinalApplicationTest(app){
   const page=await (await get('/staff/applications/'+app.id,'adminA')).text();
   assert.match(page,/Final owner decision:/);
-  assert.match(page,/Final outcome/,'owner final panel shows the completed outcome');
+  assert.match(page,/class="pill pill-denied"/,'the staff page shows the final denied outcome');
   assert.doesNotMatch(page,/Awaiting unk\.sb final approval/,'finalized ticket must not claim pending approval');
   assert.doesNotMatch(page,/Mark as interviewing/,'finalized ticket cannot be reopened with interview');
 }
