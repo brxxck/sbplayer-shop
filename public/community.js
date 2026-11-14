@@ -16,12 +16,29 @@
     return r.json();
   };
   let stream;
-  document.querySelector('[data-dm-filter]')?.addEventListener('input',event=>{
-    const q=event.target.value.trim().toLocaleLowerCase();
-    for(const item of document.querySelectorAll('[data-dm-list] .dm-thread')){
+  const inbox=document.querySelector('[data-dm-inbox]');
+  const inboxList=inbox?.querySelector('[data-dm-list]');
+  const inboxFilter=inbox?.querySelector('[data-dm-filter]');
+  let inboxLoading=false;
+  function applyInboxFilter(){
+    const q=(inboxFilter?.value||'').trim().toLocaleLowerCase();
+    for(const item of inboxList?.querySelectorAll('.dm-thread')||[])
       item.hidden=!!q&&!item.textContent.toLocaleLowerCase().includes(q);
-    }
-  });
+  }
+  inboxFilter?.addEventListener('input',applyInboxFilter);
+  async function refreshInbox(){
+    if(!inboxList||inboxLoading||document.visibilityState==='hidden')return;
+    inboxLoading=true;
+    try{
+      const result=await get('/messages/inbox-updates');
+      if(inboxList.innerHTML!==result.html){
+        inboxList.innerHTML=result.html;
+        applyInboxFilter();
+        refreshCounts();
+      }
+    }catch{/* Preserve current conversations; retry on next update. */}
+    finally{inboxLoading=false;}
+  }
   const feed=document.querySelector('[data-live-feed]');
   const list=feed?.querySelector('[data-feed-list]');
   const banner=feed?.querySelector('[data-feed-banner]');
@@ -117,7 +134,8 @@
       for(const m of data.changes||[]){
         const existing=history.querySelector('[data-message-id="'+m.id+'"]');
         const updated=decorateCard(m.html);
-        if(existing&&updated)existing.replaceWith(updated);
+        if(existing&&updated&&existing.dataset.messageVersion!==updated.dataset.messageVersion)
+          existing.replaceWith(updated);
       }
       for(const m of data.messages||[]){
         if(m.id<=lastMessage)continue;
@@ -173,7 +191,7 @@
       if(body===null)return;
       const r=await fetch('/messages/'+threadId+'/edit/'+id,{
         method:'POST',credentials:'same-origin',body:formBody({body})});
-      if(r.ok)window.location.reload();
+      if(r.ok)await updateMessages();
       else window.alert('Could not edit the message.');
     }
     if(report){
@@ -184,10 +202,26 @@
       window.alert(r.ok?'Report submitted for staff review.':'Unable to submit report. Use 10 to 500 characters.');
     }
   });
+  history?.addEventListener('submit',async event=>{
+    const form=event.target.closest('form[action*="/delete/"]');
+    if(!form)return;
+    event.preventDefault();
+    const button=form.querySelector('button[type="submit"]');
+    if(button?.disabled)return;
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch(form.action,{
+        method:'POST',credentials:'same-origin',body:new FormData(form)
+      });
+      if(!response.ok)throw Error('Unable to delete the message.');
+      await updateMessages();
+    }catch(error){window.alert(error.message);}
+    finally{if(button)button.disabled=false;}
+  });
   if(history)history.scrollTop=history.scrollHeight;
-  const presenceEls=[...document.querySelectorAll('[data-presence-id]')];
+  const presenceEls=()=>[...document.querySelectorAll('[data-presence-id]')];
   function updatePresence(userId,status){
-    for(const el of presenceEls)if(el.dataset.presenceId===String(userId)){
+    for(const el of presenceEls())if(el.dataset.presenceId===String(userId)){
       el.dataset.status=status;
       const label=el.querySelector('.presence-label');
       if(label)label.textContent=status==='online'?'Online':status==='away'?'Away':'Offline';
@@ -195,7 +229,7 @@
   }
   async function refreshCounts(){
     try{
-      const ids=[...new Set(presenceEls.map(el=>el.dataset.presenceId))].slice(0,50).join(',');
+      const ids=[...new Set(presenceEls().map(el=>el.dataset.presenceId))].slice(0,50).join(',');
       const data=await get('/live/state?ids='+encodeURIComponent(ids));
       for(const [id,status] of Object.entries(data.statuses||{}))updatePresence(id,status);
       const num=Number(data.unreadMessages)||0;
@@ -212,7 +246,10 @@
   }
   function showConnection(state){
     const badge=document.querySelector('[data-live-connection]');
-    if(badge)badge.textContent=state;
+    if(badge){
+      badge.textContent=state;
+      badge.dataset.connection=state.toLowerCase();
+    }
   }
   function connect(){
     if(!window.EventSource)return;
@@ -228,7 +265,7 @@
       let data;try{data=JSON.parse(e.data)}catch{return;}
       refreshCounts();
       if(Number(data.threadId)===threadId)updateMessages();
-      else if(document.querySelector('[data-dm-inbox]'))window.location.reload();
+      else refreshInbox();
     });
     stream.addEventListener('dm-read',()=>updateMessages());
     stream.addEventListener('dm-typing',e=>{
@@ -253,8 +290,8 @@
     if(document.visibilityState==='hidden')return;
     try{await post('/live/ping',{active:Date.now()-lastActive<300000?'1':'0'});}catch{/* retry */}
   }
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){beat();refreshCounts();refreshFeed();updateMessages();}});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){beat();refreshCounts();refreshFeed();updateMessages();refreshInbox();}});
   setInterval(beat,30000);
-  setInterval(()=>{refreshCounts();refreshFeed();updateMessages();},20000);
-  beat();refreshCounts();refreshFeed();
+  setInterval(()=>{refreshCounts();refreshFeed();updateMessages();refreshInbox();},20000);
+  beat();refreshCounts();refreshFeed();refreshInbox();
 })();
