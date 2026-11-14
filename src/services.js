@@ -12,8 +12,9 @@ export const activeApplication=id=>one("SELECT id FROM applications WHERE user_i
 export const latestApplication=id=>one('SELECT created_at FROM applications WHERE user_id=? ORDER BY created_at DESC LIMIT 1',id);
 export const applicationCounts=()=>Object.fromEntries(all('SELECT status,count(*) count FROM applications GROUP BY status').map(x=>[x.status,x.count]));
 export function staffQueue(userId,admin){
-  return admin?all('SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT 250'):
-  all("SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') AND NOT EXISTS(SELECT 1 FROM reviewer_votes v WHERE v.application_id=a.id AND v.reviewer_id=?) ORDER BY a.created_at DESC LIMIT 200",userId);
+  const ownerPending="EXISTS(SELECT 1 FROM admin_decisions d WHERE d.application_id=a.id GROUP BY d.choice HAVING COUNT(*)>=2)";
+  return admin?all('SELECT a.*,u.username,u.display_name,u.avatar,'+ownerPending+' AS awaiting_owner FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT 250'):
+  all("SELECT a.*,u.username,u.display_name,u.avatar FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') AND NOT EXISTS(SELECT 1 FROM reviewer_votes v WHERE v.application_id=a.id AND v.reviewer_id=?) AND NOT "+ownerPending+" ORDER BY a.created_at DESC LIMIT 200",userId);
 }
 export const reviewerVotes=id=>all('SELECT v.*,u.display_name FROM reviewer_votes v JOIN users u ON u.id=v.reviewer_id WHERE v.application_id=? ORDER BY v.created_at',id);
 export const adminVotes=id=>all('SELECT v.*,u.display_name FROM admin_decisions v JOIN users u ON u.id=v.admin_id WHERE v.application_id=? ORDER BY v.created_at',id);
@@ -21,6 +22,8 @@ export function reviewerVote({appId,userId,choice,note,role,ip}){
   return transaction(()=>{
     const a=application(appId);if(!a || isFinal(a.status))throw new Error('Application unavailable');
     if(one('SELECT 1 FROM reviewer_votes WHERE application_id=? AND reviewer_id=?',appId,userId))throw new Error('You have already voted');
+    if(one('SELECT 1 FROM admin_decisions WHERE application_id=? GROUP BY choice HAVING COUNT(*)>=2 LIMIT 1',appId))
+      throw new Error('Application is awaiting owner review; reviewer voting is closed');
     run('INSERT INTO reviewer_votes (application_id,reviewer_id,choice,note,created_at) VALUES(?,?,?,?,?)',appId,userId,choice,note,Date.now());
     if(a.status==='pending')run("UPDATE applications SET status='reviewing',updated_at=? WHERE id=?",Date.now(),appId);
     appendAudit(db,{actor:userId,role,action:'reviewer.vote',target:'application:'+appId,details:{choice,note},ip});
@@ -55,6 +58,9 @@ export function listPosts(viewerId,{page=0,userId=null,limit=20,following=false,
   if(media)where.push("p.image_path!=''");
   if(likesFor){where.push('EXISTS(SELECT 1 FROM post_likes pl WHERE pl.post_id=p.id AND pl.user_id=?)');args.push(likesFor);}
   const sql=`SELECT p.*,u.username,u.display_name,u.avatar,pr.nickname,pr.avatar_path,
+  op.id AS original_id,op.body AS original_body,op.image_path AS original_image_path,
+  op.created_at AS original_created_at,ou.username AS original_username,
+  ou.display_name AS original_display_name,opr.nickname AS original_nickname,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id=p.id) AS like_count,
   (SELECT COUNT(*) FROM comments c WHERE c.kind='post' AND c.target_id=CAST(p.id AS TEXT) AND c.deleted_at IS NULL) AS comment_count,
   (SELECT COUNT(*) FROM posts rp WHERE rp.repost_of=p.id AND rp.deleted_at IS NULL) AS repost_count,
@@ -62,10 +68,15 @@ export function listPosts(viewerId,{page=0,userId=null,limit=20,following=false,
   EXISTS(SELECT 1 FROM posts r WHERE r.repost_of=p.id AND r.user_id=? AND r.deleted_at IS NULL) AS reposted,
   EXISTS(SELECT 1 FROM post_bookmarks b WHERE b.post_id=p.id AND b.user_id=?) AS bookmarked
   FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN profiles pr ON pr.user_id=u.id
+  LEFT JOIN posts op ON op.id=p.repost_of AND op.deleted_at IS NULL
+  LEFT JOIN users ou ON ou.id=op.user_id LEFT JOIN profiles opr ON opr.user_id=ou.id
   WHERE ${where.join(' AND ')} ORDER BY p.created_at DESC LIMIT ? OFFSET ?`;
   return all(sql,viewerId,viewerId,viewerId,...args,limit,Math.min(1000,Math.max(0,page))*limit);
 }
 export function postDetails(id,viewerId){return one(`SELECT p.*,u.username,u.display_name,u.avatar,pr.nickname,pr.avatar_path,
+  op.id AS original_id,op.body AS original_body,op.image_path AS original_image_path,
+  op.created_at AS original_created_at,ou.username AS original_username,
+  ou.display_name AS original_display_name,opr.nickname AS original_nickname,
   (SELECT COUNT(*) FROM post_likes WHERE post_id=p.id) AS like_count,
   (SELECT COUNT(*) FROM comments WHERE kind='post' AND target_id=CAST(p.id AS TEXT) AND deleted_at IS NULL) AS comment_count,
   (SELECT COUNT(*) FROM posts WHERE repost_of=p.id AND deleted_at IS NULL) AS repost_count,
@@ -73,6 +84,8 @@ export function postDetails(id,viewerId){return one(`SELECT p.*,u.username,u.dis
   EXISTS(SELECT 1 FROM posts WHERE repost_of=p.id AND user_id=? AND deleted_at IS NULL) AS reposted,
   EXISTS(SELECT 1 FROM post_bookmarks b WHERE b.post_id=p.id AND b.user_id=?) AS bookmarked
   FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN profiles pr ON pr.user_id=p.user_id
+  LEFT JOIN posts op ON op.id=p.repost_of AND op.deleted_at IS NULL
+  LEFT JOIN users ou ON ou.id=op.user_id LEFT JOIN profiles opr ON opr.user_id=ou.id
   WHERE p.id=? AND p.deleted_at IS NULL`,viewerId,viewerId,viewerId,id);
 }
 export const listComments=(kind,targetId)=>all(`SELECT c.*,u.username,u.display_name,u.avatar,p.nickname FROM comments c JOIN users u ON c.user_id=u.id LEFT JOIN profiles p ON p.user_id=u.id WHERE c.kind=? AND c.target_id=? AND c.deleted_at IS NULL ORDER BY c.created_at ASC LIMIT 300`,kind,String(targetId));
