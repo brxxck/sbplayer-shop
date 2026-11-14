@@ -1,7 +1,17 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.11.0
+# SB's & Cam's Store — Community Portal V1.11.1
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.11.1 — Polished motion, smoother messages and safer asset caching
+
+- Add `public/polish.css`, adapted from the supplied SB Store polish layer: subtle feed action feedback, new-post animations, DM bubble transitions, off-screen feed rendering, mobile navigation snapping and improved focus rings. The original dark-blue visual theme remains unchanged.
+- Preserve `prefers-reduced-motion`, and only pulse the live indicator when actually connected; reconnection displays a non-pulsing amber dot.
+- Replace the inbox full-page reload with an authenticated `/messages/inbox-updates` HTML fragment refresh that retains the conversation filter and unread counters.
+- Edit and delete DM bubbles in place without a hard refresh. Message revision stamps prevent old edits/deletions from repeatedly replaying animations.
+- Cache CSS and JS as `public, max-age=31536000, immutable` **only for the exact current `?v=1.11.1-polish` URL**. Unversioned and stale-version asset requests remain `no-store`. The HTML and private ticket/message endpoints retain their existing privacy headers.
+- Required on every future asset change: bump `assetVersion` in `src/views.js` so clients do not reuse stale CSS/JS. There are no database migrations or new dependencies in this release.
+- Verify with `npm test` and confirm `/health` reports `1.11.1`. This change does not include a standalone clickable before/after preview.
 
 ## V1.11.0 — Live Community and Private Messaging
 
