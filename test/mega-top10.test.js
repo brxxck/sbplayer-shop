@@ -18,6 +18,8 @@ const {captureTop10Leaderboard}=await import('../src/mega-top10-collector.js');
 const {allMegaPlayerProfileLinks,linkMegaPlayerProfile,unlinkMegaPlayerProfile}=
  await import('../src/mega-player-profile-links.js');
 const {MEGA_TEAM_ID}=await import('../src/mega-team.js');
+const {megaLeaderboardPage,megaHubPage}=await import('../src/mega-top10-views.js');
+const previewContext={pathname:'/mega-team/leaderboard',user:null,role:'none',csrf:'',config:{}};
 after(()=>{db.close();rmSync(temp,{recursive:true,force:true});});
 
 const initial=()=>KNOWN_TEAM_LINKS.map(([name,id],i)=>({
@@ -33,6 +35,12 @@ test('ten supplied team links are stored as reference URLs, not fake live ranks'
  assert.equal(listing.teams.find(x=>x.name==='richmans').id,'377007');
  assert.equal(listing.teams[0].id,KNOWN_TEAM_LINKS[0][1]);
  assert.equal(verifyTeamLink(listing.teams[0].url).id,KNOWN_TEAM_LINKS[0][1]);
+});
+test('Phase 1: source-unverified Top 10 pages label reference links as unranked',()=>{
+ const html=megaLeaderboardPage(previewContext,top10Leaderboard());
+ assert.match(html,/Reference teams · NO VERIFIED RANKING/);
+ assert.match(html,/No successful ten-team ranking capture/);
+ assert.doesNotMatch(html,/Latest verified listing/);
 });
 test('official URL validation rejects unrelated sites, escaped URLs and wrong gamemodes',()=>{
  assert.equal(verifyTeamLink(canonicalTeamLink('SBsxScam',MEGA_TEAM_ID)).id,MEGA_TEAM_ID);
@@ -66,6 +74,17 @@ test('verified listing sets current positions without inventing missing fields',
  assert.equal(top10NextDue().id,KNOWN_TEAM_LINKS[0][1]);
  noteTopTeamAttempt(KNOWN_TEAM_LINKS[0][1]);
  assert.equal(top10NextDue().id,MEGA_TEAM_ID,'details stagger across teams');
+});
+test('Phase 1: saved Top 10 rankings disclose snapshot age, origin and bank caveats',()=>{
+ const listing=top10Leaderboard();
+ assert.equal(listing.live,true);
+ const html=megaLeaderboardPage(previewContext,listing);
+ assert.match(html,/Saved InPvP ranking · NOT LIVE/);
+ assert.match(html,/Positions follow the source ranking; they are not sorted by the bank column/);
+ assert.match(html,/Last successful ranking capture/);
+ const hub=megaHubPage(previewContext,{listing,megaContent:'<div>Sample dashboard</div>'});
+ assert.match(hub,/NOT LIVE/);
+ assert.match(hub,/Sample dashboard/);
 });
 test('new Top 10 entry auto replaces a displaced team but keeps its history and real URL',()=>{
  const updated=initial();
