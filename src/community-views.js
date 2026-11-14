@@ -13,7 +13,7 @@ export function inbox(ctx,threads=[]){
   return shell(ctx,'Messages','<section class="dm-page" data-dm-inbox>'+titlebar('PRIVATE CONVERSATIONS','Your <span class="gradient">messages.</span>','Conversations stay private between participants.')+
     '<div class="dm-grid"><div class="stack"><form class="panel padded" method="post" action="/messages/start">'+token(ctx)+
     '<label>Start a new conversation <input name="q" placeholder="Member username or Discord ID" maxlength="80" required></label><button class="btn btn-primary" type="submit">Find and message</button></form>'+
-    '<section class="stack">'+(contents||'<div class="panel empty">No conversations yet. Visit a member profile or search above to send a message.</div>')+'</section></div>'+
+    '<section class="stack"><label>Filter conversations<input type="search" data-dm-filter placeholder="Search your conversations" autocomplete="off"></label><div class="stack" data-dm-list>'+(contents||'<div class="panel empty">No conversations yet. Visit a member profile or search above to send a message.</div>')+'</div></section></div>'+
     '<section class="panel padded"><h2>Messaging settings</h2><form method="post" action="/messages/settings">'+token(ctx)+
     '<label>Who can message you <select name="allow_messages">'+
     [['members','All website members'],['following','People I follow'],['nobody','Nobody']].map(([value,label])=>'<option value="'+value+'" '+(settings.allow_messages===value?'selected':'')+'>'+label+'</option>').join('')+
