@@ -1,7 +1,18 @@
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-# SB's & Cam's Store — Community Portal V1.11.1
+# SB's & Cam's Store — Community Portal V1.12.0 (Phase 1)
 
 **Discord-authenticated staff applications, reviewer voting, admin consensus, Twitter-like posts, suggestions, customizable profiles, Team Members, Discord role management, and an owner-only tamper-evident audit.** The website retains the requested navy/electric-blue theme, supplied SB logo, and signed-in Discord username/avatar. This repository powers the Railway-hosted website and also supports local Node development.
+
+## V1.12.0 — Phase 1: Correctness and Trust
+
+- Correct the broken **Message** icon on member profiles; the Discord-verified POST form remains CSRF-protected.
+- Ensure final owner decisions take precedence over historical admin recommendations in the application UI. Show a clear final outcome/date; do not claim finalized tickets are still awaiting unk.sb.
+- Once two distinct admins reach consensus, disable conflicting interview and optional reviewer votes both in the page and on POST routes. Hide owner-pending tickets from reviewer queues, and display **Awaiting owner** in the admin queue. Existing owner approval and required role-delivery checks are preserved.
+- Render the **original author, text and media within repost cards** in the feed, post details, saved posts and profiles. Source data is looked up using a left join, escaped before HTML rendering, and omitted for deleted originals with a safe unavailable placeholder. Nested reposts remain disallowed.
+- Display prominent **NOT LIVE / saved snapshot** provenance, source freshness, partial roster coverage and bank-data caveats throughout MegaSMP. Top 10 positions come from InPvP's captured ranking, not from sorting bank balances. Keep labels consistent during AJAX refreshes.
+- Maintain the previously merged V1.11.1 motion polish and version-aware asset caching. Bump all CSS/JS URLs to \`1.12.0-phase1\` so clients receive the updated assets. No new dependencies or database migrations.
+- Tests cover profile HTML, escaped repost content, deleted originals, locked approval actions, final status precedence, privacy checks and snapshot banners.
+- **Deployment:** Before a Railway production rollout, back up persistent \`/app/data\`, check \`/health\` returns \`1.12.0\`, and verify owner approval, two-browser message delivery, reposts and the MegaSMP data labels.
 
 ## V1.11.1 — Polished motion, smoother messages and safer asset caching
 

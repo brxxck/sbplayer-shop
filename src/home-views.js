@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-import {shell,esc,avatar,tag,token,titlebar} from './views.js';
+import {shell,esc,avatar,tag,token,titlebar,applicationStatusTag} from './views.js';
 import {categoryLabel} from './support.js';
 import {icon} from './icons.js';
 
@@ -76,7 +76,7 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
        <div class="dash-ticket-list">${items.length?items.map(t=>`<a class="dash-ticket-row" href="${t.href}">
          <span class="ticket-type-label ticket-type-${esc(t.category)}">${categoryLabel(t.category)}</span>
          <span class="dash-ticket-member"><b>${esc(t.display_name||'Member')}</b><small>#${esc(t.displayId||t.id)} · ${date(t.updated_at)}</small></span>
-         <span class="dash-ticket-status">${tag(t.status)}</span>
+         <span class="dash-ticket-status">${t.category==='application'?applicationStatusTag(t):tag(t.status)}</span>
        </a>`).join(''):'<div class="empty">No active tickets.</div>'}</div>
      </section>
    </div>

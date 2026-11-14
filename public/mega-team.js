@@ -132,6 +132,10 @@
     !data.sync?.last_success?'Awaiting first authorized sync':
     sourceAt&&Date.now()-sourceAt>15*60000?'Source outdated — showing last saved values':
     'Authorized feed last synced '+date(data.sync.last_success);
+   const summaryCoverage=root.querySelector('[data-mega-banner-coverage]');
+   if(summaryCoverage&&coverage)summaryCoverage.textContent=coverage.textContent;
+   const summarySync=root.querySelector('[data-mega-banner-sync]');
+   if(summarySync&&indicator)summarySync.textContent=indicator.textContent;
    rebuildRows(data);
    if(status)status.textContent='Updated from saved records '+new Date().toLocaleTimeString();
   }catch{

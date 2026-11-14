@@ -882,3 +882,22 @@ input:not([type=checkbox]):not([type=file]),select,textarea{border-radius:8px;ba
 
 /* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
 .dm-thread[hidden]{display:none!important}
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Phase 1: distinguish source-of-truth states and render original content in reposts. */
+.repost-preview{border:1px solid #355478;border-radius:13px;padding:17px 18px;background:rgba(11,27,51,.7);margin:12px 0 6px;display:grid;gap:9px;overflow-wrap:anywhere}
+.repost-preview-head{display:flex;flex-wrap:wrap;gap:4px 9px;align-items:baseline;color:#b2c9e4;font-size:12px}
+.repost-preview-head a{color:#dceeff;font-weight:750}
+.repost-preview-head span{font-size:11px;color:#91abcd}
+.repost-preview .post-body{margin:4px 0;font-size:13px}
+.repost-preview .post-image{max-height:345px}
+.repost-preview .quiet-link{width:fit-content}
+.repost-unavailable{color:#9eb4cf;font-size:12px}
+.pill-awaiting_owner{color:#f8d995;background:#493821;border-color:#876b3b}
+.mega-data-clarity{border:1px solid #947241;background:linear-gradient(110deg,rgba(65,49,30,.92),rgba(31,38,53,.98));padding:17px 20px;border-radius:13px;display:grid;gap:9px;margin:16px 0 20px;color:#ead8ad;line-height:1.6}
+.mega-data-clarity b{display:block;font-size:13px;letter-spacing:.015em;color:#ffe8b9}
+.mega-data-clarity p{margin:0;font-size:12px;color:#decba9;max-width:100ch}
+.mega-data-clarity a{color:#b6daff;text-decoration:underline}
+.mega-data-clarity strong{color:#ffe8b9}
+@media(max-width:610px){.repost-preview{padding:13px}.mega-data-clarity{padding:14px}}
