@@ -82,6 +82,48 @@ test('login as each permission level, and enforce owner-only audit',async()=>{
   assert.equal((await get('/members?q=mem','member')).status,200);
 });
 
+test('V1.11 messaging, privacy and live feed work without granting staff access to private DMs',async()=>{
+ const first=await get('/messages','member');
+ assert.equal(first.status,200);
+ assert.match(await first.text(),/Messaging settings/);
+ const start=await get('/messages/new/'+ids.member2,'member');
+ assert.equal(start.status,303);
+ const url=start.headers.get('location');
+ assert.match(url,/^\/messages\/\d+$/);
+ const id=Number(url.split('/').pop());
+ assert.equal((await get(url,'adminA')).status,404,'administrators cannot read another user private messages');
+ assert.equal((await get(url,'member')).status,200);
+ const sent=await post(url+'/send','member',{body:'V1.11 hello from the community'});
+ assert.equal(sent.status,303);
+ assert.equal((await get(url,'member2')).status,200);
+ assert.match(await (await get(url,'member2')).text(),/V1\.11 hello from the community/);
+ const response=await get(url+'/updates?after=0','member2');
+ assert.equal(response.status,200);
+ const messages=(await response.json()).messages;
+ assert.ok(messages.some(m=>m.html.includes('V1.11 hello from the community')));
+ assert.equal((await get(url+'/updates?after=0','adminA')).status,404);
+ assert.equal((await get('/messages/unread','member')).status,200);
+ const opts=await post('/messages/settings','member2',{allow_messages:'following',presence:'invisible',read_receipts:'0'});
+ assert.equal(opts.status,303);
+ const statuses=await get('/live/state?ids='+ids.member2,'member');
+ assert.equal((await statuses.json()).statuses[ids.member2],'offline');
+ const block=await post('/messages/block/'+ids.member,'member2',{block:'1'});
+ assert.equal(block.status,303);
+ const forbiddenSend=await post(url+'/send','member',{body:'not allowed'});
+ assert.equal(forbiddenSend.status,403);
+ const unblock=await post('/messages/block/'+ids.member,'member2',{block:'0'});
+ assert.equal(unblock.status,303);
+ const missingCsrf=await fetch(base+url+'/send',{
+   method:'POST',headers:{cookie:sessions.get('member').cookie,'content-type':'application/x-www-form-urlencoded'},
+   body:new URLSearchParams({body:'forged'}),redirect:'manual'
+ });
+ assert.equal(missingCsrf.status,403);
+ const mine=await get('/live/feed/updates?after=0','member');
+ assert.equal(mine.status,200);
+ const body=await mine.json();
+ assert.ok(Array.isArray(body.posts));
+});
+
 test('Xbox gamertag profile integration is disabled cleanly until configured',async()=>{
  const p=await get('/profile/edit','member');
  assert.equal(p.status,200);
