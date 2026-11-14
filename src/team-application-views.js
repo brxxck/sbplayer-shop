@@ -65,7 +65,8 @@ export function teamReviewQueue(ctx,{items=[],status='all',sort='newest',q='',co
    ?'No team applications are stored in the database used by this deployment. If an applicant has a submitted ticket link, check the Railway DB_PATH setting and persistent volume before making database changes.'
    :!items.length?'No applications match these filters. Choose All and clear the search to see stored submissions.':'';
  const summary='<section class="panel padded" role="status" aria-label="Stored recruitment totals">'+
-  '<div class="section-heading"><h2>Stored team applications: '+total+'</h2><a class="btn btn-outline btn-sm" href="/team-applications/review?status=all">All submissions</a></div>'+
+  '<div class="section-heading"><h2>Stored team applications: '+total+'</h2><a class="btn btn-outline btn-sm" href="/team-applications/review?status=all">All submissions</a>'+
+  (ctx.role==='owner'?'<a class="btn btn-outline btn-sm" href="/owner/recruitment-diagnostics">Check database</a>':'')+'</div>'+
   '<p class="muted">Active: '+active+' · Accepted: '+accepted+' · Denied: '+denied+
   ' · Last submitted: '+(counts?.last_submitted_at?when(counts.last_submitted_at):'none')+'</p>'+
   (sourceNote?'<p class="muted">'+esc(sourceNote)+'</p>':'')+'</section>';
