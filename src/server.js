@@ -1762,6 +1762,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const already=one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
         if(already)run('DELETE FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id);
         else {run('INSERT INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)',ctx.user.id,id,now());notifySocial(id,ctx.user.id,'follow',id);}
+        notifyUser(id,'notifications-update',{});
         if(isStaffRole(ctx.role))logAction(ctx,'profile.follow','profile:'+id,{before:!!already,after:!already});
         return redirect(res,`/u/${id}`);
       }
@@ -1769,6 +1770,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const body=formValue(fields,'body',1000,1);
       run('INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES(?,?,?,?,?)','profile',id,ctx.user.id,body,now());
       notifySocial(id,ctx.user.id,'profile_comment',id);
+      notifyUser(id,'notifications-update',{});
       if(isStaffRole(ctx.role))logAction(ctx,'profile.comment','profile:'+id,{body:body.slice(0,100)});
       return redirect(res,`/u/${id}`);
     }
