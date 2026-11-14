@@ -22,10 +22,37 @@
   let pending=new Map(),lastHead=Number(list?.querySelector('[id^="post-"]')?.id.replace('post-','')||0);
   let feedPending=false;
   const feedTab=feed?.dataset.feedTab||'all';
+  function enhanceDynamicPost(item){
+    if(!item)return item;
+    for(const form of item.querySelectorAll('form[data-post-like],form[data-post-repost],form[data-post-bookmark]')){
+      form.addEventListener('submit',async e=>{
+        e.preventDefault();
+        const button=form.querySelector('button[type="submit"]');
+        if(!button||button.disabled)return;
+        button.disabled=true;
+        try{
+          const response=await fetch(form.action,{method:'POST',credentials:'same-origin',headers:{accept:'application/json'},body:new URLSearchParams(new FormData(form))});
+          if(!response.ok)throw Error('Unable to update post.');
+          const data=await response.json();
+          const isLike=form.hasAttribute('data-post-like'),isRepost=form.hasAttribute('data-post-repost');
+          const enabled=isLike?data.liked:isRepost?data.reposted:data.saved;
+          button.classList.toggle('activated',!!enabled);
+          button.setAttribute('aria-pressed',String(!!enabled));
+          const count=form.querySelector(isLike?'[data-like-count]':'[data-repost-count]');
+          if(count)count.textContent=String(isLike?data.like_count:data.repost_count);
+          const label=form.querySelector('[data-bookmark-label]');
+          if(label)label.textContent=enabled?'Saved':'Save';
+          if(isLike)form.querySelector('[data-like-heart]')?.classList.toggle('is-liked',enabled);
+        }catch{window.alert('Could not update post. Try again.');}
+        finally{button.disabled=false;}
+      });
+    }
+    return item;
+  }
   function decorateCard(html){
     const template=document.createElement('template');
     template.innerHTML=html;
-    return template.content.firstElementChild;
+    return enhanceDynamicPost(template.content.firstElementChild);
   }
   async function refreshFeed(){
     if(!feed||feedPending||document.visibilityState==='hidden')return;
