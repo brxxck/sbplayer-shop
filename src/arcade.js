@@ -94,7 +94,7 @@ export function houseCoin(userId,fields){
 }
 
 const SLOT_SYMBOLS=['Cherry','Lemon','Bell','Diamond','Seven'];
-const SLOT_TRIPLES=[4,6,9,14,25];
+const SLOT_TRIPLES=[5,7,10,16,28];
 export function spinSlots(userId,fields){
  const wager=wagerOf(fields),key=keyOf(fields);
  return transaction(()=>{
@@ -120,7 +120,7 @@ function randomBombs(count){
  return cells.slice(0,count);
 }
 function minesMultiplier(bombs,safe){
- let m=0.95;
+ let m=1.01;
  for(let i=0;i<safe;i++)m*=(25-i)/(25-bombs-i);
  return Math.min(50,m);
 }
@@ -216,7 +216,7 @@ export function startCrash(userId,fields){
   }
   walletChange(userId,-wager,'crash.wager','crash:wager:'+key);
   const u=randomInt(1000000)/1000000;
-  const crashAt=Math.max(100,Math.min(3000,Math.floor(95/(1-u))));
+  const crashAt=Math.max(100,Math.min(3000,Math.floor(101/(1-u))));
   return createRound({userId,game:'crash',wager,status:'active',
    details:{crashAt,autoAt,startedAt:Date.now()+3000},key});
  });
