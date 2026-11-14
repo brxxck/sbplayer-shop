@@ -11,6 +11,7 @@ Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'testing.sqlite'),D
 const {createServer}=await import('../src/server.js');
 const {one,all,run,db}=await import('../src/db.js');
 const {saveXboxLink}=await import('../src/xbox-gamertag-links.js');
+const {createSupportTicket}=await import('../src/support.js');
 const {config}=await import('../src/config.js');
 const {verifyAudit,appendAudit}=await import('../src/audit.js');
 const fakeRoles=[
@@ -377,6 +378,54 @@ test('ticket picker shows promotion only to Temp Mods/Mods and team recruitment 
  });
  assert.equal(response.status,403,'verified Store Staff cannot bypass recruitment restrictions with a direct POST');
  assert.equal(one('SELECT COUNT(*) AS c FROM team_applications WHERE user_id=?',ids.member6).c,0);
+});
+
+test('ticket details show real ticket numbers, never uninterpolated template text',async()=>{
+ const id=createSupportTicket({userId:ids.member,category:'reward_claim',fields:{prize:'One reward to verify'},ip:'127.0.0.1'});
+ const page=await get('/staff/tickets/'+id,'owner');
+ assert.equal(page.status,200);
+ const html=await page.text();
+ assert.match(html,new RegExp('Ticket <span class="gradient">#'+id+'</span>'));
+ assert.match(html,new RegExp('<title>Ticket #'+id+' · SB'));
+ assert.doesNotMatch(html,/#[\$]\{ticket\.id\}/,'ticket header may not expose raw template syntax');
+});
+
+test('SBsxScam applications appear in authorized All Tickets and in the applicant history',async()=>{
+ saveXboxLink({userId:ids.member5,identityKey:'e'.repeat(64),gamertag:'RecruitQueueTest'});
+ const submitted=await post('/team-applications/apply','member5',{
+  daily_earnings:'2500000',net_worth:'5000000',play_days:'5',play_hours:'3',timezone:'UK',
+  skill_farming:'on',bank_contribution:'sometimes',income_method:'I operate crop farms every day',
+  motivation:'I would like to help the team compete this season.',
+  contribution:'I will contribute money and help build farms.'
+ });
+ assert.equal(submitted.status,303);
+ const app=one('SELECT id,status FROM team_applications WHERE user_id=? ORDER BY id DESC LIMIT 1',ids.member5);
+ assert.ok(app?.id,'the team application is persisted');
+ const adminActive=await (await get('/staff/tickets','adminA')).text();
+ const ownerActive=await (await get('/staff/tickets','owner')).text();
+ for(const html of [adminActive,ownerActive]){
+  assert.ok(html.includes('href="/team-applications/review/'+app.id+'"'),'authorized staff see the team case');
+  assert.ok(html.includes('#TA-'+app.id),'team case has a distinct identifier');
+  assert.match(html,/SBsxScam Team Application/,'recruitment has a readable category label');
+ }
+ const dashboard=await (await get('/','owner')).text();
+ assert.ok(dashboard.includes('href="/team-applications/review/'+app.id+'"'),'owner dashboard includes recruitment cases');
+ assert.match(dashboard,/team applications/,'dashboard case counts distinguish recruitment from support');
+ const reviewerQueue=await (await get('/staff/tickets?status=all','reviewer')).text();
+ assert.ok(!reviewerQueue.includes('href="/team-applications/review/'+app.id+'"'),'ordinary reviewers cannot discover team cases');
+ assert.equal((await get('/team-applications/review/'+app.id,'reviewer')).status,403);
+ assert.equal((await get('/staff/tickets','member3')).status,403,'team leaders cannot access all staff support cases');
+ assert.equal((await get('/team-applications/review/'+app.id,'member3')).status,200,'team leaders retain their separate recruitment access');
+ const ownTickets=await (await get('/tickets/mine','member5')).text();
+ assert.ok(ownTickets.includes('href="/team-applications/'+app.id+'"'),'applicant can find their recruitment history in My Tickets');
+ assert.ok(!ownTickets.includes('href="/team-applications/review/'+app.id+'"'),'applicant does not gain leadership access');
+ assert.equal((await post('/team-applications/review/'+app.id+'/status','adminA',{status:'accepted',note:'Application reviewed'})).status,303);
+ const activeAfter=await (await get('/staff/tickets','owner')).text();
+ assert.ok(!activeAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment leaves active queue');
+ const allAfter=await (await get('/staff/tickets?status=all','owner')).text();
+ assert.ok(allAfter.includes('href="/team-applications/review/'+app.id+'"'),'closed recruitment remains in All');
+ const ownAfter=await (await get('/tickets/mine','member5')).text();
+ assert.ok(ownAfter.includes('href="/team-applications/'+app.id+'"'),'applicant history survives finalized recruitment');
 });
 
 test('Our Staff keeps actual store staff and Known Members separates Mega SMP / Prison tabs',async()=>{

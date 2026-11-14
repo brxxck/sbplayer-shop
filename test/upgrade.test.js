@@ -101,6 +101,17 @@ test('case states follow last reply and unread activity is personal to each staf
  run("UPDATE support_tickets SET status='resolved' WHERE id=?",id);
  assert.equal(caseState(ticket()),'resolved');
 });
+test('SBsxScam recruitment cases keep their own status and never inherit support-ticket unread counts',()=>{
+ const teamCase={id:1,user_id:alice,category:'team_application',status:'pending',updated_at:Date.now()};
+ assert.equal(caseState(teamCase),'pending');
+ const decorated=decorateCases([teamCase],owner);
+ assert.equal(decorated.length,1);
+ assert.equal(decorated[0].queue_status,'pending');
+ assert.equal(decorated[0].unread,0,'private recruitment notes are not support replies');
+ const finished=decorateCases([{...teamCase,status:'accepted'}],owner)[0];
+ assert.equal(finished.queue_status,'accepted');
+});
+
 test('message search and older pages retain participant authorization and chronological order',()=>{
  const id=startDm(alice,bob);for(let i=0;i<105;i++)dmSend(id,alice,'History message '+i);
  const latest=dmHistory(id,alice);assert.equal(latest.messages.length,100);assert.equal(latest.hasOlder,true);

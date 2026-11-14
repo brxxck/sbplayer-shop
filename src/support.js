@@ -7,7 +7,7 @@ export const SUPPORT_CATEGORIES=Object.freeze({
   staff_report:'Staff Report',ban_appeal:'Ban Appeal',application:'Staff Application'
 });
 export const CATEGORY_LABELS=SUPPORT_CATEGORIES;
-export const categoryLabel=key=>key==='promotion'?'Promotion Ticket':SUPPORT_CATEGORIES[key]||'Support Ticket';
+export const categoryLabel=key=>key==='promotion'?'Promotion Ticket':key==='team_application'?'SBsxScam Team Application':SUPPORT_CATEGORIES[key]||'Support Ticket';
 export const categoryExists=key=>key!=='application'&&Object.hasOwn(SUPPORT_CATEGORIES,key);
 export const supportTicket=id=>one(`SELECT t.*,u.username,u.display_name,u.avatar FROM support_tickets t
  JOIN users u ON u.id=t.user_id WHERE t.id=?`,id);
