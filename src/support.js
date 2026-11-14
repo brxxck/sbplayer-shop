@@ -17,13 +17,13 @@ export const supportMessages=id=>all(`SELECT m.*,u.username,u.display_name,u.ava
 export const supportAttachments=id=>all('SELECT * FROM support_ticket_attachments WHERE ticket_id=? ORDER BY id ASC',id);
 export const mySupportTickets=id=>all(`SELECT t.*,
  (SELECT COUNT(*) FROM support_ticket_messages m WHERE m.ticket_id=t.id AND m.author_id!=t.user_id AND m.created_at>t.applicant_seen_at) unread
- FROM support_tickets t WHERE t.user_id=? ORDER BY t.updated_at DESC LIMIT 150`,id);
+ FROM support_tickets t WHERE t.user_id=? AND t.category!='team_application' ORDER BY t.updated_at DESC LIMIT 150`,id);
 export const openSupportTickets=()=>all(`SELECT t.*,u.username,u.display_name,u.avatar
  FROM support_tickets t JOIN users u ON u.id=t.user_id
- WHERE t.status!='resolved' ORDER BY t.updated_at DESC LIMIT 150`);
+ WHERE t.status!='resolved' AND t.category!='team_application' ORDER BY t.updated_at DESC LIMIT 150`);
 export const allSupportTickets=()=>all(`SELECT t.*,u.username,u.display_name,u.avatar
  FROM support_tickets t JOIN users u ON u.id=t.user_id
- ORDER BY t.updated_at DESC LIMIT 200`);
+ WHERE t.category!='team_application' ORDER BY t.updated_at DESC LIMIT 200`);
 export const staffChatRecent=()=>all(`SELECT * FROM (
  SELECT m.*,u.display_name,u.username,u.avatar FROM staff_chat_messages m
  JOIN users u ON u.id=m.author_id ORDER BY m.id DESC LIMIT 80
@@ -52,6 +52,7 @@ export function writeSupportMessage({ticketId,userId,role,body,ip,isApplicant,at
  return transaction(()=>{
    const t=one('SELECT * FROM support_tickets WHERE id=?',ticketId);
    if(!t)throw new Error('Ticket not found');
+   if(t.category==='team_application')throw new Error('Recruitment uses its protected review workflow.');
    const stamp=Date.now();
    const rec=run('INSERT INTO support_ticket_messages(ticket_id,author_id,author_role,body,created_at) VALUES(?,?,?,?,?)',
      ticketId,userId,role,body,stamp);
@@ -71,6 +72,7 @@ export function updateSupportStatus({ticketId,userId,role,ip,status}){
  if(!['open','reviewing','resolved'].includes(status))throw new Error('Invalid ticket status');
  return transaction(()=>{
    const t=one('SELECT * FROM support_tickets WHERE id=?',ticketId);if(!t)throw new Error('Ticket not found');
+   if(t.category==='team_application')throw new Error('Recruitment uses its protected review workflow.');
    const stamp=Date.now();
    run('UPDATE support_tickets SET status=?,updated_at=?,resolved_at=?,resolved_by=? WHERE id=?',
      status,stamp,status==='resolved'?stamp:null,status==='resolved'?userId:null,ticketId);
