@@ -2,6 +2,8 @@
 import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
+import {preparePointGrant,confirmPointGrant,pointGrantPreview,pointGrantRecent,pointGrantMembers} from './owner-point-grants.js';
+import {pointAllPage} from './owner-point-grants-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
  openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
@@ -38,7 +40,7 @@ import * as homeView from './home-views.js';
 import * as socialView from './social-views.js';
 import * as communityView from './community-views.js';
 import {dmInbox,dmUnreadCount,dmHistory,dmSettings,updateDmSettings,startDm,requireDm,dmSend,dmMarkRead,dmEdit,dmDelete,dmAttachment,dmReport,dmReports,dmResolveReport,setBlock,dmError} from './community-data.js';
-import {subscribe,notifyUser,notifyEveryone,ping,onlineStatus,presencePreferenceChanged,setSessionValidator,revokeSession} from './community-live.js';
+import {subscribe,notifyUser,notifyEveryone,ping,onlineStatus,onlineWebsiteUserIds,presencePreferenceChanged,setSessionValidator,revokeSession} from './community-live.js';
 import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMember,setMegaMemberStatus,addMegaTransaction,recordMegaBank,createMegaSeason} from './mega-team.js';
 import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
@@ -156,7 +158,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -481,6 +483,42 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/owner/level-points'&&req.method==='GET'){
       await authorize('owner');return html(levelConnectionPage(ctx,levelConnection()));
+    }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // All Point All routes enforce live, verified owner access; previews are
+    // bound to the owner account and confirmed only with CSRF + typed approval.
+    if(pathname==='/owner/point-all'&&req.method==='GET'){
+      await authorize('owner');
+      const grantId=url.searchParams.get('grant')||'';
+      const find=String(url.searchParams.get('find')||'').slice(0,65);
+      const selected=String(url.searchParams.get('user_id')||'').slice(0,22);
+      const preview=grantId?pointGrantPreview(ctx.user.id,grantId):null;
+      return html(pointAllPage(ctx,{
+        preview,search:find,matches:find?pointGrantMembers(find):[],
+        recent:pointGrantRecent(),onlineCount:onlineWebsiteUserIds().length,
+        userId:/^[0-9]{15,22}$/.test(selected)?selected:''
+      }));
+    }
+    if(pathname==='/owner/point-all/preview'&&req.method==='POST'){
+      await authorize('owner');const {fields}=await form();
+      rate(ctx,'owner.point_all.preview',16,600000);
+      const preview=await preparePointGrant({
+        actorId:ctx.user.id,scope:fields.scope,amount:fields.amount,
+        recipientId:fields.user_id,reason:fields.reason,
+        discord,onlineIds:onlineWebsiteUserIds()
+      });
+      return redirect(res,'/owner/point-all?grant='+encodeURIComponent(preview.id));
+    }
+    if(pathname==='/owner/point-all/confirm'&&req.method==='POST'){
+      await authorize('owner');const {fields}=await form();
+      rate(ctx,'owner.point_all.confirm',20,3600000);
+      const result=confirmPointGrant({
+        actorId:ctx.user.id,id:fields.grant_id,confirmation:fields.confirmation,ip:ctx.ip
+      });
+      return success('/owner/point-all?grant='+encodeURIComponent(result.id),
+        result.alreadyApplied?'This grant was already completed. No points were added twice.':
+        result.total.toLocaleString('en-GB')+' points granted to '+
+        result.count.toLocaleString('en-GB')+' members.');
     }
     if(pathname==='/owner/level-points/key'&&req.method==='POST'){
       await authorize('owner');await form();rate(ctx,'level_points.key',5,3600000);
