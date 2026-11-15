@@ -150,14 +150,15 @@ test('owner-only HTTP page, CSRF, review and confirm flow do not permit normal m
   const ownerCookie=await login(owner),memberCookie=await login(alice);
   const denied=await fetch(base+'/owner/point-all',{headers:{cookie:memberCookie}});
   assert.equal(denied.status,403);
-  const page=await fetch(base+'/owner/point-all?find=Member',{headers:{cookie:ownerCookie}});
+  const page=await fetch(base+'/owner/point-all?find=discord-',{headers:{cookie:ownerCookie}});
   assert.equal(page.status,200);
   const html=await page.text();
   assert.match(html,/Point All/);
   assert.match(html,/Specific player/);
   assert.match(html,/Everyone online/);
   assert.match(html,/currently online on the website|Online on the website/i);
-  assert.match(html,/Member 02|Member 06/,'owner search lists accounts matching the current query');
+  assert.match(html,/class="pointall-search-result"/,'owner search lists registered Discord accounts');
+  assert.match(html,/discord-002/,'owner search matches the current Discord username');
   assert.match(html,/action="\/owner\/point-all\/preview"/);
   assert.match(html,/href="\/owner\/point-all"/);
   const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
