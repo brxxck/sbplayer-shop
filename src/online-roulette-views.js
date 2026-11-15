@@ -108,7 +108,7 @@ export function onlineRoulettePage(ctx,summary,state){
   '<div class="roulette-slip-summary"><span>ALREADY WAGERED</span><strong data-roulette-already>',n(state.myWager),' pts</strong></div>',
   '<div class="roulette-slip-summary"><span>AVAILABLE</span><strong data-roulette-wallet>',n(state.balance),' pts</strong></div>',
   '<form method="post" action="/arcade/online/roulette/bet" data-roulette-form>',token(ctx),
-  '<input type="hidden" name="round_id" data-roulette-form-round value="',n(state.roundId),'">',
+  '<input type="hidden" name="round_id" data-roulette-form-round value="',String(state.roundId),'">',
   '<input type="hidden" name="request_id" data-roulette-request value="',randomUUID(),'">',
   '<input type="hidden" name="bets_json" data-roulette-bets-json value="[',esc('{"key":"color:red","stake":10}'),']">',
   '<button type="submit" class="btn btn-primary roulette-confirm" data-roulette-confirm disabled>Confirm bets</button></form>',
