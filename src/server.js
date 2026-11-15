@@ -8,6 +8,8 @@ import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,star
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
  openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
+import {dropPlinko} from './plinko.js';
+import {plinkoPage} from './plinko-views.js';
 import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby} from './online-games.js';
 import {onlineGamesPage} from './online-games-views.js';
 import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
@@ -166,7 +168,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -367,6 +369,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         }else if(target.pathname==='/arcade/slots'){
           const round=roundId?getRound(user,roundId,'slots'):null;
           markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
+        }else if(target.pathname==='/arcade/plinko'){
+          const round=roundId?getRound(user,roundId,'plinko'):null;
+          markup=plinkoPage(context,summary(),{round,rounds:recentRounds(user,'plinko',15)});
         }else if(target.pathname==='/arcade/mines'){
           const round=roundId?getRound(user,roundId,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
           markup=arcadeView.minesPage(context,summary(),{round,rounds:recentRounds(user,'mines',15),currentPayout:previewMinesPayout(round)});
@@ -472,6 +477,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
         return html(arcadeView.slotsPage(ctx,summary(),{round,rounds:recentRounds(user,'slots',15)}));
       }
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Plinko is a solo Arcade game. The server saves all ball paths and
+      // settles every multi-ball batch atomically before animation.
+      if(req.method==='GET'&&pathname==='/arcade/plinko'){
+        rate(ctx,'arcade.plinko.page',55,60000);
+        const roundId=idFrom(url.searchParams.get('round'));
+        const round=roundId?getRound(user,roundId,'plinko'):null;
+        return html(plinkoPage(ctx,summary(),{round,rounds:recentRounds(user,'plinko',15)}));
+      }
       if(req.method==='GET'&&pathname==='/arcade/mines'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
         return html(arcadeView.minesPage(ctx,summary(),{round,rounds:recentRounds(user,'mines',15),currentPayout:previewMinesPayout(round)}));
@@ -540,6 +554,17 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(req.method==='POST'&&pathname==='/arcade/slots/spin'){
         const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
         return arcadeResult('/arcade/slots?round='+spinSlots(user,fields));
+      }
+      if(req.method==='POST'&&pathname==='/arcade/plinko/drop'){
+        const {fields}=await form();rate(ctx,'arcade.plinko.drop',18,60000);
+        const id=dropPlinko(user,fields);
+        const destination='/arcade/plinko?round='+id;
+        if(!fastArcade)return redirect(res,destination);
+        const round=getRound(user,id,'plinko');
+        const markup=plinkoPage({...ctx,pathname:'/arcade/plinko',arcadeFragment:true},summary(),
+          {round,rounds:recentRounds(user,'plinko',15)});
+        return respond(res,200,JSON.stringify({ok:true,round,html:markup,url:destination}),
+          'application/json; charset=utf-8');
       }
       if(req.method==='POST'&&pathname==='/arcade/mines/start'){
         const {fields}=await form();rate(ctx,'arcade.mines.start',30,60000);
