@@ -1,5 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // Navigation only exposes destinations the session may discover; routes still authorize independently.
+import {icon} from './icons.js';
 export function navigationGroups(ctx){
  const member=!!ctx.user&&ctx.role!=='appeal-only';
  const staff=['reviewer','admin','owner'].includes(ctx.role),admin=['admin','owner'].includes(ctx.role);
@@ -21,7 +22,27 @@ export function renderNavigation(ctx,link){return navigationGroups(ctx).map(g=>{
  const links=g.items.map(([p,label])=>link(p,label,'',ctx)).join('');
  return g.collapsible?`<details class="nav-group" ${active?'open':''}><summary>${g.label}</summary><nav aria-label="${g.label}">${links}</nav></details>`:`<div class="sidebar-title">${g.label.toUpperCase()}</div><nav aria-label="${g.label}">${links}</nav>`;
 }).join('');}
+// Compact thumb navigation is visible only at the mobile breakpoint. Full page routes
+// and role-based permissions remain unchanged; desktop uses renderNavigation above.
 export function renderMobile(ctx){
- const links=ctx.role==='appeal-only'?[['/','Home'],['/tickets/mine','Appeals'],['/team','Team']]:[['/','Home'],['/feed','Feed'],['/messages','Messages']];
- return links.map(([p,l])=>`<a href="${p}" ${ctx.pathname===p?'aria-current="page"':''}>${l}</a>`).join('')+`<details class="mobile-more"><summary>More</summary><nav aria-label="More pages">${navigationGroups(ctx).map(g=>`<strong>${g.label}</strong>`+g.items.filter(([p])=>!links.some(([x])=>x===p)).map(([p,l])=>`<a href="${p}">${l}</a>`).join('')).join('')}</nav></details>`;
+ const appeal=ctx.role==='appeal-only';
+ const quick=appeal?
+  [['/','Home','house'],['/tickets/mine','Appeals','tickets'],['/team','Team','users-round']]:
+  [['/','Home','house'],['/feed','Feed','newspaper'],['/messages','Messages','message-circle'],['/arcade','Arcade','award']];
+ const here=p=>ctx.pathname===p||(p!=='/'&&ctx.pathname?.startsWith(p+'/'));
+ const quickLinks=quick.map(([p,label,name])=>
+  `<a class="mobile-nav-tab" href="${p}" ${here(p)?'aria-current="page"':''}><span class="mobile-nav-icon" aria-hidden="true">${icon(name,{size:21})}</span><span class="mobile-nav-label">${label}</span></a>`).join('');
+ const pages=navigationGroups(ctx).map(group=>{
+  const links=group.items.filter(([p])=>!quick.some(([x])=>x===p));
+  if(!links.length)return '';
+  return `<section class="mobile-menu-section" aria-label="${group.label}"><h3>${group.label}</h3>${links.map(([p,label])=>`<a href="${p}" ${here(p)?'aria-current="page"':''}>${label}</a>`).join('')}</section>`;
+ }).join('');
+ const moreSelected=!quick.some(([p])=>here(p));
+ return quickLinks+`<details class="mobile-more" data-mobile-more ${moreSelected?'data-current="true"':''}>
+ <summary class="mobile-nav-tab" aria-label="More pages"><span class="mobile-nav-icon" aria-hidden="true">${icon('list',{size:21})}</span><span class="mobile-nav-label">More</span></summary>
+ <button type="button" class="mobile-nav-scrim" data-mobile-more-close aria-label="Close page menu"></button>
+ <nav aria-label="All website pages">
+  <div class="mobile-menu-header"><h2>Browse the website</h2><button type="button" class="mobile-page-search" data-mobile-page-search>${icon('search',{size:18})} Find a page</button></div>
+  ${pages}
+ </nav></details>`;
 }

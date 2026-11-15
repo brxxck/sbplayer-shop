@@ -1,0 +1,131 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Mobile-only progressive enhancement. Desktop styling and page structure stay intact. */
+@media (max-width:840px) {
+  :root { -webkit-text-size-adjust:100%; }
+  html { scroll-padding-top:86px; }
+  body { overflow-x:clip; }
+  body.mobile-menu-open { overflow:hidden; }
+  .shell,.main,.content { min-width:0; max-width:100%; }
+  .content { padding:18px max(12px,env(safe-area-inset-right)) calc(102px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+  .footer { padding-bottom:calc(94px + env(safe-area-inset-bottom)); }
+  .topbar { min-height:60px; padding-inline:max(12px,env(safe-area-inset-left)) max(12px,env(safe-area-inset-right)); }
+  .top-account { min-width:0; }
+  .top-account-menu { max-width:calc(100vw - 24px); max-height:min(78dvh,650px); overflow-y:auto; overscroll-behavior:contain; }
+  .top-account-menu a,.top-account-menu button,.top-account-menu summary { min-height:44px; display:flex; align-items:center; }
+  /* Bottom bar replaces only the mobile navigation. All routes remain server-rendered. */
+  .mobile-nav { position:fixed; inset:auto 0 0; z-index:80; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); align-items:stretch; gap:0; padding:5px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left)); margin:0; border-top:1px solid #335278; border-bottom:0; background:rgba(7,20,38,.97); -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); overflow:visible; box-shadow:0 -12px 30px #0007; white-space:normal; }
+  .mobile-nav-tab { position:relative; display:flex!important; align-items:center; flex-direction:column; justify-content:center; gap:3px; padding:6px 2px!important; min-height:54px; min-width:0; width:100%; color:#a7bfdb!important; border:0!important; border-radius:11px!important; background:transparent!important; text-align:center; text-decoration:none; font-size:10px!important; line-height:1.1; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .mobile-nav-tab[aria-current=page],.mobile-more[data-current=true]:not([open])>summary { color:#fff!important; background:#17406c!important; }
+  .mobile-nav-icon { display:grid; place-items:center; height:25px; }
+  .mobile-nav-icon .lucide-icon { width:21px; height:21px; }
+  .mobile-nav-label { display:block; width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mobile-more { display:block; position:static; min-width:0; }
+  .mobile-more>summary { list-style:none; }
+  .mobile-more>summary::-webkit-details-marker { display:none; }
+  .mobile-more>nav { display:none; position:fixed; z-index:82; inset:auto 0 calc(66px + env(safe-area-inset-bottom)) auto; width:min(100vw,480px); max-width:none; min-width:0; max-height:min(72dvh,680px); overflow-y:auto; overscroll-behavior:contain; gap:0; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); background:#0b1c33; border:1px solid #426183; border-radius:18px 18px 0 0; box-shadow:0 -16px 55px #000a; }
+  .mobile-more[open]>nav { display:block; }
+  .mobile-more[open]>summary { background:#214978!important; color:white!important; }
+  .mobile-nav-scrim { display:none; }
+  .mobile-more[open]>.mobile-nav-scrim { display:block; position:fixed; z-index:81; inset:0; width:100%; height:100%; padding:0; border:0; background:#020914bd; cursor:pointer; }
+  .mobile-menu-header { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:14px; }
+  .mobile-menu-header h2 { font-size:18px; letter-spacing:-.02em; margin:0; }
+  .mobile-page-search { display:flex; align-items:center; gap:6px; justify-content:center; border-radius:10px; padding:11px 12px; color:#e6f1ff; background:#173a62; border:1px solid #456b95; min-height:44px; flex-shrink:0; }
+  .mobile-menu-section { padding:4px 0 10px; border-top:1px solid #2b4464; }
+  .mobile-menu-section h3 { color:#9bb5d5; font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin:12px 0 7px; padding:0 2px; }
+  .mobile-more>nav .mobile-menu-section a { display:flex; min-height:46px; align-items:center; width:100%; background:none; border:0; color:#d7e7f9; font-size:14px; font-weight:600; padding:12px 11px; border-radius:10px; }
+  .mobile-more>nav .mobile-menu-section a[aria-current=page] { color:#fff; background:#1c4470; }
+  .mobile-more>nav .mobile-menu-section a:active { background:#234d78; }
+  .page-finder { width:calc(100vw - 28px); max-height:calc(100dvh - 32px); padding:18px; }
+  .page-finder nav { max-height:calc(75dvh - 155px); overscroll-behavior:contain; }
+  .page-finder nav a { display:flex; align-items:center; min-height:46px; font-size:14px; }
+  .page-finder input { font-size:16px; min-height:48px; width:100%; }
+  .page-finder .btn { min-height:44px; }
+  .page-heading { min-width:0; gap:10px; margin-bottom:18px; }
+  .page-heading h1 { font-size:clamp(23px,7vw,32px); overflow-wrap:anywhere; }
+  .page-heading p { font-size:14px; }
+  .page-heading>.btn,.page-heading .actions,.page-heading>form { max-width:100%; }
+  .panel,.card,.tile,.stat,.feed-card,.compose,.profile-page,.profile-columns,.profile-panel,.form,.stack,.detail-column,.dash-home,.mega-top-page,.mega-section,.ticket-conversation,.staff-dashboard-columns,.messenger,.mega-top-hero,.arcade-root { min-width:0; max-width:100%; }
+  .panel.padded,.padded { padding:clamp(14px,3.7vw,20px); }
+  .form,.support-form,.team-application-form { padding:clamp(14px,3.7vw,20px); }
+  .field-grid,.choice-row,.profile-edit-grid,.admin-grid,.review-grid,.staff-dashboard-columns,.ticket-detail-layout,.queue-filters,.filter-grid,.social-layout { min-width:0; }
+  .feature-grid,.stats-three { gap:10px; }
+  .btn,.btn-sm,.btn-xs,.icon-btn,button[type=submit],button[type=button],input[type=submit],input[type=button],summary,a.action-btn,.action-btn { touch-action:manipulation; }
+  .btn,.btn-sm,.btn-xs,button[type=submit],input[type=submit],.upload-label,.support-upload,.ticket-upload-control { min-height:44px; }
+  .icon-btn,.post-actions .action-btn,.top-social-link,.top-account-dropdown>summary,.top-account .account-profile-link { min-width:44px; min-height:44px; }
+  .btn { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+  .panel-heading,.section-heading,.dashboard-header,.support-choice,.ticket-compose-actions,.profile-actions,.mega-top-actions,.mega-history-actions,.mega-toolbar,.queue-actions,.dash-welcome-actions { flex-wrap:wrap; min-width:0; }
+  .page-heading a,.page-heading button,.queue-filters button,.filter-grid button,.mega-history-filters button,.mega-toolbar button { min-height:44px; }
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select { max-width:100%; min-width:0; font-size:16px; border-radius:9px; }
+  input[type=checkbox],input[type=radio] { min-width:19px; min-height:19px; accent-color:#5ca8ff; }
+  textarea { resize:vertical; }
+  label,.support-choice,.support-picker,.profile-actions,.choice-row { min-width:0; }
+  fieldset { max-width:100%; min-width:0; }
+  pre,code { overflow-wrap:anywhere; word-break:break-word; }
+  pre { max-width:100%; overflow-x:auto; white-space:pre-wrap; }
+  .table-wrap,[class$="-table-wrap"],[class*="table-scroll"],.mega-history-table,.mega-table-wrap,.transaction-table-wrap { max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
+  .table-wrap:focus-visible { outline:2px solid #8dc5ff; outline-offset:3px; }
+  .table-wrap table,[class$="-table-wrap"] table,[class*="table-scroll"] table { min-width:max-content; max-width:none; font-variant-numeric:tabular-nums; }
+  td,th { padding:12px 11px; }
+  .table-wrap td,.table-wrap th { max-width:280px; overflow-wrap:anywhere; }
+  .table-wrap th { position:sticky; top:0; }
+  .table-wrap>table { max-width:none; }
+  .feed-layout { grid-template-columns:minmax(0,1fr); }
+  .feed-card,.compose,.social-person,.social-notification,.dash-ticket-row,.ticket-message,.staff-chat-message,.dm-thread { overflow-wrap:anywhere; }
+  .post-body,.ticket-bubble-body,.chat-bubble,.dm-bubble,.dm-bubble-body,.post-who,.profile-identity,.profile-identity h1 { overflow-wrap:anywhere; }
+  .post-actions { gap:6px; justify-content:space-between; }
+  .post-actions button,.post-actions a { min-height:44px; }
+  .compose textarea,.dm-compose textarea,.support-form textarea { min-height:85px; }
+  .dm-compose-actions,.ticket-compose-actions,.dash-welcome-actions { gap:10px; }
+  .dm-compose-actions>button,.ticket-compose-actions>button { min-height:44px; }
+  .dm-history { height:clamp(260px,48dvh,600px); max-width:100%; overscroll-behavior:contain; }
+  .dm-bubble { max-width:94%; }
+  .messenger { grid-template-columns:minmax(0,1fr); }
+  .messenger-list { min-width:0; }
+  .messenger-back { min-height:44px; }
+  .member-grid,.team-grid,.mega-discord-grid { gap:10px; }
+  .member-card,.team-card { min-width:0; }
+  .member-card b,.team-card h3 { overflow-wrap:anywhere; }
+  .profile-top,.profile-actions { min-width:0; }
+  .profile-page .profile-banner { max-width:100%; }
+  .sticky-save { bottom:calc(78px + env(safe-area-inset-bottom)); flex-wrap:wrap; max-width:100%; }
+  .sticky-save .btn { flex:1 1 auto; }
+  .ticket-messages,.ticket-chat-messages,.staff-chat-messages { max-width:100%; }
+  .ticket-message-body,.staff-chat-text { overflow-wrap:anywhere; }
+  .evidence-gallery { max-width:100%; }
+  .evidence-viewer-header button,.evidence-viewer-footer button { min-height:44px; min-width:44px; }
+  .arcade-tabs { overscroll-behavior-x:contain; scrollbar-width:thin; }
+  .arcade-tabs a,.arcade-face-choice label { min-height:44px; }
+  .arcade-mine-tile { touch-action:manipulation; }
+  .arcade-history-panel .table-wrap { max-height:none; }
+  [hidden] { display:none!important; }
+  :focus-visible { outline:2px solid #85c3ff; outline-offset:2px; }
+}
+/* iPhone and other narrow phones: preserve legibility without horizontal page scroll. */
+@media (max-width:480px) {
+  .content { padding-inline:12px; }
+  .topbar { gap:8px; }
+  .top-social-shortcuts { gap:1px; }
+  .top-social-link { width:44px; height:44px; }
+  .top-account-menu { right:0; }
+  .member-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .team-directory-tabs,.known-member-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .dash-summary-row,.mega-stats,.mega-manager-grid,.mega-top-kpis,.mega-top-page .mega-stats,.stats-three { grid-template-columns:1fr; }
+  .page-heading .btn { width:100%; }
+  .search-panel,.queue-filters,.filter-grid,.mega-history-filters { grid-template-columns:1fr; }
+  .search-panel>* { min-width:0; max-width:100%; }
+  .dm-compose-actions { align-items:stretch; }
+  .ticket-compose-actions { align-items:stretch; }
+  .ticket-compose-actions .btn { flex:1 1 100%; }
+  .sticky-save { flex-wrap:wrap; }
+  .mobile-more>nav { width:100vw; border-inline:0; }
+  .mobile-menu-header { align-items:center; }
+  .mobile-menu-header h2 { font-size:17px; }
+}
+/* Landscape phones: the menu remains reachable without covering the entire screen. */
+@media (max-width:840px) and (max-height:450px) {
+  .mobile-more>nav { max-height:calc(100dvh - 64px - env(safe-area-inset-bottom)); }
+  .mobile-nav-tab { min-height:46px; }
+}
+@media (max-width:840px) and (prefers-reduced-motion:reduce) {
+  .mobile-nav,.mobile-more>nav { scroll-behavior:auto; animation:none; transition:none; }
+}
