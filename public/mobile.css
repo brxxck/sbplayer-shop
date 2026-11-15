@@ -329,7 +329,8 @@
   .roulette-chip-palette { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
   .roulette-chip-option { width:100%; aspect-ratio:auto; min-height:45px; min-width:0; border-radius:10px; font-size:12px; }
   .roulette-number-layout { grid-template-columns:37px minmax(0,1fr); max-width:100%; min-width:0; }
-  .roulette-number-grid { min-width:0; max-width:100%; overflow-x:auto; grid-template-columns:repeat(12,minmax(42px,1fr)); -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+  .roulette-number-grid { min-width:0; max-width:100%; grid-template-columns:minmax(0,1fr); gap:3px; }
+  .roulette-number-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; }
   .roulette-number-row .roulette-choice { min-height:42px; font-size:12px; }
   .roulette-zero { min-height:135px; }
   .roulette-outside .roulette-choice,.roulette-dozens .roulette-choice,.roulette-columns .roulette-choice { min-height:44px; font-size:11px; }
