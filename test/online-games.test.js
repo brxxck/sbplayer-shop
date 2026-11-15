@@ -33,16 +33,15 @@ test('Blackjack reserves four seats and places extra players into a FIFO waitlis
  assert.equal(onlineGamesSnapshot(users[4],t+21).blackjack.atTable,true);
 });
 
-test('Global Crash lobby has no four-player cap and independent membership',()=>{
+test('Global Crash cannot be joined, left, or exposed by lobby snapshots',()=>{
  const t=2000000;
- for(let i=0;i<users.length;i++)joinOnlineLobby(users[i],'crash',t+i);
- const s=onlineGamesSnapshot(users[11],t+15);
- assert.equal(s.crash.lobbyPlayers,users.length);
- assert.equal(s.crash.joined,true);
- assert.equal(s.crash.phase,'not_started');
- assert.equal(s.crash.roundPlayers,0);
- assert.equal(s.crash.roundWager,0);
- assert.equal(s.blackjack.lobbyPlayers,0);
+ for(const user of users){
+  assert.throws(()=>joinOnlineLobby(user,'crash',t),e=>e.status===400);
+  assert.throws(()=>leaveOnlineLobby(user,'crash',t),e=>e.status===400);
+ }
+ const snapshot=onlineGamesSnapshot(users[11],t+15);
+ assert.equal(Object.hasOwn(snapshot,'crash'),false);
+ assert.equal(snapshot.blackjack.lobbyPlayers,0);
 });
 
 test('Stale members disappear, heartbeat only refreshes existing seats, and leaving is safe to repeat',()=>{
@@ -66,12 +65,11 @@ test('Lobby registration never changes wallet balances or creates a wager',()=>{
  const w=one("SELECT COUNT(*) AS count FROM level_point_wallets");
  const entries=one("SELECT COUNT(*) AS count FROM online_game_entries");
  joinOnlineLobby(users[0],'blackjack',t);
- joinOnlineLobby(users[1],'crash',t);
  assert.equal(one("SELECT COUNT(*) AS count FROM level_point_wallets").count,w.count);
  assert.equal(one("SELECT COUNT(*) AS count FROM online_game_entries").count,entries.count);
  assert.equal(onlineGamesSnapshot(users[0],t).blackjack.roundWager,0);
  assert.throws(()=>joinOnlineLobby(users[0],'slots',t),e=>e.status===400);
- assert.throws(()=>joinOnlineLobby('not-a-discord-id','crash',t),e=>e.status===400);
+ assert.throws(()=>joinOnlineLobby('not-a-discord-id','blackjack',t),e=>e.status===400);
 });
 
 test('Only confirmed, sufficiently large net winnings trigger cinematic mode',()=>{

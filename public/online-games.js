@@ -16,35 +16,29 @@
  };
  const notice=root.querySelector('[data-online-connection]');
  function apply(snapshot){
-  if(!snapshot||typeof snapshot!=='object'||!snapshot.blackjack||!snapshot.crash||!snapshot.roulette)return;
-  const bj=snapshot.blackjack,crash=snapshot.crash,roulette=snapshot.roulette;
+  if(!snapshot||typeof snapshot!=='object'||!snapshot.blackjack||!snapshot.roulette)return;
+  const bj=snapshot.blackjack,roulette=snapshot.roulette;
   set('blackjack.seated',number(bj.seated)+' / 4');
   set('blackjack.waiting',number(bj.waiting));
   set('blackjack.lobbyPlayers',number(bj.lobbyPlayers));
   set('blackjack.roundPlayers',number(bj.roundPlayers));
   set('blackjack.roundWager',number(bj.roundWager)+' pts');
-  set('crash.lobbyPlayers',number(crash.lobbyPlayers));
-  set('crash.roundPlayers',number(crash.roundPlayers));
-  set('crash.roundWager',number(crash.roundWager)+' pts');
   set('roulette.watching',number(roulette.watching));
   set('roulette.roundPlayers',number(roulette.roundPlayers));
   set('roulette.roundWager',number(roulette.roundWager)+' pts');
   set('roulette.phase',roulette.phase==='spinning'?'SPINNING':roulette.phase==='results'?'RESULT':'BETTING');
   status('blackjack',bj.joined?(bj.atTable?'You have a seat (#'+number(bj.position)+').':
     'You are #'+number(bj.position)+' in the waiting queue.'):'Join the Blackjack queue to get a seat at the live table.');
-  status('crash',crash.joined?'You are in the shared Crash preview lobby.':
-    'You have not joined the shared Crash preview lobby.');
-  joined=!!(bj.joined||crash.joined);
+  joined=!!bj.joined;
   // When a membership expires, show the accurate button action without
   // submitting any background join or changing the user's queue position.
-  for(const [game,state] of [['blackjack',bj],['crash',crash]]){
+  for(const [game,state] of [['blackjack',bj]]){
    const card=root.querySelector('[data-online-game="'+game+'"]');
    const form=card?.querySelector('.online-join-form');
    const button=form?.querySelector('button');
    if(!form||!button)continue;
    form.action='/arcade/online/'+(state.joined?'leave':'join');
-   button.textContent=state.joined?(game==='blackjack'?'Leave Blackjack queue':'Leave lobby'):
-    game==='blackjack'?'♠ Join & Play Blackjack':'Join Global Crash';
+   button.textContent=state.joined?'Leave Blackjack queue':'♠ Join & Play Blackjack';
    button.className='btn '+(state.joined?'btn-outline':'btn-primary');
   }
   if(notice)notice.textContent='Live lobby counts';

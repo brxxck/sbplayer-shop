@@ -1,10 +1,10 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-// Shared multiplayer lobby foundation. Blackjack now uses real rounds; Global Crash remains preview-only.
+// Shared multiplayer lobby foundation. Only Blackjack is queueable while Global Crash is suspended.
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 import {rouletteLobbyCounts} from './online-roulette.js';
 
-export const ONLINE_GAMES=['blackjack','crash'];
+export const ONLINE_GAMES=['blackjack'];
 export const BLACKJACK_SEATS=4;
 export const ONLINE_LOBBY_STALE_MS=90000;
 const bad=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -97,12 +97,10 @@ export function onlineGamesSnapshot(userId,now=Date.now()){
  const user=userOf(userId),stamp=atOf(now);
  prune(stamp);
  const bj=one("SELECT COUNT(*) AS count FROM online_game_waiting WHERE guild_id=? AND game='blackjack'",config.guildId).count;
- const crash=one("SELECT COUNT(*) AS count FROM online_game_waiting WHERE guild_id=? AND game='crash'",config.guildId).count;
  const row=one("SELECT joined_at FROM online_game_waiting WHERE guild_id=? AND game='blackjack' AND user_id=?",
    config.guildId,user);
  const position=row?one("SELECT COUNT(*) AS position FROM online_game_waiting WHERE guild_id=? AND game='blackjack' "+
   "AND (joined_at<? OR (joined_at=? AND user_id<=?))",config.guildId,row.joined_at,row.joined_at,user).position:null;
- const inCrash=!!one("SELECT 1 FROM online_game_waiting WHERE guild_id=? AND game='crash' AND user_id=?",config.guildId,user);
  // Seats are reserved for the current round, even when the queue changes mid-hand.
  const activeBlackjack=one("SELECT result_json FROM online_game_rounds WHERE guild_id=? AND game='blackjack' "+
   "AND status IN ('betting','playing') ORDER BY id DESC LIMIT 1",config.guildId);
@@ -122,7 +120,6 @@ export function onlineGamesSnapshot(userId,now=Date.now()){
   blackjack:{...roundMetrics('blackjack'),lobbyPlayers:bj,seated:seatsFilled,
     waiting:queued,seats:BLACKJACK_SEATS,joined:position!==null,
     position,atTable:reserved?reserved.has(user):position!==null&&position<=BLACKJACK_SEATS,enabled:true},
-  crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:true},
   roulette:rouletteLobbyCounts(stamp)
  };
 }

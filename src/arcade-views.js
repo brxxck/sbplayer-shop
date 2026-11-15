@@ -71,7 +71,7 @@ export function arcadeHome(ctx,summary,rounds){
  <div><small>GAMES WON</small><strong>${number(summary.wins)}</strong></div>
  <div><small>BIGGEST PROFIT</small><strong>${number(summary.biggest_win)}</strong></div></section>
  <div class="arcade-section-title"><h2>Choose a game</h2><span>Six solo games · one wallet</span></div>
- <p><a class="btn btn-outline" href="/arcade/online">♠️ Online Games — four-player Blackjack and shared Crash lobbies →</a></p>
+ <p><a class="btn btn-outline" href="/arcade/online">♠️ Online Games — four-player Blackjack and Live Roulette →</a></p>
  <section class="arcade-grid">
  ${gameTile('/arcade/coinflip','🪙','Coin Flip','Play the house or challenge another member','arcade-coins')}
  ${gameTile('/arcade/slots','🎰','Slots','Spin the reels to find matching symbols','arcade-slots')}

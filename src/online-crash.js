@@ -257,6 +257,61 @@ function project(round,userId,now){
   lastEvent:state.lastEvent
  };
 }
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Temporarily retire Global Crash without deleting its rounds, user history,
+// or the game engine. This is run once at startup BEFORE accepting traffic.
+// All unresolved bets are refunded at 1.00x. Already-cashed-out wins retain
+// their original payouts; no new rounds can be created after the routes and
+// ticker are disabled. Repeated starts are fully idempotent.
+export function suspendGlobalCrash(now=Date.now()){
+ const stamp=validTime(now);
+ return transaction(()=>{
+  const rounds=all("SELECT * FROM online_game_rounds WHERE guild_id=? AND game='crash' "+
+   "AND status IN ('betting','playing') ORDER BY id",config.guildId);
+  let refundedPlayers=0,refundedPoints=0;
+  for(const round of rounds){
+   const state=decode(round);
+   const positions=all("SELECT e.user_id,e.wager,e.payout,p.status,p.auto_at,p.cash_at "+
+    "FROM online_game_entries e JOIN online_crash_positions p "+
+    "ON e.round_id=p.round_id AND e.user_id=p.user_id "+
+    "WHERE e.round_id=? AND e.entry_no=0 ORDER BY e.user_id",round.id);
+   for(const row of positions){
+    const refund=row.status==='active';
+    const payout=refund?row.wager:row.payout;
+    if(refund){
+     walletChange(row.user_id,row.wager,'crash.global.paused.refund',
+      'global-crash:paused:refund:'+round.id+':'+row.user_id);
+     run("UPDATE online_crash_positions SET status='cashed_out',cash_at=100,cashed_at=? "+
+      "WHERE round_id=? AND user_id=? AND status='active'",stamp,round.id,row.user_id);
+     run("UPDATE online_game_entries SET payout=? WHERE round_id=? AND user_id=? AND entry_no=0",
+      row.wager,round.id,row.user_id);
+     refundedPlayers++;refundedPoints+=row.wager;
+    }
+    const details={
+     globalRound:round.id,shared:true,paused:true,refunded:refund,
+     cashAt:refund?100:row.cash_at||0,autoAt:row.auto_at||0,
+     crashAt:state.crashCents||null
+    };
+    run("INSERT OR IGNORE INTO arcade_rounds "+
+     "(guild_id,user_id,game,wager,payout,status,details_json,request_key,created_at,updated_at) "+
+     "VALUES(?,?,'crash_online',?,?,?,?,?,?,?)",
+     config.guildId,row.user_id,row.wager,payout,
+     refund?'push':row.status==='cashed_out'?'cashed_out':'lost',
+     JSON.stringify(details),'global-crash:round:'+round.id+':'+row.user_id,
+     round.created_at,stamp);
+   }
+   state.seq=(Number(state.seq)||0)+1;
+   state.disabled=true;
+   state.lastEvent={type:'suspended',at:stamp};
+   save(round,state,'cancelled',stamp);
+  }
+  // Crash lobby membership is not an account balance or transaction history;
+  // deleting only these volatile seats prevents stale "online" counts.
+  run("DELETE FROM online_game_waiting WHERE guild_id=? AND game='crash'",config.guildId);
+  return {rounds:rounds.length,refundedPlayers,refundedPoints};
+ });
+}
+
 export function globalCrashSnapshot(userId,now=Date.now()){
  const user=validUser(userId),at=validTime(now);
  return transaction(()=>project(tickInside(at),user,at));
