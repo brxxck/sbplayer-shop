@@ -5,7 +5,7 @@
  const safeStorage={get:k=>{try{return sessionStorage.getItem(k);}catch{return null;}},set:(k,v)=>{try{sessionStorage.setItem(k,v);}catch{}},remove:k=>{try{sessionStorage.removeItem(k);}catch{}}};
  // Keep drafts in this tab only, scoped to the signed-in account and exact form.
  for(const form of document.querySelectorAll('form[method="post"]')){
-  if(!user||form.action.includes('/auth/')||form.closest('.arcade-root'))continue;
+  if(!user||form.action.includes('/auth/')||form.closest('.arcade-root')||form.matches('[data-profile-challenge-form]'))continue;
   const fields=[...form.querySelectorAll('textarea[name],input[type="text"][name],input:not([type])[name]')].filter(f=>!f.readOnly&&!/token|password|secret|snapshot|json|note/i.test(f.name));
   if(!fields.length)continue;
   const key='sb-draft:'+user+':'+new URL(form.action).pathname;
