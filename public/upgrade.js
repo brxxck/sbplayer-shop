@@ -5,7 +5,7 @@
  const safeStorage={get:k=>{try{return sessionStorage.getItem(k);}catch{return null;}},set:(k,v)=>{try{sessionStorage.setItem(k,v);}catch{}},remove:k=>{try{sessionStorage.removeItem(k);}catch{}}};
  // Keep drafts in this tab only, scoped to the signed-in account and exact form.
  for(const form of document.querySelectorAll('form[method="post"]')){
-  if(!user||form.action.includes('/auth/'))continue;
+  if(!user||form.action.includes('/auth/')||form.closest('.arcade-root'))continue;
   const fields=[...form.querySelectorAll('textarea[name],input[type="text"][name],input:not([type])[name]')].filter(f=>!f.readOnly&&!/token|password|secret|snapshot|json|note/i.test(f.name));
   if(!fields.length)continue;
   const key='sb-draft:'+user+':'+new URL(form.action).pathname;
@@ -90,7 +90,7 @@
  // Handle failed ordinary forms in place so text and file choices survive validation/network errors.
  document.addEventListener('submit',async event=>{
   const form=event.target;
-  if(!(form instanceof HTMLFormElement)||form.method.toLowerCase()!=='post'||event.defaultPrevented||form.matches('[data-dm-send],#staff-chat-form,[data-post-like],[data-post-repost],[data-post-bookmark]')||form.action.includes('/auth/'))return;
+  if(!(form instanceof HTMLFormElement)||form.closest('.arcade-root')||form.method.toLowerCase()!=='post'||event.defaultPrevented||form.matches('[data-dm-send],#staff-chat-form,[data-post-like],[data-post-repost],[data-post-bookmark]')||form.action.includes('/auth/'))return;
   if(event.submitter?.name==='action'&&/reveal/.test(form.action))return;
   // OAuth and one-time reveal actions keep their navigation semantics.
   if(/microsoft\/(?:start|reveal)|session\/(?:pair|download)/.test(form.action))return;
