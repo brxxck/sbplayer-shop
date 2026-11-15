@@ -16,7 +16,7 @@ function card(ctx,game,data){
  const description=bj?'One shared blackjack table with four seats. New players wait in order until a seat opens.':
   'Synchronized Global Crash rounds with live wagers, player totals, and no fixed four-player cap.';
  const status=bj?
-  (data.joined?(data.atTable?'You have a preview seat (#'+n(data.position)+').':'You are #'+n(data.position)+' in the waiting queue.'):'You have not joined the preview lobby.'):
+  (data.joined?(data.atTable?'You have a seat (#'+n(data.position)+').':'You are #'+n(data.position)+' in the waiting queue.'):'You have not joined the preview lobby.'):
   (data.joined?'You are in the Global Crash lobby.':'Join this lobby to place wagers during the next betting window.');
  return '<article class="online-room" data-online-game="'+game+'">'+
   '<div class="online-room-head"><span class="online-room-graphic" aria-hidden="true">'+(bj?'♠':'🚀')+'</span>'+
