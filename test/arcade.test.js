@@ -170,8 +170,8 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
   assert.match(arcadeHomeHtml,/class="arcade-points-stat"/);
   assert.match(arcadeHomeHtml,/class="arcade-get-more" href="\/points"/);
   assert.match(arcadeHomeHtml,/Get more from levels/);
-  assert.match(html,/Play the house/);
-  assert.match(html,/Challenge a member/);
+  assert.match(html,/Play the House/i);
+  assert.match(html,/Challenge to Coin Flip/);
   assert.doesNotMatch(html.split('<div class="arcade-root">')[1],/\bRTP\b|40%|101%|50%/i);
   const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
   const send=(body)=>fetch(base+'/arcade/coinflip/house',{method:'POST',redirect:'manual',headers:{cookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});
