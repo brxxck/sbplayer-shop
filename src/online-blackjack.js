@@ -6,6 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 import {walletChange} from './arcade.js';
+import {isCinematicWin} from './arcade-cinematic-rules.js';
 import {ONLINE_LOBBY_STALE_MS,BLACKJACK_SEATS} from './online-games.js';
 import {
  BLACKJACK_MIN_WAGER,BLACKJACK_MAX_WAGER,BLACKJACK_BET_MS,
@@ -183,8 +184,9 @@ function project(round,userId,now){
   config.guildId);
  const place=seatRows.findIndex(row=>row.user_id===userId);
  const balance=one('SELECT balance FROM level_point_wallets WHERE guild_id=? AND user_id=?',config.guildId,userId)?.balance||0;
+ const lastWager=one('SELECT wager FROM online_game_entries WHERE user_id=? AND entry_no=0 ORDER BY round_id DESC LIMIT 1',userId)?.wager||50;
  if(!round)return {serverTime:now,phase:'waiting',roundId:null,players:[],dealer:[],balance,seat:place+1||null,
-  joined:place>=0,canBet:false,actions:[],roundWager:0,roundPlayers:0};
+  joined:place>=0,canBet:false,actions:[],roundWager:0,roundPlayers:0,lastWager};
  const game=load(round);
  const betting=round.status==='betting',playing=round.status==='playing',finished=['settled','cancelled'].includes(round.status);
  const dealer=playing?[game.dealer[0],{back:true}]:finished?game.dealer:[];
@@ -218,10 +220,11 @@ function project(round,userId,now){
   placedBet:betting?myBet?.wager||0:0,
   players,dealer,dealerValue:finished?blackjackValue(game.dealer):null,
   roundPlayers:game.players.length||(betting?bets.filter(x=>x.entry_no===0).length:0),
-  roundWager:totalWager,balance,actions,
+  roundWager:totalWager,balance,lastWager,actions,
   myResult:finished&&me?{
    wager:myTotalWager,payout:myPayout,profit:myPayout-myTotalWager,
    winning:myPayout>myTotalWager,settledAt:round.ends_at,
+   cinematic:isCinematicWin({status:myPayout>myTotalWager?'won':'lost',wager:myTotalWager,payout:myPayout}),
    roundId:round.id
   }:null,
   lastEvent:game.lastEvent,waiting:Math.max(0,place-BLACKJACK_SEATS+1)
