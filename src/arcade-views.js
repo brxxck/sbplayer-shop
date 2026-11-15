@@ -8,6 +8,14 @@ const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
 const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
+const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
+const coinArt=(selected='heads')=>\`<div class="arcade-coin-disc" data-coin-disc data-landed="\${selected}">
+  <span class="arcade-coin-face arcade-coin-sb">SB</span>
+  <span class="arcade-coin-face arcade-coin-cam">CAM</span>
+ </div>\`;
+const faceChoices=\`<fieldset class="arcade-face-choice arcade-branded-choices"><legend>Your choice</legend>
+ <label class="arcade-face-sb"><input type="radio" name="face" value="heads" checked><span class="arcade-choice-coin">SB</span><strong>SB</strong><small>Heads</small></label>
+ <label class="arcade-face-cam"><input type="radio" name="face" value="tails"><span class="arcade-choice-coin">CAM</span><strong>CAM</strong><small>Tails</small></label></fieldset>\`;
 const wagerField=(value=50)=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" value="${value}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const chrome=(ctx,page,summary,content)=>{
@@ -32,8 +40,8 @@ const resultBox=round=>{
  const {status,wager,payout,game,details}=round;
  const label=states[status]||status;
  let extra='';
- if(game==='coinflip')extra=`You chose ${esc(details.selected)} · Coin landed ${esc(details.landed)}.`;
- if(game==='coinflip_pvp')extra=`Coin landed ${esc(details.landed)}.`;
+ if(game==='coinflip')extra=`You chose ${coinName(details.selected)} · Coin landed on ${coinName(details.landed)}.`;
+ if(game==='coinflip_pvp')extra=`Coin landed on ${coinName(details.landed)}.`;
  if(game==='slots')extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
  return `<section class="arcade-result panel padded" role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
@@ -58,39 +66,27 @@ export function arcadeHome(ctx,summary,rounds){
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
 }
-export function coinflipPage(ctx,summary,{round,rounds,challenges}){
- const newest=round||rounds[0];
+export function coinflipPage(ctx,summary,{round,rounds}){
+ const newest=round||rounds.find(r=>r.game==='coinflip');
+ const landed=newest?.game==='coinflip'?newest.details?.landed||'':'';
  return chrome(ctx,'Coin Flip',summary,`
- <div class="arcade-two-columns"><section class="panel padded arcade-game-panel">
-  <div class="arcade-section-title"><h2>🪙 Play the house</h2><span>Instant flip</span></div>
-  <div class="arcade-coin-stage" data-coin-stage data-coin-result="${esc(newest?.game==='coinflip'?newest.details?.landed||'':'')}"><div class="arcade-coin-disc"><span>SB</span></div></div>
-  <p>Pick a side and flip. The winner receives double their wager. The house has an advantage.</p>
+ <section class="panel padded arcade-game-panel arcade-house-only">
+  <div class="arcade-section-title"><h2>🪙 SB vs CAM — Play the House</h2><span>Instant flip</span></div>
+  <div class="arcade-coin-stage" data-coin-stage data-coin-result="${esc(landed)}">${coinArt(landed||'heads')}</div>
+  <p>Choose SB (Heads) or CAM (Tails). Winning flips return twice the wager. The house has an advantage.</p>
   <form action="/arcade/coinflip/house" method="post" class="arcade-form">${token(ctx)}${request()}
-  ${wagerField()}<fieldset class="arcade-face-choice"><legend>Your choice</legend><label><input type="radio" name="face" value="heads" checked> Heads</label><label><input type="radio" name="face" value="tails"> Tails</label></fieldset>
-  <button class="btn btn-primary" type="submit">Flip vs House</button></form>
+   ${wagerField()}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
+  </form>
+  <p class="muted tiny arcade-profile-invite">Want to challenge another member? Visit their <a href="/members">profile</a> and select <b>Challenge to Coin Flip</b>.</p>
  </section>
- <section class="panel padded arcade-game-panel"><div class="arcade-section-title"><h2>⚔️ Challenge a member</h2><span>Member vs member</span></div>
-  <p>Choose Heads or Tails, set a wager, and create a challenge. Another member matches your wager. The winner takes both wagers with no fee.</p>
-  <form class="arcade-form" action="/arcade/coinflip/challenges" method="post">${token(ctx)}${request()}${wagerField()}
-  <fieldset class="arcade-face-choice"><legend>Your choice</legend><label><input type="radio" name="face" value="heads" checked> Heads</label><label><input type="radio" name="face" value="tails"> Tails</label></fieldset>
-  <label class="arc-label">Private opponent Discord ID (optional)<input type="text" name="target_id" pattern="[0-9]{15,22}" placeholder="Leave blank for a public challenge"></label>
-  <button type="submit" class="btn btn-primary">Create Challenge</button></form>
- </section></div>
- ${resultBox(newest&&['coinflip','coinflip_pvp'].includes(newest.game)?newest:null)}
- <section class="panel padded"><div class="arcade-section-title"><h2>Open coin flips</h2><span>Challenges expire after 24 hours</span></div>
- <div class="arcade-challenges">${challenges.map(c=>`<article class="arcade-challenge"><div><strong>${esc(c.creator_name)}</strong>
- <span class="muted tiny">${c.target_id?'Private challenge':'Public challenge'} · ${esc(c.face)}</span></div>
- <b>${number(c.wager)} pts each</b>
- ${c.creator_id===ctx.user.id?`<form method="post" action="/arcade/coinflip/challenges/${c.id}/cancel">${token(ctx)}<button class="btn btn-outline" type="submit">Cancel</button></form>`:
- `<form method="post" action="/arcade/coinflip/challenges/${c.id}/join">${token(ctx)}<button class="btn btn-primary" type="submit">Join</button></form>`}</article>`).join('')||'<p class="muted">No open challenges. Create one to start the lobby.</p>'}</div>
- <p class="muted tiny">Your points are reserved while a challenge is open, and returned if you cancel before it is accepted or it expires.</p></section>
+ ${resultBox(newest?.game==='coinflip'?newest:null)}
  ${historyList(rounds)}`);
 }
 export function slotsPage(ctx,summary,{round,rounds}){
  const newest=round||rounds[0], reels=newest?.details?.reels||['Seven','Seven','Seven'];
  return chrome(ctx,'Slots',summary,`<section class="panel padded arcade-feature-game">
  <div class="arcade-section-title"><h2>🎰 SB Slots</h2><span>Three reels</span></div>
- <div class="arcade-slot-reels" data-slot-reels>${reels.map(s=>`<div class="arcade-reel" aria-label="${esc(s)}">${symbolIcons[s]||esc(s)}</div>`).join('')}</div>
+ <div class="arcade-slot-reels" data-slot-reels>${reels.map((s,i)=>`<div class="arcade-reel" data-reel-index="${i}" data-symbol="${esc(s)}" aria-label="${esc(s)}"><div class="arcade-reel-window"><div class="arcade-reel-face">${symbolIcons[s]||esc(s)}</div></div></div>`).join('')}</div>
  <p>Match symbols across three reels to earn points. Results are settled instantly by the website.</p>
  <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField()}
  <button type="submit" class="btn btn-primary">Spin Reels</button></form></section>
@@ -122,19 +118,41 @@ export function minesPage(ctx,summary,{round,rounds}){
 }
 export function crashPage(ctx,summary,status,rounds){
  const round=status.round;
- return chrome(ctx,'Crash',summary,`<section class="panel padded arcade-feature-game arcade-crash-page" data-crash-game data-crash-active="${round?.status==='active'?'1':'0'}">
- <div class="arcade-section-title"><h2>🚀 Crash</h2><span>Collect before the crash</span></div>
- <div class="arcade-crash-display"><div class="arcade-crash-line"></div><div class="arcade-crash-number" data-crash-multiplier>1.00×</div><small data-crash-message>${round?.status==='active'?'Round starting…':round?.status==='lost'?'Crashed!':round?.status==='cashed_out'?'Points collected!':'Start a new round'}</small></div>
- ${round?.status==='active'?`<div class="arcade-round-panel"><p>Your wager: <strong>${number(round.wager)} points</strong>${round.autoAt?' · Auto-collect: '+(round.autoAt/100).toFixed(2)+'×':''}</p>
- <form method="post" action="/arcade/crash/${round.id}/collect">${token(ctx)}<button type="submit" class="btn btn-primary" data-crash-collect>Collect Points</button></form></div>`:''}
- ${round?.status!=='active'?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
+ const active=round?.status==='active';
+ const terminal=!!round&&!active;
+ const replay=ctx.arcadePlayAgain===true;
+ const showForm=!active&&(!terminal||replay);
+ const cashAt=round?.cashAt||100,crashAt=round?.crashAt||100;
+ const cashout=round?.status==='cashed_out';
+ const finishedAt=(cashout?cashAt:crashAt)/100;
+ const profit=(round?.payout||0)-(round?.wager||0);
+ return chrome(ctx,'Crash',summary,`<section class="panel padded arcade-feature-game arcade-crash-page" data-crash-game data-crash-active="${active?'1':'0'}" data-crash-final="${terminal?finishedAt.toFixed(2):''}" data-crash-outcome="${terminal?round.status:''}">
+ <div class="arcade-section-title"><h2>🚀 SB Crash</h2><span>Collect before the rocket crashes</span></div>
+ <div class="arcade-crash-display ${terminal?(cashout?'collected':'crashed'):''}">
+   <div class="arcade-crash-stars" aria-hidden="true"></div>
+   <svg viewBox="0 0 700 260" class="arcade-crash-chart" aria-hidden="true" preserveAspectRatio="none">
+    <defs><linearGradient id="arcadeRocketLine" x1="0" x2="1"><stop offset="0%" stop-color="#126d82"/><stop offset="100%" stop-color="#4bf4b2"/></linearGradient></defs>
+    <path data-crash-chart-line d="M 28 232 L 28 232" fill="none" stroke="url(#arcadeRocketLine)" stroke-width="4" stroke-linecap="round"/>
+   </svg>
+   <div class="arcade-rocket" data-crash-rocket aria-hidden="true"><span class="arcade-rocket-body">🚀</span><span class="arcade-rocket-exhaust"></span></div>
+   <div class="arcade-crash-hud"><div class="arcade-crash-number" data-crash-multiplier>${terminal?finishedAt.toFixed(2):'1.00'}×</div>
+   <small data-crash-message>${active?'Launching…':terminal?(cashout?'Successfully collected!':'Rocket crashed!'):'Ready to launch'}</small></div>
+   <div class="arcade-crash-flash" aria-hidden="true"></div>
+ </div>
+ ${active?`<div class="arcade-round-panel"><p>Your wager: <strong>${number(round.wager)} points</strong>${round.autoAt?' · Auto-collect: '+(round.autoAt/100).toFixed(2)+'×':''}</p>
+  <form method="post" action="/arcade/crash/${round.id}/collect">${token(ctx)}<button type="submit" class="btn btn-primary" data-crash-collect>🚀 Collect Points</button></form></div>`:''}
+ ${terminal&&!replay?`<div class="arcade-crash-result ${cashout?'arcade-crash-win':'arcade-crash-loss'}" role="status">
+ <div class="arcade-crash-result-heading"><span aria-hidden="true">${cashout?'✅':'💥'}</span><div><h2>${cashout?'Successfully Cashed Out!':'Rocket Crashed!'}</h2><p>${cashout?'You collected before the crash.':'You did not collect before the crash.'}</p></div></div>
+ <div class="arcade-crash-result-mult">${finishedAt.toFixed(2)}×</div>
+ <div class="arcade-crash-receipt"><div><span>Wager</span><strong>${number(round.wager)} pts</strong></div><div><span>Returned</span><strong>${number(round.payout)} pts</strong></div></div>
+ <div class="arcade-crash-profit"><small>${cashout?'POINTS PROFIT':'POINTS LOST'}</small><strong>${profit>0?'+':''}${number(profit)} points</strong></div>
+ <a class="btn btn-primary arcade-play-again" href="/arcade/crash?again=1">🚀 Play Again</a>
+ </div>`:''}
+ ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
  ${wagerField()}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
- <p class="muted tiny">The server chooses the crash point before each round. Auto-collect is processed by the server even if you close this page.</p>
- </section>
- ${round&&round.status!=='active'?`<section class="panel padded arcade-result" role="status"><div><small>LAST RESULT</small><h2>${round.status==='lost'?'Crashed':'Collected'}</h2><p>Round #${round.id}</p></div>
- <div class="arcade-result-value ${round.payout>=round.wager?'positive':'negative'}"><strong>${round.payout>=round.wager?'+':''}${number(round.payout-round.wager)} pts</strong><small>${number(round.payout)} returned</small></div></section>`:''}
- ${historyList(rounds)}`);
+ <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
+ </section>${historyList(rounds)}`);
 }
 export function arcadeHistoryPage(ctx,summary,rounds,transfers){
  return chrome(ctx,'Your Arcade History',summary,`<section class="panel padded"><h2>Game history</h2>
