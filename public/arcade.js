@@ -7,7 +7,7 @@
   // The server remembers completed wagers across devices. A more recent,
   // unsubmitted change is saved in this signed-in browser only.
   const memberId=document.body.dataset.siteUser||'';
-  const wagerGames=new Set(['coinflip','slots','mines','crash']);
+  const wagerGames=new Set(['coinflip','slots','mines','crash','blackjack']);
   const wagerKey=field=>memberId&&wagerGames.has(field?.dataset.arcadeWager)
     ?'sb-store:arcade:wager:'+memberId+':'+field.dataset.arcadeWager:null;
   function rememberWager(field){
@@ -289,7 +289,7 @@
   // Only Arcade actions are intercepted. Other website forms keep their normal behavior.
   document.addEventListener('submit',event=>{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
+    if(!(form instanceof HTMLFormElement)||form.matches('[data-blackjack-form]')||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
     event.preventDefault();
     if(!form.reportValidity())return;
     const wager=form.querySelector('input[data-arcade-wager]');
