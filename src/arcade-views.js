@@ -41,7 +41,10 @@ const resultBox=round=>{
  let extra='';
  if(game==='coinflip')extra=`You chose ${coinName(details.selected)} · Coin landed on ${coinName(details.landed)}.`;
  if(game==='coinflip_pvp')extra=`Coin landed on ${coinName(details.landed)}.`;
- if(game==='slots')extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
+ if(game==='slots'){
+  extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
+  if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
+ }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
  return `<section class="arcade-result panel padded" role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
  <div class="arcade-result-value ${payout>=wager?'positive':'negative'}"><strong>${payout>=wager?'+':''}${number(payout-wager)} pts</strong><small>${number(payout)} returned from ${number(wager)} wagered</small></div></section>`;
