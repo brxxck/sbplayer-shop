@@ -3,7 +3,8 @@ import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
- createChallenge,joinChallenge,cancelChallenge,openChallenges,recentRounds,getRound,currentRound,transfersFor,sweepArcade} from './arcade.js';
+ createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
+ openChallenges,recentRounds,getRound,currentRound,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
@@ -338,7 +339,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         if(!fastArcade)return notice?success(destination,notice):redirect(res,destination);
         const target=new URL(destination,'http://localhost');
         const roundId=idFrom(target.searchParams.get('round'));
-        const context={...ctx,pathname:target.pathname,arcadeFragment:true};
+        const context={...ctx,pathname:target.pathname,arcadeFragment:true,arcadePlayAgain:target.searchParams.get('again')==='1'};
         let markup;
         if(target.pathname==='/arcade/coinflip'){
           const round=roundId?getRound(user,roundId,'coinflip'):null;
@@ -374,7 +375,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return html(arcadeView.minesPage(ctx,summary(),{round,rounds:recentRounds(user,'mines',15)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/crash')
-        return html(arcadeView.crashPage(ctx,summary(),crashStatus(user),recentRounds(user,'crash',15)));
+        return html(arcadeView.crashPage({...ctx,arcadePlayAgain:url.searchParams.get('again')==='1'},summary(),crashStatus(user),recentRounds(user,'crash',15)));
       if(req.method==='GET'&&pathname==='/arcade/api/crash/state'){
         rate(ctx,'arcade.crash.state',120,60000);
         return respond(res,200,JSON.stringify(crashStatus(user)),'application/json; charset=utf-8');
@@ -383,19 +384,50 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         rate(ctx,'arcade.crash.fragment',40,60000);
         return arcadeResult('/arcade/crash');
       }
+      // Private incoming challenges are shown in a full-screen, session-only
+      // notification on every signed-in member page; no public wagering odds.
+      if(req.method==='GET'&&pathname==='/arcade/api/challenges/incoming'){
+        rate(ctx,'arcade.challenge.incoming',40,60000);
+        return respond(res,200,JSON.stringify({ok:true,challenges:incomingChallenges(user)}),
+          'application/json; charset=utf-8');
+      }
+      const challengeDetails=/^\/arcade\/api\/challenges\/(\d+)$/.exec(pathname);
+      if(req.method==='GET'&&challengeDetails){
+        rate(ctx,'arcade.challenge.details',50,60000);
+        return respond(res,200,JSON.stringify({ok:true,challenge:challengeForUser(user,challengeDetails[1])}),
+          'application/json; charset=utf-8');
+      }
       if(req.method==='POST'&&pathname==='/arcade/coinflip/house'){
         const {fields}=await form();rate(ctx,'arcade.house.flip',35,60000);
         const id=houseCoin(user,fields);return arcadeResult('/arcade/coinflip?round='+id);
       }
       if(req.method==='POST'&&pathname==='/arcade/coinflip/challenges'){
         const {fields}=await form();rate(ctx,'arcade.challenge.create',20,60000);
-        const id=createChallenge(user,fields);return arcadeResult('/arcade/coinflip','Challenge #'+id+' created. Points are reserved until matched or cancelled.');
+        const id=createChallenge(user,fields);
+        const challenge=challengeForUser(user,id);
+        if(challenge.target_id)notifyUser(challenge.target_id,'arcade-challenge',{id,action:'created'});
+        if(req.headers['x-arcade-challenge']==='1'&&String(req.headers.accept||'').includes('application/json'))
+          return respond(res,200,JSON.stringify({ok:true,challenge,notice:'Challenge sent!'}),
+            'application/json; charset=utf-8');
+        return fields.target_id?
+          success('/u/'+encodeURIComponent(challenge.target_id),'Coin Flip challenge sent. Points reserved.'):
+          arcadeResult('/arcade/coinflip','Challenge #'+id+' created.');
       }
-      const pvp=/^\/arcade\/coinflip\/challenges\/(\d+)\/(join|cancel)$/.exec(pathname);
+      const pvp=/^\/arcade\/coinflip\/challenges\/(\d+)\/(join|cancel|decline)$/.exec(pathname);
       if(req.method==='POST'&&pvp){
         await form();rate(ctx,'arcade.challenge.action',35,60000);
-        if(pvp[2]==='join'){joinChallenge(user,pvp[1]);return arcadeResult('/arcade/coinflip','Coin flip complete.');}
-        cancelChallenge(user,pvp[1]);return arcadeResult('/arcade/coinflip','Challenge cancelled and points returned.');
+        let id;
+        if(pvp[2]==='join')id=joinChallenge(user,pvp[1]);
+        else if(pvp[2]==='decline')id=declineChallenge(user,pvp[1]);
+        else id=cancelChallenge(user,pvp[1]);
+        const challenge=challengeForUser(user,id);
+        const participants=new Set([challenge.creator_id,challenge.target_id,challenge.joiner_id].filter(Boolean));
+        for(const player of participants)notifyUser(player,'arcade-challenge',{id,action:challenge.status});
+        if(req.headers['x-arcade-challenge']==='1'&&String(req.headers.accept||'').includes('application/json'))
+          return respond(res,200,JSON.stringify({ok:true,challenge}),
+            'application/json; charset=utf-8');
+        return arcadeResult('/arcade/coinflip',
+          challenge.status==='complete'?'Coin Flip completed.':challenge.status==='declined'?'Challenge declined; points refunded.':'Challenge cancelled; points refunded.');
       }
       if(req.method==='POST'&&pathname==='/arcade/slots/spin'){
         const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
@@ -2010,7 +2042,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
       return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
-        xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
+        challengeHistory:self?challengeHistory(id):[],xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){
