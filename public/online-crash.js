@@ -24,7 +24,7 @@
   return Math.min(10000,Math.floor(100*Math.exp(.12*Math.max(0,d)/1000)+1e-9)));
  };
  let model=null,clockOffset=0,active=true,busy=false,polling=false,heartbeatBusy=false;
- let revision='',displayCents=100,raf=0,lastFrame=0,notice=null;
+ let revision='',displayCents=100,raf=0,lastFrame=0,notice=null,verificationRound=null;
  let draftWager=null,draftAuto=null,draftTime=0;
  for(const [key,prop] of [[wagerKey,'wager'],[autoKey,'auto']]){
   try{
@@ -172,11 +172,22 @@
    renderRecent();
   }
   if(fair){
-   fair.textContent=snapshot.seed||snapshot.commitment||'—';
-   if(snapshot.seed){
-    fairNote.textContent='Verifying SHA-256 commitment against the revealed seed…';
-    void verifyResult(snapshot.seed,snapshot.roundId,snapshot.commitment,snapshot.crashAt);
-   }else{
+   fair.textContent=snapshot.commitment||'—';
+   const seedField=root.querySelector('[data-gcr-seed]');
+   const seedLabel=root.querySelector('[data-gcr-seed-label]');
+   if(seedField&&seedLabel){
+    seedField.hidden=!snapshot.seed;
+    seedLabel.hidden=!snapshot.seed;
+    if(snapshot.seed)seedField.textContent=snapshot.seed;
+    else seedField.textContent='';
+   }
+   if(snapshot.seed&&verificationRound!==snapshot.roundId){
+    verificationRound=snapshot.roundId;
+    if(crypto?.subtle){
+     fairNote.textContent='Checking the revealed seed and committed crash value…';
+     void verifyResult(snapshot.seed,snapshot.roundId,snapshot.commitment,snapshot.crashAt);
+    }else fairNote.textContent='Seed revealed. Verification requires a secure browser.';
+   }else if(!snapshot.seed){
     fairNote.textContent='Pre-round SHA-256 commitment. Hidden seed is revealed after the crash.';
    }
   }
