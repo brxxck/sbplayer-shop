@@ -91,7 +91,7 @@ export function onlineRoulettePage(ctx,summary,state){
   '<h2>Players in this round</h2><span data-roulette-participant-count>',n(state.roundPlayers),' players</span></div>',
   '<div class="roulette-player-list" data-roulette-participants>',players(state),'</div></section></section>',
   '<section class="roulette-right"><div class="roulette-betting-panel">',
-  '<div class="roulette-section-title"><h2>Place your chips</h2><span>30 seconds betting</span></div>',
+  '<div class="roulette-section-title"><h2>Place your chips</h2><span class="roulette-betting-countdown"><span data-roulette-phase-mobile>Betting closes in</span> <strong data-roulette-countdown-mobile>00:30</strong></span></div>',
   '<p class="roulette-hint">Choose a chip value, then tap a number or outside bet. Edit your slip before confirming; points are only charged after confirmation.</p>',
   '<div class="roulette-chip-palette" role="group" aria-label="Chip value">',
   [10,25,50,100,250,500,1000].map(v=>

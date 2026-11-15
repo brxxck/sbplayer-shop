@@ -138,3 +138,14 @@ test('desktop arcade does not show duplicate mobile game menu',()=>{
  assert.match(css,/\.arcade-game-menu \{ display:block;/);
  assert.match(views,/global-crash-disabled-v1-mobile-first-r1/);
 });
+
+
+test('mobile Roulette puts live betting before wheel with a synchronized countdown',()=>{
+ const rouletteView=readFileSync(new URL('../src/online-roulette-views.js',import.meta.url),'utf8');
+ const rouletteJs=readFileSync(new URL('../public/online-roulette.js',import.meta.url),'utf8');
+ assert.match(css,/\.roulette-right \{ order:0; \}/);
+ assert.match(css,/\.roulette-left \{ order:1; \}/);
+ assert.match(rouletteView,/data-roulette-countdown-mobile/);
+ assert.match(rouletteJs,/mobileTimer\.textContent=clockText/);
+ assert.match(rouletteJs,/mobilePhase\.textContent/);
+});
