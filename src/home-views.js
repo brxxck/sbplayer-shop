@@ -50,7 +50,7 @@ export function staffHome(ctx,{tickets=[],staffMessages=[],applications=[],activ
      <div>
        <h1>Staff command <span class="gradient">center.</span></h1>
 
-       <div class="dash-welcome-actions"><a href="/staff/tickets" class="btn btn-primary">View All Tickets →</a>
+       <div class="dash-welcome-actions"><a href="/staff/tickets" class="btn btn-primary">View All Tickets →</a>${ctx.role==='owner'?'<a href="/owner/point-all" class="btn btn-outline">🎁 Point All</a>':''}
        <a href="/applications" class="btn btn-outline">Application management</a></div></div>
    </section>
    <div class="dash-summary-row">
