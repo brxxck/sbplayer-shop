@@ -32,6 +32,15 @@
   const riskTable=tables?.[rows]?.[risk];
   return {rows,risk,count,wager,multipliers:Array.isArray(riskTable)?riskTable:tables?.[12]?.medium||[]};
  };
+ // A balance rendered by the server belongs to this Plinko component.
+ // The shared Arcade wallet header lives OUTSIDE [data-plinko-root], so
+ // querying it with root.querySelector returned nothing and disabled all drops.
+ // This numeric attribute is refreshed with every successful round response.
+ const availableBalance=()=>{
+  const raw=root?.querySelector('[data-plinko-balance]')?.dataset.plinkoWallet;
+  const balance=Number(raw);
+  return raw!==undefined&&Number.isSafeInteger(balance)&&balance>=0?balance:0;
+ };
  const spacing=rows=>Math.min(62,560/rows);
  const pegY=(rows,row)=>SIZE.firstY+row*(SIZE.pegsHeight/rows);
  const slotX=(rows,slot)=>SIZE.center+(slot-rows/2)*spacing(rows);
@@ -123,20 +132,13 @@
     '" data-plinko-slot="'+slot+'" title="Slot '+(slot+1)+' · '+fmt(cents)+'">'+fmt(cents)+'</span>').join('');
    container.style.setProperty('--plinko-slots',String(rows+1));
   }
-  const rtp=multipliers.reduce((sum,cents,k)=>{
-   let combinations=1;
-   for(let j=1;j<=k;j++)combinations=combinations*(rows-j+1)/j;
-   return sum+combinations/(2**rows)*cents/100;
-  },0);
   const stake=root.querySelector('[data-plinko-stake]');
   if(stake)stake.textContent=Number.isSafeInteger(wager)?safeNumber(wager*count)+' pts':'—';
-  const odds=root.querySelector('[data-plinko-odds]');
-  if(odds)odds.textContent='THEORETICAL RETURN '+(rtp*100).toFixed(2)+'% · BEFORE WHOLE-POINT ROUNDING';
   const action=root.querySelector('[data-plinko-submit]');
   if(action){
    action.textContent='🔴 Drop '+count+' ball'+(count===1?'':'s');
-   const balance=Number(root.querySelector('[data-plinko-balance]')?.dataset.plinkoWallet||0);
-   action.disabled=busy||!Number.isSafeInteger(wager)||wager<10||wager>1000||wager*count>balance;
+   action.disabled=busy||!Number.isSafeInteger(wager)||wager<10||wager>1000||
+    wager*count>availableBalance();
   }
   if(canvas)canvas.setAttribute('aria-label','Plinko board, '+rows+' rows, '+risk+' risk, '+(rows+1)+' multiplier slots');
  }
@@ -190,9 +192,6 @@
   last=parseJSON(root.dataset.plinkoLast,null);
   if(!tables||!form||!canvas)return;
   resizeDpr=0;setCanvasDpr();
-  const wallet=Number(String(root.querySelector('.arcade-wallet strong')?.textContent||'0').replace(/[^0-9]/g,''))||0;
-  const label=root.querySelector('[data-plinko-balance]');
-  if(label)label.dataset.plinkoWallet=String(wallet);
   hydrateSettings();
   renderSlots();
   highlightSlot=last?.balls?.length===1?last.balls[0].slot:-1;
@@ -328,8 +327,7 @@
   if(busy||eventForm!==form)return;
   if(!form.reportValidity())return;
   const selected=settings();
-  const label=root.querySelector('[data-plinko-balance]');
-  const available=Number(label?.dataset.plinkoWallet||0);
+  const available=availableBalance();
   if(!Number.isSafeInteger(selected.wager)||selected.wager<10||selected.wager>1000||
      selected.wager*selected.count>available){
    message('Not enough points for that batch. Lower your wager or ball count.',true);

@@ -67,6 +67,8 @@ test('Plinko appears on Arcade homepage and renders rows, risk, batch, Canvas an
  assert.match(member.page,/16 rows/);
  assert.match(member.page,/value="10"/);
  assert.match(member.page,/data-plinko-slots/);
+ assert.match(member.page,/data-plinko-balance data-plinko-wallet="5000"/);
+ assert.doesNotMatch(member.page,/THEORETICAL RETURN|data-plinko-odds/i);
  assert.match(member.page,/\/static\/plinko\.css/);
  assert.match(member.page,/\/static\/plinko\.js/);
  const arcade=(await (await fetch(base+'/arcade',{headers:{cookie:member.cookie}})).text());
@@ -103,6 +105,8 @@ test('Plinko wager POST requires valid CSRF; fast Arcade mode settles and return
  assert.ok(result.url.endsWith('?round='+result.round.id));
  const balance=one('SELECT balance FROM level_point_wallets WHERE user_id=?',alice).balance;
  assert.equal(balance,before-result.round.wager+result.round.payout);
+ assert.match(result.html,new RegExp('data-plinko-wallet="'+balance+'"'));
+ assert.doesNotMatch(result.html,/THEORETICAL RETURN|data-plinko-odds/i);
  const retry=await post('/arcade/plinko/drop',member,fields);
  assert.equal(retry.status,200);
  assert.equal((await retry.json()).round.id,result.round.id);

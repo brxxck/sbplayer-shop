@@ -5,8 +5,9 @@ const n=value=>Number(value||0).toLocaleString('en-GB');
 
 const form=(ctx,game,joined)=>'<form method="post" action="/arcade/online/'+(joined?'leave':'join')+'" class="online-join-form">'+
  token(ctx)+'<input type="hidden" name="game" value="'+game+'">'+
+ (game==='blackjack'?'<input type="hidden" name="next" value="blackjack">':'')+
  '<button type="submit" class="btn '+(joined?'btn-outline':'btn-primary')+'">'+
- (joined?'Leave lobby':game==='blackjack'?'Join Blackjack queue':'Join Global Crash')+'</button></form>';
+ (joined?game==='blackjack'?'Leave Blackjack queue':'Leave lobby':game==='blackjack'?'♠ Join & Play Blackjack':'Join Global Crash')+'</button></form>';
 
 function card(ctx,game,data){
  const bj=game==='blackjack',seats=bj?'<div class="online-counter"><span>AT TABLE</span><strong data-online-stat="blackjack.seated">'+n(data.seated)+' / 4</strong></div><div class="online-counter"><span>WAITING</span><strong data-online-stat="blackjack.waiting">'+n(data.waiting)+'</strong></div>':'';
@@ -16,7 +17,7 @@ function card(ctx,game,data){
  const description=bj?'One shared blackjack table with four seats. New players wait in order until a seat opens.':
   'Synchronized Global Crash rounds with live wagers, player totals, and no fixed four-player cap.';
  const status=bj?
-  (data.joined?(data.atTable?'You have a seat (#'+n(data.position)+').':'You are #'+n(data.position)+' in the waiting queue.'):'You have not joined the preview lobby.'):
+  (data.joined?(data.atTable?'You have a seat (#'+n(data.position)+').':'You are #'+n(data.position)+' in the waiting queue.'):'Join to reserve a seat and open the live table.'):
   (data.joined?'You are in the Global Crash lobby.':'Join this lobby to place wagers during the next betting window.');
  return '<article class="online-room" data-online-game="'+game+'">'+
   '<div class="online-room-head"><span class="online-room-graphic" aria-hidden="true">'+(bj?'♠':'🚀')+'</span>'+
@@ -27,7 +28,7 @@ function card(ctx,game,data){
   '<div class="online-stats">'+players+seats+roundPlayers+wager+'</div>'+
   '<p class="online-own-status" data-online-status="'+game+'" role="status">'+esc(status)+'</p>'+
   form(ctx,game,data.joined)+
-  (bj?'<a class="btn btn-primary" href="/arcade/online/blackjack">♠ Open Blackjack table →</a>':'<a class="btn btn-primary" href="/arcade/online/crash">🚀 Watch Global Crash live →</a>')+
+  (bj?'<a class="btn '+(data.joined?'btn-primary':'btn-outline')+'" href="/arcade/online/blackjack">♠ '+(data.joined?'Play Blackjack now':'View live table')+' →</a>':'<a class="btn btn-primary" href="/arcade/online/crash">🚀 Watch Global Crash live →</a>')+
   '<p class="online-warning">'+(bj?'Four seats per round. Wagers are only placed at the table during the betting countdown.':'Place 10–1,000 points in the live betting window and collect before the rocket crashes.')+'</p>'+
  '</article>';
 }

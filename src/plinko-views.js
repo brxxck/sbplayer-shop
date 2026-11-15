@@ -3,7 +3,7 @@
 import {randomUUID} from 'node:crypto';
 import {esc,token} from './views.js';
 import {chrome,historyList,resultBox} from './arcade-views.js';
-import {PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES,plinkoRtp} from './plinko.js';
+import {PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES} from './plinko.js';
 
 const n=value=>Number(value||0).toLocaleString('en-GB');
 const mult=cents=>(cents/100).toFixed(2)+'×';
@@ -60,7 +60,7 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
   '<div class="plinko-board-notice" data-plinko-message role="status" aria-live="polite">'+
   'Choose your wager and drop a ball</div>'+
   '</div>'+payoutSlots(table)+
-  '<div class="plinko-board-actions"><span data-plinko-odds>THEORETICAL RETURN '+(100*plinkoRtp(rows,risk)).toFixed(2)+'% before point rounding</span>'+
+  '<div class="plinko-board-actions">'+
   '<button type="button" class="btn btn-outline" data-plinko-skip hidden>Skip animation →</button></div></div>'+
   '<aside class="plinko-controls">'+
   '<div class="plinko-controls-title"><h3>Place your wager</h3><small>Level Points only</small></div>'+
@@ -74,7 +74,7 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
   '<label class="arc-label">Board size'+selectRows+'</label>'+
   riskControl(risk)+countControls(count)+
   '<div class="plinko-stake-summary"><div><span>TOTAL WAGER</span><strong data-plinko-stake>'+
-  n(wager*count)+' pts</strong></div><div><span>YOUR BALANCE</span><strong data-plinko-balance>'+
+  n(wager*count)+' pts</strong></div><div><span>YOUR BALANCE</span><strong data-plinko-balance data-plinko-wallet="'+Number(summary.balance)+'">'+
   n(summary.balance)+' pts</strong></div></div>'+
   '<button class="btn btn-primary plinko-drop-btn" data-plinko-submit type="submit">🔴 Drop '+count+
   ' ball'+(count===1?'':'s')+'</button>'+

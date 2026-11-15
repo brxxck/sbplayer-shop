@@ -137,33 +137,66 @@
    apply(data,false);
   }catch(error){if(showErrors)status(error?.message||'Connection interrupted.',true);}
  }
+ // Standard HTML POST is the safe fallback when a client-side fetch fails.
+ // It carries the same immutable request UUID: the backend will neither draw
+ // the next card nor debit the wallet twice on a repeated request.
+ function nativeSubmit(form){
+  if(!form?.isConnected)return false;
+  form.setAttribute('data-sbj-native-fallback','1');
+  HTMLFormElement.prototype.submit.call(form);
+  return true;
+ }
  async function send(form){
   if(busy)return;
   if(!form.reportValidity())return;
   rememberWager();
   busy=true;
+  const trigger=form.querySelector('button[type="submit"]');
+  const action=form.querySelector('input[name="action"]')?.value||'deal';
   const submittedButtons=[...controls.querySelectorAll('button')];
   for(const button of submittedButtons)button.disabled=true;
+  status('Confirming '+action+' with the Blackjack server…');
+  let nativeFallback=false;
   try{
    const fields=new URLSearchParams(new FormData(form));
    if(!fields.has('_csrf'))fields.set('_csrf',csrf);
+   // Keep the original server-issued UUID for fallback, never mint a second
+   // request ID after a connection failure.
    const response=await fetch(form.action,{method:'POST',credentials:'same-origin',
     cache:'no-store',redirect:'manual',
     headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded'},
     body:fields});
-   const data=await response.json();
-   if(!response.ok)throw Error(data?.error||'The dealer could not confirm your move.');
-   apply(data);
-   status(model.phase==='playing'?'Your move is confirmed. Choose what to do next.':
-    'Round confirmed. All point transactions are saved.');
+   if(response.type==='opaqueredirect'||(response.status>=300&&response.status<400)){
+    nativeFallback=true;
+   }else{
+    let data=null;
+    try{data=await response.json();}catch{
+     // Unexpected HTML/empty response (login redirect, proxy or expired
+     // session): use the ordinary form path to show the real server page.
+     nativeFallback=true;
+    }
+    if(!nativeFallback){
+     if(!response.ok){
+      await refresh();
+      status((data?.error||'Blackjack server rejected the move.')+
+       ' Your saved hand is unchanged or has been refreshed.',true);
+     }else{
+      apply(data);
+      status(model.phase==='playing'?'Your move is confirmed. Choose what to do next.':
+       'Round confirmed. All point transactions are saved.');
+     }
+    }
+   }
   }catch(error){
-   status((error?.message||'Your move was not confirmed.')+
-    ' Checking your saved hand…',true);
-   // Refresh only. Never replay a wager or card action automatically.
-   await refresh();
+   nativeFallback=true;
+   status('Animated request failed. Using a safe standard form submission…',true);
   }finally{
+   if(nativeFallback&&form.isConnected){
+    // No synthetic 'submit' event: prevent a second AJAX interception.
+    // The same UUID makes this safe even when the first POST succeeded.
+    nativeSubmit(form);
+   }
    busy=false;
-   // Do not re-enable controls that the newly rendered server state disabled.
    for(const button of submittedButtons)if(button.isConnected)button.disabled=false;
   }
  }

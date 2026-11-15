@@ -487,7 +487,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const {fields}=await form();rate(ctx,'arcade.online.queue',18,60000);
         if(pathname.endsWith('/join'))joinOnlineLobby(user,fields.game);
         else leaveOnlineLobby(user,fields.game);
-        const destination=fields.game==='crash'&&fields.next==='crash'?'/arcade/online/crash':'/arcade/online';
+        // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+        // Joining Blackjack from the lobby/table takes the player straight
+        // to the real table instead of leaving them on a preview-only queue.
+        const destination=pathname.endsWith('/join')&&fields.game==='blackjack'&&fields.next==='blackjack'?
+          '/arcade/online/blackjack':
+          fields.game==='crash'&&fields.next==='crash'?'/arcade/online/crash':'/arcade/online';
         return success(destination,pathname.endsWith('/join')?
           (fields.game==='crash'?'You joined the Global Crash lobby.':'You joined the Blackjack queue.'):'You left the lobby.');
       }
