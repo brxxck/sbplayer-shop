@@ -71,3 +71,8 @@
 @media(prefers-reduced-motion:reduce){
  .arcade-pvp-coin.pvp-flip-animated{animation:none!important}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.arcade-pending-profile-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:11px 0;border-top:1px solid #2b4c67;font-size:13px}
+.arcade-pending-profile-row form{margin:0}
+.arcade-pending-profile-row button{min-height:44px}
