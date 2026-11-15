@@ -86,7 +86,7 @@
   if(seen.size>0&&sounds.length)experience()?.play('card');
  }
  function message(){
-  if(!model.joined)return 'You are spectating. Join the Blackjack lobby to play.';
+  if(!model.joined)return 'You are spectating. Join the live queue below to play in the next available round.';
   if(!model.reserved&&['betting','playing'].includes(model.phase))
    return 'You are in the waiting queue. Your seat opens in a future round.';
   if(model.phase==='betting')return model.placedBet?
@@ -107,6 +107,13 @@
     '<label>Wager in points <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="10" max="1000" step="1" value="'+wager+'" required></label>'+
     '<div class="bj-quick-bets">'+[10,50,100,500,1000].map(n=>'<button type="button" data-bj-wager="'+n+'">'+format(n)+'</button>').join('')+'</div>'+
     '<button type="submit" class="btn btn-primary" '+(model.balance<10?'disabled':'')+'>Place Wager</button></form>';
+  }
+  if(!model.joined){
+   form='<form method="post" action="/arcade/online/join" class="bj-join-direct" data-online-join-direct>'+
+    '<input type="hidden" name="_csrf" value="'+escape(csrf)+'">'+
+    '<input type="hidden" name="game" value="blackjack">'+
+    '<input type="hidden" name="next" value="blackjack">'+
+    '<button type="submit" class="btn btn-primary">♠ Join & Play Blackjack</button></form>';
   }
   if(model.actions?.length){
    form+='<div class="bj-actions">'+model.actions.map(action=>
