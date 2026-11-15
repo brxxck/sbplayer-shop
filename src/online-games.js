@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-// Shared multiplayer *lobby foundation*. No wagering or game settlement is enabled here.
+// Shared multiplayer lobby foundation. Blackjack now uses real rounds; Global Crash remains preview-only.
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 
@@ -102,11 +102,25 @@ export function onlineGamesSnapshot(userId,now=Date.now()){
  const position=row?one("SELECT COUNT(*) AS position FROM online_game_waiting WHERE guild_id=? AND game='blackjack' "+
   "AND (joined_at<? OR (joined_at=? AND user_id<=?))",config.guildId,row.joined_at,row.joined_at,user).position:null;
  const inCrash=!!one("SELECT 1 FROM online_game_waiting WHERE guild_id=? AND game='crash' AND user_id=?",config.guildId,user);
+ // Seats are reserved for the current round, even when the queue changes mid-hand.
+ const activeBlackjack=one("SELECT result_json FROM online_game_rounds WHERE guild_id=? AND game='blackjack' "+
+  "AND status IN ('betting','playing') ORDER BY id DESC LIMIT 1",config.guildId);
+ let pinned=null;
+ try{
+  if(activeBlackjack){
+   const parsed=JSON.parse(activeBlackjack.result_json||'{}');
+   pinned=Array.isArray(parsed.seats)?parsed.seats:[];
+  }
+ }catch{pinned=[];}
+ const reserved=pinned?new Set(pinned):null;
+ const seatsFilled=pinned?pinned.length:Math.min(bj,BLACKJACK_SEATS);
+ const queued=pinned?Math.max(0,all("SELECT user_id FROM online_game_waiting WHERE guild_id=? AND game='blackjack'",config.guildId)
+  .filter(x=>!reserved.has(x.user_id)).length):Math.max(0,bj-BLACKJACK_SEATS);
  return {
   serverTime:stamp,
-  blackjack:{...roundMetrics('blackjack'),lobbyPlayers:bj,seated:Math.min(bj,BLACKJACK_SEATS),
-    waiting:Math.max(0,bj-BLACKJACK_SEATS),seats:BLACKJACK_SEATS,joined:position!==null,
-    position,atTable:position!==null&&position<=BLACKJACK_SEATS,enabled:false},
+  blackjack:{...roundMetrics('blackjack'),lobbyPlayers:bj,seated:seatsFilled,
+    waiting:queued,seats:BLACKJACK_SEATS,joined:position!==null,
+    position,atTable:reserved?reserved.has(user):position!==null&&position<=BLACKJACK_SEATS,enabled:true},
   crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:false}
  };
 }
