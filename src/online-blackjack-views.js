@@ -2,6 +2,7 @@
 // Accessible, responsive four-seat Blackjack table. The browser never receives the shoe or hidden dealer card.
 import {randomUUID} from 'node:crypto';
 import {shell,esc,token} from './views.js';
+import {arcadeMobileMenu} from './arcade-views.js';
 const n=v=>Number(v||0).toLocaleString('en-GB');
 const suits={S:'♠',H:'♥',D:'♦',C:'♣'};
 const card=card=>{
@@ -106,7 +107,7 @@ export function blackjackPage(ctx,summary,state){
   '<h1>Blackjack <span class="bj-live">● LIVE TABLE</span></h1>'+
   '<p>Up to four players against one dealer. Place your bet, watch the cards and take your turn.</p></div>'+
   '<a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong data-bj-wallet>'+n(summary.balance)+' ✦</strong><small>Shared Arcade wallet</small></a></div>'+
-  '<div class="bj-toolbar"><a href="/arcade/online" class="btn btn-outline">← Online Games</a>'+
+  arcadeMobileMenu(ctx,'Online Blackjack')+'<div class="bj-toolbar"><a href="/arcade/online" class="btn btn-outline">← Online Games</a>'+
   '<div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button>'+
   '<label>Animations <select data-arcade-motion><option value="full">Full</option>'+
   '<option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>'+

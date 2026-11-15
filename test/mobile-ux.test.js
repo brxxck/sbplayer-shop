@@ -83,10 +83,69 @@ test('mobile script supports closing menu and page search without changing deskt
 });
 
 test('mobile assets are loaded after desktop CSS and served through approved static routes',()=>{
- assert.match(views,/\/static\/mobile\.css\?v=\$\{assetVersion\}/);
+ assert.match(views,/\/static\/mobile\.css\?v=\$\{assetVersion\}-mobile-first-r1/);
  assert.match(views,/\/static\/mobile\.js\?v=\$\{assetVersion\}/);
  assert.ok(views.indexOf('/static/upgrade.css')<views.indexOf('/static/mobile.css'));
  assert.ok(server.includes("'/static/mobile.css'"));
  assert.ok(server.includes("'/static/mobile.js'"));
  assert.ok(!server.includes("window.location.assign('/arcade')"));
+});
+
+
+test('arcade includes a real mobile game picker, with Live Roulette and Blackjack supported',()=>{
+ const arcade=readFileSync(new URL('../src/arcade-views.js',import.meta.url),'utf8');
+ const roulette=readFileSync(new URL('../src/online-roulette-views.js',import.meta.url),'utf8');
+ const blackjack=readFileSync(new URL('../src/online-blackjack-views.js',import.meta.url),'utf8');
+ assert.match(arcade,/export const arcadeMobileMenu=/);
+ assert.match(arcade,/class="arcade-game-menu"/);
+ assert.match(arcade,/aria-label="Choose an arcade game"/);
+ assert.match(arcade,/mobileGameMenu=arcadeMobileMenu\(ctx,page\)/);
+ assert.match(roulette,/arcadeMobileMenu\(ctx,'Live Roulette'\)/);
+ assert.match(blackjack,/arcadeMobileMenu\(ctx,'Online Blackjack'\)/);
+ assert.doesNotMatch(arcade,/mobileGames=[\s\S]*?Global Crash/);
+});
+
+test('mobile game views are compact without removing accessible wager and action controls',()=>{
+ const solo=readFileSync(new URL('../src/solo-blackjack-views.js',import.meta.url),'utf8');
+ assert.match(css,/SB MOBILE-FIRST OVERHAUL/);
+ assert.match(css,/\.sbj-intro \{ display:none;/);
+ assert.match(css,/\.sbj-root:has\(\.sbj-felt\[data-sbj-phase="playing"\]\)/);
+ assert.match(css,/\.sbj-wager-form \{ display:grid/);
+ assert.match(css,/\.sbj-action-buttons button/);
+ assert.match(css,/\.bj-actions button/);
+ assert.match(css,/\.roulette-number-grid \{ min-width:0/);
+ assert.match(css,/\.roulette-number-row \{ display:grid; grid-template-columns:repeat\(3/);
+ assert.match(css,/\.arcade-tabs \{ display:none!important;/);
+ assert.match(css,/\.arcade-game-menu > nav a/);
+ assert.match(solo,/data-sbj-controls/);
+ assert.match(solo,/data-sbj-table/);
+});
+
+test('mobile patch stays entirely in responsive media queries',()=>{
+ const start=css.indexOf('/* SB MOBILE-FIRST OVERHAUL');
+ assert.ok(start>0);
+ const section=css.slice(start);
+ const pos=section.indexOf('@media (max-width:840px)');
+ assert.ok(pos>0,'no global desktop rules before the mobile breakpoint');
+ const before=section.slice(0,pos).replace(/\*\/[\s\S]*?\/\*/g,'');
+ assert.doesNotMatch(before,/(^|\})\s*\.[\w-]+\s*\{/);
+});
+
+
+test('desktop arcade does not show duplicate mobile game menu',()=>{
+ const arcadeCss=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ assert.match(arcadeCss,/\.arcade-game-menu\{display:none\}/);
+ assert.match(css,/\.arcade-game-menu \{ display:block;/);
+ assert.match(views,/global-crash-disabled-v1-mobile-first-r1/);
+});
+
+
+test('mobile Roulette puts live betting before wheel with a synchronized countdown',()=>{
+ const rouletteView=readFileSync(new URL('../src/online-roulette-views.js',import.meta.url),'utf8');
+ const rouletteJs=readFileSync(new URL('../public/online-roulette.js',import.meta.url),'utf8');
+ assert.match(css,/\.roulette-right \{ order:0; \}/);
+ assert.match(css,/\.roulette-left \{ order:1; \}/);
+ assert.match(rouletteView,/data-roulette-countdown-mobile/);
+ assert.match(rouletteJs,/mobileTimer\.textContent=clockText/);
+ assert.match(rouletteJs,/mobilePhase\.textContent/);
 });

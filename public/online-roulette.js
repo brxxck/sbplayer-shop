@@ -19,6 +19,8 @@
  const center=root.querySelector('[data-roulette-center]');
  const caption=root.querySelector('[data-roulette-wheel-caption]');
  const timer=root.querySelector('[data-roulette-countdown]');
+ const mobileTimer=root.querySelector('[data-roulette-countdown-mobile]');
+ const mobilePhase=root.querySelector('[data-roulette-phase-mobile]');
  const phaseLabel=root.querySelector('[data-roulette-phase-label]');
  const connection=root.querySelector('[data-roulette-connection]');
  const slip=root.querySelector('[data-roulette-slip]');
@@ -243,7 +245,10 @@
   const target=model.phase==='betting'?model.betClosesAt:
    model.phase==='spinning'?model.spinEndsAt:model.resultsEndsAt;
   const remaining=Math.max(0,Math.ceil((target-now)/1000));
-  timer.textContent='00:'+String(Math.min(99,remaining)).padStart(2,'0');
+  const clockText='00:'+String(Math.min(99,remaining)).padStart(2,'0');
+  timer.textContent=clockText;
+  if(mobileTimer)mobileTimer.textContent=clockText;
+  if(mobilePhase)mobilePhase.textContent=model.phase==='betting'?'Betting closes in':model.phase==='spinning'?'Wheel spinning':'Result display';
   phaseLabel.textContent=model.phase==='betting'?'BETTING OPEN':
    model.phase==='spinning'?'BETS LOCKED · SPINNING':'RESULT CONFIRMED';
   wheelBox.dataset.roulettePhase=model.phase;
