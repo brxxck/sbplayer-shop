@@ -178,9 +178,31 @@
    if(typeof setup.close==='function')setup.close();else setup.removeAttribute('open');
   });
   const form=setup.querySelector('[data-profile-challenge-form]');
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // PvP stakes have their own saved value, separate from House Coin Flip.
+  const stake=form?.querySelector('input[data-pvp-wager]');
+  const stakeKey='sb-store:arcade:wager:'+me+':coinflip_pvp';
+  const saveStake=()=>{
+   if(!stake||!/^\d+$/.test(stake.value))return;
+   const wager=Number(stake.value);
+   if(!Number.isSafeInteger(wager)||wager<10||wager>1000)return;
+   try{localStorage.setItem(stakeKey,JSON.stringify({wager,at:Date.now()}));}catch{}
+  };
+  if(stake){
+   try{
+    const saved=JSON.parse(localStorage.getItem(stakeKey)||'null');
+    if(saved&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=1000&&
+       Number.isFinite(saved.at)&&saved.at>=Number(stake.dataset.lastRoundAt||0)){
+      stake.value=String(saved.wager);
+    }
+   }catch{}
+   stake.addEventListener('input',saveStake);
+   stake.addEventListener('change',saveStake);
+  }
   form?.addEventListener('submit',async event=>{
    event.preventDefault();
    if(!form.reportValidity()||form.dataset.sending)return;
+   saveStake();
    form.dataset.sending='1';
    const button=form.querySelector('button[type=submit]');
    const status=setup.querySelector('[data-profile-challenge-status]');
