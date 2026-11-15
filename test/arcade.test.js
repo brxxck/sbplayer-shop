@@ -631,3 +631,38 @@ test('Points leaderboard is for signed-in members and public link previews expos
   assert.ok(history.indexOf('href="/arcade/history"')<history.indexOf('href="/arcade/leaderboard"'));
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+
+test('Profile PvP Coin Flip remembers its own last wager independently of the house',async()=>{
+ const uid='100000000000000094';
+ run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  uid,'profile-stakes','Profile Stakes',Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+  guild,uid,2500);
+ assert.deepEqual(arcade.lastPvpWager(uid),{value:50,at:0});
+ const id=arcade.createChallenge(uid,form(375,{face:'heads',target_id:bob}));
+ const saved=arcade.lastPvpWager(uid);
+ assert.equal(saved.value,375);
+ assert.ok(saved.at>0);
+ assert.equal(arcade.challengeForUser(uid,id).wager,375);
+ const script=readFileSync(new URL('../public/arcade-challenges.js',import.meta.url),'utf8');
+ assert.match(script,/coinflip_pvp/);
+ assert.match(script,/data-pvp-wager/);
+ assert.match(script,/localStorage\.setItem\(stakeKey/);
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const base='http://127.0.0.1:'+server.address().port;
+  const login=await fetch(base+'/__test/login/'+uid,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const response=await fetch(base+'/u/'+bob,{headers:{cookie}});
+  assert.equal(response.status,200);
+  const html=await response.text();
+  assert.ok(html.includes('data-pvp-wager data-last-round-at="'+saved.at+'" value="375"'));
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
