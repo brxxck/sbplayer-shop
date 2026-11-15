@@ -289,7 +289,7 @@
   // Only Arcade actions are intercepted. Other website forms keep their normal behavior.
   document.addEventListener('submit',event=>{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||(form.matches('[data-blackjack-form],[data-plinko-form]')||form.closest('[data-global-crash-root]'))||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
+    if(!(form instanceof HTMLFormElement)||(form.matches('[data-blackjack-form],[data-plinko-form],[data-roulette-form]')||form.closest('[data-global-crash-root]'))||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
     event.preventDefault();
     if(!form.reportValidity())return;
     const wager=form.querySelector('input[data-arcade-wager]');

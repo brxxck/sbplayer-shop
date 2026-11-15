@@ -16,6 +16,8 @@ import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './on
 import {blackjackPage} from './online-blackjack-views.js';
 import {globalCrashTick,globalCrashSnapshot,globalCrashBet,globalCrashCashout} from './online-crash.js';
 import {globalCrashPage} from './online-crash-views.js';
+import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
+import {onlineRoulettePage} from './online-roulette-views.js';
 import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
 import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
@@ -168,7 +170,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -389,6 +391,32 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
       // All Global Crash wagers and cash-outs are authenticated, CSRF checked,
       // and settled transactionally against the existing Level Points wallet.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Global Roulette: thirty FULL seconds to place bets, eight to spin,
+      // four to display the server-verified result. Every debit and payout
+      // happens transactionally against the Level Points wallet.
+      if(req.method==='GET'&&pathname==='/arcade/online/roulette'){
+        rate(ctx,'arcade.roulette.page',55,60000);
+        return html(onlineRoulettePage(ctx,summary(),rouletteWatch(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/roulette/state'){
+        rate(ctx,'arcade.roulette.state',90,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(rouletteSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/roulette/heartbeat'){
+        await form();rate(ctx,'arcade.roulette.heartbeat',8,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(rouletteWatch(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/roulette/bet'){
+        const {fields}=await form();rate(ctx,'arcade.roulette.bet',40,60000);
+        const state=roulettePlace(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/roulette','Roulette chips confirmed for the current round.');
+      }
       if(req.method==='GET'&&pathname==='/arcade/online/crash'){
         rate(ctx,'arcade.global-crash.page',55,60000);
         return html(globalCrashPage(ctx,summary(),globalCrashSnapshot(user)));
@@ -2555,7 +2583,21 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   const globalCrashTicker=setInterval(()=>{try{advanceGlobalCrash();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
   globalCrashTicker.unref();
   try{advanceGlobalCrash();}catch(error){console.error('[Global Crash startup]',String(error.message));}
-  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);megaSync.stop();megaBrowser.stop();});
+  // Coalesced website-wide SSE refresh for Roulette. A single timer advances
+  // the game even when every browser has disconnected.
+  let rouletteLastSignal='',rouletteLastBroadcast=0,rouletteLastPhase='';
+  const advanceRoulette=()=>{
+    const result=rouletteTick(),signal=result.roundId+':'+result.phase+':'+result.version;
+    const stamp=Date.now();
+    if(signal!==rouletteLastSignal&&(result.phase!==rouletteLastPhase||stamp-rouletteLastBroadcast>=850)){
+      rouletteLastSignal=signal;rouletteLastBroadcast=stamp;rouletteLastPhase=result.phase;
+      notifyEveryone('roulette',{roundId:result.roundId,phase:result.phase,version:result.version});
+    }
+  };
+  const rouletteTicker=setInterval(()=>{try{advanceRoulette();}catch(error){console.error('[Live Roulette]',String(error.message));}},500);
+  rouletteTicker.unref();
+  try{advanceRoulette();}catch(error){console.error('[Live Roulette startup]',String(error.message));}
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);clearInterval(rouletteTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){

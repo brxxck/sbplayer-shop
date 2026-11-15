@@ -30,3 +30,7 @@
 @media(max-width:960px){.online-room-grid{grid-template-columns:1fr}.online-room-badge{margin-left:auto}}
 @media(max-width:620px){.online-room{padding:17px}.online-room-head h2{font-size:19px}.online-room-graphic{flex-basis:48px;width:48px;height:48px;font-size:29px}.online-room-badge{font-size:9px;padding:5px 7px}.online-counter strong{font-size:20px}.online-section-heading{align-items:flex-start;flex-direction:column}.online-live-indicator{align-self:flex-start}}
 @media(prefers-reduced-motion:reduce){.online-live-indicator:before{box-shadow:none}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.roulette-lobby-phase{font-size:15px!important;text-transform:uppercase;color:#80e3bd!important}
+@media(min-width:1260px){.online-room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.online-room{padding:18px}.online-room-head h2{font-size:20px}}

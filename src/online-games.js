@@ -2,6 +2,7 @@
 // Shared multiplayer lobby foundation. Blackjack now uses real rounds; Global Crash remains preview-only.
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
+import {rouletteLobbyCounts} from './online-roulette.js';
 
 export const ONLINE_GAMES=['blackjack','crash'];
 export const BLACKJACK_SEATS=4;
@@ -121,6 +122,7 @@ export function onlineGamesSnapshot(userId,now=Date.now()){
   blackjack:{...roundMetrics('blackjack'),lobbyPlayers:bj,seated:seatsFilled,
     waiting:queued,seats:BLACKJACK_SEATS,joined:position!==null,
     position,atTable:reserved?reserved.has(user):position!==null&&position<=BLACKJACK_SEATS,enabled:true},
-  crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:true}
+  crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:true},
+  roulette:rouletteLobbyCounts(stamp)
  };
 }
