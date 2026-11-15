@@ -3,6 +3,41 @@
 (() => {
   if(!document.querySelector('.arcade-root'))return;
 
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // The server remembers completed wagers across devices. A more recent,
+  // unsubmitted change is saved in this signed-in browser only.
+  const memberId=document.body.dataset.siteUser||'';
+  const wagerGames=new Set(['coinflip','slots','mines','crash']);
+  const wagerKey=field=>memberId&&wagerGames.has(field?.dataset.arcadeWager)
+    ?'sb-store:arcade:wager:'+memberId+':'+field.dataset.arcadeWager:null;
+  function rememberWager(field){
+    const key=wagerKey(field);
+    if(!key||!/^\d+$/.test(field.value))return;
+    const wager=Number(field.value);
+    if(!Number.isSafeInteger(wager)||wager<10||wager>1000)return;
+    try{localStorage.setItem(key,JSON.stringify({wager,at:Date.now()}));}catch{}
+  }
+  function hydrateWagers(root){
+    if(!memberId)return;
+    for(const field of root.querySelectorAll('input[data-arcade-wager]')){
+      const key=wagerKey(field);
+      if(!key)continue;
+      try{
+        const cached=JSON.parse(localStorage.getItem(key)||'null');
+        const roundAt=Number(field.dataset.lastRoundAt||0);
+        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<10||cached.wager>1000||
+           !Number.isFinite(cached.at)||cached.at<roundAt)continue;
+        field.value=String(cached.wager);
+      }catch{}
+    }
+  }
+  for(const type of ['input','change']){
+    document.addEventListener(type,event=>{
+      const field=event.target;
+      if(field instanceof HTMLInputElement&&field.matches('.arcade-root input[data-arcade-wager]'))rememberWager(field);
+    });
+  }
+
   const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const csrf=()=>document.body.dataset.siteCsrf||'';
   const ajaxHeaders={'accept':'application/json','x-arcade-async':'1'};
@@ -233,12 +268,15 @@
     if(!(form instanceof HTMLFormElement)||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
     event.preventDefault();
     if(!form.reportValidity())return;
+    const wager=form.querySelector('input[data-arcade-wager]');
+    if(wager)rememberWager(wager);
     const button=event.submitter||form.querySelector('button[type=submit]');
     if(busy){if(tileReveal(form))queueTile(form);return;}
     void submitGame(form,button);
   });
 
   function mount(root){
+    hydrateWagers(root);
     if(!reducedMotion){
       const stage=root.querySelector('[data-coin-stage][data-coin-result]:not([data-coin-result=""])');
       stage?.querySelector('.arcade-coin-disc')?.classList.add('animated');
