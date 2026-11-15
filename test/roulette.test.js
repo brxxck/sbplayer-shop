@@ -141,7 +141,7 @@ test('Actual winning number pays every winning selection; settlement is never re
  roulettePlace(alice,form(s.roundId,[bet('number:32',100),bet('color:red',200)]),t+30);
  roulettePlace(bob,form(s.roundId,[bet('color:black',100),bet('half:high',100)]),t+31);
  assert.equal(balance(alice),9700);
- assert.equal(balance(bob),9800);
+ assert.equal(balance(bob),10000,'Bob loses Black but wins 19–36, so the stakes break even');
  rouletteTick(t+30000);
  assert.equal(rouletteSnapshot(alice,t+30001).winningNumber,null);
  const ended=rouletteSnapshot(alice,t+38000);
