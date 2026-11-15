@@ -4,7 +4,7 @@ import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,sync
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
- openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,transfersFor,sweepArcade} from './arcade.js';
+ openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
@@ -370,6 +370,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
       if(req.method==='GET'&&pathname==='/arcade/history')
         return html(arcadeView.arcadeHistoryPage(ctx,summary(),recentRounds(user,null,80),transfersFor(user)));
+      if(req.method==='GET'&&pathname==='/arcade/leaderboard'){
+        rate(ctx,'arcade.leaderboard',60,60000);
+        return html(arcadeView.arcadeLeaderboardPage(ctx,summary(),arcadePointsLeaderboard(user)));
+      }
       if(req.method==='GET'&&pathname==='/arcade/coinflip'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'coinflip'):null;
         return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),challenges:openChallenges(user)}));
