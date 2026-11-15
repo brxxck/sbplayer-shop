@@ -28,6 +28,17 @@ export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
 export const chrome=(ctx,page,summary,content)=>{
+ // Mobile uses an accessible, compact game menu instead of clipped horizontal tabs.
+ const mobileGames=[
+  ['/arcade','All Games'],['/arcade/online','Online Games'],
+  ['/arcade/online/roulette','Live Roulette'],['/arcade/online/blackjack','Online Blackjack'],
+  ['/arcade/coinflip','Coin Flip'],['/arcade/slots','Slots'],['/arcade/mines','Mines'],
+  ['/arcade/crash','Crash'],['/arcade/blackjack','Solo Blackjack'],['/arcade/plinko','Plinko'],
+  ['/arcade/history','History'],['/arcade/leaderboard','Leaderboard'],['/points/daily','Daily Rewards']
+ ];
+ const mobileGameMenu=`<details class="arcade-game-menu"><summary><span>🎮 Switch game</span><strong>${esc(page)}</strong></summary>
+  <nav aria-label="Choose an arcade game">${mobileGames.map(([url,label])=>
+    `<a href="${url}"${ctx.pathname===url?' aria-current="page"':''}>${label}</a>`).join('')}</nav></details>`;
  const markup=`
 <div class="arcade-root">
  <div class="arcade-header">
@@ -35,6 +46,7 @@ export const chrome=(ctx,page,summary,content)=>{
    <p>Play with points earned from Discord levels. No real money.</p></div>
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
+ ${mobileGameMenu}
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  <nav class="arcade-tabs" aria-label="Arcade games">
   <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
