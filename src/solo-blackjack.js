@@ -114,6 +114,7 @@ function nextHand(game){
 }
 function project(user,round){
  const balance=wallet(user);
+ const otherActive=activeFor(user);
  const previous=latestFor(user);
  let lastWager=50,lastWagerAt=0;
  if(previous){
@@ -122,7 +123,7 @@ function project(user,round){
   lastWagerAt=previous.created_at;
  }
  if(!round)return {
-  phase:'ready',roundId:null,revision:0,balance,lastWager,lastWagerAt,
+  phase:'ready',roundId:null,revision:0,balance,lastWager,lastWagerAt,activeRoundId:null,
   initialWager:0,wager:0,payout:0,profit:null,status:null,
   dealer:[],dealerValue:null,hands:[],activeIndex:null,
   actions:[],canBet:balance>=BLACKJACK_MIN_WAGER,cinematic:false
@@ -132,7 +133,8 @@ function project(user,round){
  const hand=active?game.hands[game.activeIndex]:null;
  return {
   phase:active?'playing':'settled',roundId:round.id,revision,
-  balance,lastWager,lastWagerAt,createdAt:round.created_at,settledAt:active?null:round.updated_at,
+  balance,lastWager,lastWagerAt,activeRoundId:otherActive?.id||null,
+  createdAt:round.created_at,settledAt:active?null:round.updated_at,
   initialWager:game.initialWager,wager:round.wager,payout:round.payout,
   profit:active?null:round.payout-round.wager,status:active?null:round.status,
   // Never include the remaining shoe or unrevealed dealer card in JSON.
@@ -145,7 +147,7 @@ function project(user,round){
   })),
   activeIndex:active?game.activeIndex:null,
   actions:hand?blackjackAllowed(hand,{hands:game.hands},balance):[],
-  canBet:!active&&balance>=BLACKJACK_MIN_WAGER,
+  canBet:!active&&!otherActive&&balance>=BLACKJACK_MIN_WAGER,
   cinematic:!active&&isCinematicWin(round)
  };
 }
