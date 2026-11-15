@@ -403,6 +403,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='POST'&&pathname==='/arcade/coinflip/challenges'){
         const {fields}=await form();rate(ctx,'arcade.challenge.create',20,60000);
+        if(fields.target_id){
+          // Invites are for current, verified server members, not arbitrary Discord IDs.
+          const opponent=await discord.getGuildMember(String(fields.target_id));
+          if(!opponent||opponent.pending)forbidden('You can only challenge active server members.');
+        }
         const id=createChallenge(user,fields);
         const challenge=challengeForUser(user,id);
         if(challenge.target_id)notifyUser(challenge.target_id,'arcade-challenge',{id,action:'created'});
@@ -426,6 +431,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         if(req.headers['x-arcade-challenge']==='1'&&String(req.headers.accept||'').includes('application/json'))
           return respond(res,200,JSON.stringify({ok:true,challenge}),
             'application/json; charset=utf-8');
+        if(pvp[2]==='cancel')return success('/u/'+encodeURIComponent(user),'Challenge cancelled; points refunded.');
         return arcadeResult('/arcade/coinflip',
           challenge.status==='complete'?'Coin Flip completed.':challenge.status==='declined'?'Challenge declined; points refunded.':'Challenge cancelled; points refunded.');
       }
