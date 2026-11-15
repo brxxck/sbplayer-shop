@@ -31,7 +31,7 @@
   osc.connect(amplitude);amplitude.connect(ctx.destination);
   osc.start(at);osc.stop(at+duration+.02);
  }
- function play(cue){
+ function play(cue,variation=0){
   if(!prefs.sound)return;
   const ctx=audioContext();if(!ctx)return;
   if(ctx.state==='suspended'){void ctx.resume().catch(()=>{});return;}
@@ -57,7 +57,7 @@
    card:[240,.08,.025,'triangle'],peg:[880,.035,.02,'sine'],
    win:[720,.16,.07,'sine'],loss:[180,.15,.045,'triangle'],countdown:[580,.075,.042,'triangle']};
   const spec=sounds[cue]||sounds.click;
-  note(spec[0],now,spec[1],spec[2],spec[3]);
+  note(spec[0]+(cue==='peg'?(Number(variation)%7)*29:0),now,spec[1],spec[2],spec[3]);
  }
  document.addEventListener('pointerdown',()=>{const ctx=audioContext();if(ctx?.state==='suspended')void ctx.resume().catch(()=>{});},{passive:true});
  function save(){
@@ -147,7 +147,7 @@
   const currentOverlay=overlay;
   setTimeout(()=>{if(overlay===currentOverlay&&currentOverlay.isConnected)dismiss();},reduced?1500:4400);
  }
- // Future Blackjack and Plinko modules can use the same sound engine.
+ // Blackjack, Plinko and Global Crash share the same synthesized sound engine.
  window.SBArcadeExperience={play,getPreferences:()=>({...prefs})};
  save();
  const target=document.querySelector('main.content');
