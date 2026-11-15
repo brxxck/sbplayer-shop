@@ -63,7 +63,7 @@ function wagerForm(ctx,state){
  return '<form action="/arcade/blackjack/start" method="post" class="sbj-wager-form" data-sbj-form data-sbj-start>'+
   token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
   '<label>YOUR WAGER <input type="number" name="wager" min="10" max="1000" step="1" required'+
-   ' data-sbj-wager data-arcade-wager="blackjack_solo" data-last-round-at="'+fmt(state.lastWagerAt)+'" value="'+wager+'"></label>'+
+   ' data-sbj-wager data-arcade-wager="blackjack_solo" data-last-round-at="'+String(Number(state.lastWagerAt)||0)+'" value="'+wager+'"></label>'+
   '<div class="sbj-chip-values" role="group" aria-label="Quick wager amounts">'+
   [10,25,50,100,250,500,1000].map(v=>'<button type="button" data-sbj-quick="'+v+'">'+fmt(v)+'</button>').join('')+
   '</div><button class="btn btn-primary sbj-deal" type="submit" '+(state.balance<10?'disabled':'')+
@@ -92,6 +92,8 @@ export function soloControlsMarkup(ctx,state){
    '<div><small>HANDS IN PLAY</small><strong>'+fmt(state.hands.length)+'</strong></div></div>'+
   '<p class="sbj-message" data-sbj-message>'+esc(stateLabel)+'</p>'+
   (state.canBet?wagerForm(ctx,state):'')+
+  (state.activeRoundId&&state.activeRoundId!==state.roundId?'<a class="btn btn-primary sbj-resume" href="/arcade/blackjack?round='+state.activeRoundId+'">♠ Resume your active hand</a>':'')+
+  (state.balance<10&&!state.activeRoundId?'<p class="sbj-message">You need at least 10 points to start. <a href="/points">Claim Level Points →</a></p>':'')+
   actionsMarkup(ctx,state)+resultMarkup(state)+
   '<p class="sbj-safe-note">Your hand is saved on the server. Closing the page does not discard it or risk a duplicate wager.</p>'+
   '</div>';
