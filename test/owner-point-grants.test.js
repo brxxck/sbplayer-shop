@@ -111,7 +111,10 @@ test('invalid scopes, amounts, members and Discord listing errors fail without c
  await assert.rejects(grants.preparePointGrant({...opts,scope:'everyone',discord:{
   ...discord,listMembers:async()=>{throw Error('Missing intent');}
  }}),e=>e.status===503);
- await assert.rejects(grants.preparePointGrant({...opts,scope:'everyone',amount:grants.MAX_GRANT_PER_MEMBER}),
+ const manyDiscord={...discord,listMembers:async()=>Array.from({length:101},(_,i)=>
+  member(String(100000000000000200n+BigInt(i))))};
+ await assert.rejects(grants.preparePointGrant({...opts,scope:'everyone',
+  amount:grants.MAX_GRANT_PER_MEMBER,discord:manyDiscord}),
   e=>e.status===400,'total points protection');
 });
 
