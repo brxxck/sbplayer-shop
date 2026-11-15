@@ -37,7 +37,7 @@ export const NAV_ICON_NAMES=Object.freeze({
   '/tickets/mine':'tickets','/dashboard':'clipboard-list','/apply':'file-pen-line',
   '/team-applications/apply':'file-pen-line','/team-applications/review':'clipboard-list',
   '/promotions':'award','/feed':'newspaper','/suggestions':'lightbulb',
-  '/members':'users-round','/team':'shield-check','/mega-team':'wallet','/profile':'circle-user-round',
+  '/arcade':'award','/points':'wallet','/members':'users-round','/team':'shield-check','/mega-team':'wallet','/profile':'circle-user-round',
   '/notifications':'bell','/saved':'bookmark','/profile/edit':'user-round-pen',
   '/staff/tickets':'inbox','/staff':'clipboard-list','/staff/promotions':'award',
   '/admin/roles':'shield-check','/admin/settings':'settings-2','/admin/moderation':'gavel',
