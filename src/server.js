@@ -353,7 +353,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           const round=roundId?getRound(user,roundId,'coinflip'):null;
           markup=arcadeView.coinflipPage(context,summary(),{
             round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),
-            challenges:openChallenges(user)});
+            houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)});
         }else if(target.pathname==='/arcade/slots'){
           const round=roundId?getRound(user,roundId,'slots'):null;
           markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
@@ -376,7 +376,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='GET'&&pathname==='/arcade/coinflip'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'coinflip'):null;
-        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),challenges:openChallenges(user)}));
+        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/slots'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
