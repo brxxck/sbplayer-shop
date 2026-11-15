@@ -312,6 +312,10 @@
       let data;try{data=JSON.parse(e.data)}catch{return;}
       updatePresence(data.userId,data.status);
     });
+    // Arcade invitations reuse the existing SSE connection on all member pages.
+    stream.addEventListener('arcade-challenge',event=>{
+      try{window.dispatchEvent(new CustomEvent('sb:arcade-challenge',{detail:JSON.parse(event.data)}));}catch{}
+    });
     stream.addEventListener('notifications-update',refreshCounts);
     stream.addEventListener('staff-chat-update',()=>{if(document.querySelector('#staff-chat-messages'))window.dispatchEvent(new Event('sb:staff-chat-update'));});
     stream.onerror=()=>showConnection('Reconnecting');

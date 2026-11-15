@@ -268,7 +268,7 @@ export function sweepArcade(){
  });
 }
 export function openChallenges(userId){
- return all("SELECT c.*,u.display_name creator_name FROM arcade_challenges c JOIN users u ON u.id=c.creator_id WHERE c.guild_id=? AND c.status='open' AND c.expires_at>? AND (c.target_id IS NULL OR c.target_id=? OR c.creator_id=?) ORDER BY c.id DESC LIMIT 50",config.guildId,Date.now(),userId,userId);
+ return all("SELECT c.*,u.display_name creator_name,t.display_name target_name FROM arcade_challenges c JOIN users u ON u.id=c.creator_id LEFT JOIN users t ON t.id=c.target_id WHERE c.guild_id=? AND c.status='open' AND c.expires_at>? AND (c.target_id IS NULL OR c.target_id=? OR c.creator_id=?) ORDER BY c.id DESC LIMIT 50",config.guildId,Date.now(),userId,userId);
 }
 export function createChallenge(userId,fields){
  const wager=wagerOf(fields),face=faceOf(fields),key=keyOf(fields),target=String(fields.target_id||'').trim();
@@ -320,6 +320,53 @@ export function cancelChallenge(userId,id){
   run("UPDATE arcade_challenges SET status='cancelled',settled_at=? WHERE id=? AND status='open'",Date.now(),c.id);
   return c.id;
  });
+}
+// V1.21: targeted, consent-based player challenges live on member profiles.
+export function incomingChallenges(userId){
+ return all(`SELECT c.id,c.creator_id,c.target_id,c.wager,c.face,c.status,c.created_at,c.expires_at,
+ u.display_name creator_name,u.username creator_username
+ FROM arcade_challenges c JOIN users u ON u.id=c.creator_id
+ WHERE c.guild_id=? AND c.target_id=? AND c.status='open' AND c.expires_at>?
+ ORDER BY c.id DESC LIMIT 15`,config.guildId,userId,Date.now());
+}
+export function challengeForUser(userId,challengeId){
+ const c=one(`SELECT c.id,c.creator_id,c.target_id,c.joiner_id,c.wager,c.face,c.result,c.winner_id,c.status,
+ c.created_at,c.expires_at,c.settled_at,u.display_name creator_name,u.username creator_username,
+ t.display_name target_name,j.display_name joiner_name
+ FROM arcade_challenges c
+ JOIN users u ON u.id=c.creator_id
+ LEFT JOIN users t ON t.id=c.target_id
+ LEFT JOIN users j ON j.id=c.joiner_id
+ WHERE c.guild_id=? AND c.id=?
+ AND (c.creator_id=? OR c.target_id=? OR c.joiner_id=?)`,
+ config.guildId,requireId(challengeId),userId,userId,userId);
+ if(!c)fail(404,'Challenge not found.');
+ // Only completed matches expose the landing face and winner.
+ if(c.status!=='complete'){c.result=null;c.winner_id=null;}
+ return c;
+}
+export function declineChallenge(userId,challengeId){
+ const id=requireId(challengeId);
+ return transaction(()=>{
+  const c=one('SELECT * FROM arcade_challenges WHERE guild_id=? AND id=? AND target_id=?',
+  config.guildId,id,userId);
+  if(!c)fail(404,'Challenge not found.');
+  if(c.status==='declined')return c.id;
+  if(c.status!=='open'||c.expires_at<=Date.now())fail(409,'This challenge can no longer be declined.');
+  walletChange(c.creator_id,c.wager,'coinflip.pvp.declined','pvp:refund:'+c.id);
+  run("UPDATE arcade_challenges SET status='declined',settled_at=? WHERE id=? AND status='open'",Date.now(),c.id);
+  return c.id;
+ });
+}
+export function challengeHistory(userId,limit=12){
+ return all(`SELECT c.id,c.creator_id,c.target_id,c.joiner_id,c.wager,c.face,c.result,c.winner_id,c.settled_at,
+ a.display_name creator_name,b.display_name opponent_name
+ FROM arcade_challenges c
+ JOIN users a ON a.id=c.creator_id
+ LEFT JOIN users b ON b.id=COALESCE(c.joiner_id,c.target_id)
+ WHERE c.guild_id=? AND c.status='complete' AND
+ (c.creator_id=? OR c.target_id=? OR c.joiner_id=?)
+ ORDER BY c.id DESC LIMIT ?`,config.guildId,userId,userId,userId,limit);
 }
 export function recentRounds(userId,game=null,limit=20){
  return all('SELECT * FROM arcade_rounds WHERE guild_id=? AND user_id=?'+(game?' AND game=?':'')+' ORDER BY id DESC LIMIT ?',

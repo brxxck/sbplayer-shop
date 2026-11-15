@@ -1,0 +1,78 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Single, member-authenticated challenge notification over any website screen. */
+.arcade-challenge-overlay{position:fixed;inset:0;margin:0!important;width:100vw;max-width:none;height:100dvh;max-height:none;overflow-y:auto;overscroll-behavior:contain;padding:clamp(16px,4vh,40px) max(14px,env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));border:0;background:radial-gradient(ellipse at 50% 20%,#152b4b,#06101d 75%);color:#e8f3ff;z-index:800;box-sizing:border-box}
+.arcade-challenge-overlay:not([open]){display:none}
+.arcade-challenge-overlay::backdrop{background:#010815f2;backdrop-filter:blur(7px)}
+.arcade-challenge-content{margin:auto;width:min(100%,520px);min-height:calc(100dvh - 100px);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center}
+.arcade-challenge-mark{font-size:52px;filter:drop-shadow(0 0 14px #efc5637e)}
+.arcade-challenge-kicker{font-size:12px;letter-spacing:.13em;font-weight:900;color:#f8cb69;margin:0}
+.arcade-challenge-content h2{font-size:clamp(24px,6vw,39px);line-height:1.15;letter-spacing:-.02em;margin:0}
+.arcade-challenge-summary{font-size:15px;color:#c2d3e8;max-width:450px;margin:0;line-height:1.5}
+.arcade-challenge-versus{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;width:100%;padding:20px;border:1px solid #254567;border-radius:17px;background:#0d1d32}
+.arcade-challenge-versus>div{display:grid;justify-items:center;gap:7px;min-width:0}
+.arcade-challenge-versus strong{font-size:15px;overflow-wrap:anywhere}
+.arcade-challenge-versus small{font-size:12px;color:#a3bbd5}
+.arcade-challenge-versus>b{color:#a5b5ce;font-size:19px}
+.pvp-side-symbol{display:grid;place-items:center;width:70px;height:70px;border-radius:50%;font-size:21px;font-weight:900}
+.pvp-side-sb{border:6px ridge #f5cc73;background:radial-gradient(circle at 28% 25%,#fff3ab,#c38a2d);color:#6f4216}
+.pvp-side-cam{border:6px ridge #d0e5f8;background:radial-gradient(circle at 28% 25%,#fff,#8499b0);color:#2a4c69;font-size:17px}
+.arcade-challenge-wager{width:100%;display:grid;justify-items:center;gap:6px;padding:18px;border:1px solid #2d536f;background:#102941;border-radius:15px}
+.arcade-challenge-wager small{color:#a2bbd6;font-size:11px;font-weight:800;letter-spacing:.11em}
+.arcade-challenge-wager strong{color:#f7cc7d;font-size:clamp(24px,6vw,38px)}
+.arcade-challenge-wager span{color:#b3c7db;font-size:13px}
+.arcade-challenge-feedback{color:#bdd2e7;font-size:13px;min-height:20px;line-height:1.55;margin:0}
+.arcade-challenge-buttons{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.arcade-challenge-buttons .btn{min-height:54px;font-size:15px}
+.arcade-challenge-buttons button[data-pvp-decline]{background:#522c3a;border-color:#9b5367;color:#ffe0e6}
+.arcade-pvp-later{border:0;background:none;color:#a4b5cb;text-decoration:underline;cursor:pointer;min-height:44px}
+.arcade-pvp-finish{width:100%;min-height:50px;display:flex;align-items:center;justify-content:center}
+.arcade-pvp-close{min-height:44px}
+.arcade-challenge-overlay [hidden]{display:none!important}
+.arcade-challenge-overlay[data-mode="result"] .arcade-challenge-wager{background:#103c39;border-color:#327d6e}
+.arcade-challenge-overlay[data-mode="result"] .arcade-challenge-kicker{color:#75e4be}
+.arcade-pvp-coin-scene{display:grid;place-items:center;perspective:800px;min-height:125px}
+.arcade-pvp-coin{position:relative;width:104px;height:104px;border-radius:50%;transform-style:preserve-3d}
+.arcade-pvp-coin>span{position:absolute;inset:0;display:grid;place-items:center;backface-visibility:hidden;border-radius:50%;font-size:29px;font-weight:900;border:6px ridge #f3c777;background:radial-gradient(circle at 20% 20%,#fceab5,#bd882d);color:#644015}
+.arcade-pvp-coin>span+span{transform:rotateY(180deg);border-color:#e2eafa;background:radial-gradient(circle at 25% 15%,#fff,#93a9c3);color:#244767;font-size:22px}
+.arcade-pvp-coin.pvp-result-cam{transform:rotateY(180deg)}
+.arcade-pvp-coin.pvp-flip-animated.pvp-result-sb{animation:pvp-heads 1.3s cubic-bezier(.2,.65,.22,1) both}
+.arcade-pvp-coin.pvp-flip-animated.pvp-result-cam{animation:pvp-tails 1.3s cubic-bezier(.2,.65,.22,1) both}
+@keyframes pvp-heads{from{transform:rotateY(0) scale(.85)}55%{transform:rotateY(900deg) scale(1.15)}to{transform:rotateY(2160deg)}}
+@keyframes pvp-tails{from{transform:rotateY(0) scale(.85)}55%{transform:rotateY(900deg) scale(1.15)}to{transform:rotateY(2340deg)}}
+/* Member profile challenge popup. */
+.profile-challenge-dialog{position:fixed;inset:0;margin:auto;width:min(94vw,485px);max-height:calc(100dvh - 30px);overflow-y:auto;border-radius:17px;border:1px solid #3b618b;background:#0c2037;color:#e8f3ff;padding:0;box-shadow:0 20px 85px #000d;z-index:805}
+.profile-challenge-dialog::backdrop{background:#020a17cf;backdrop-filter:blur(6px)}
+.profile-challenge-inner{padding:clamp(17px,4vw,28px)}
+.profile-challenge-heading{display:flex;align-items:start;justify-content:space-between;gap:15px}
+.profile-challenge-heading h2{font-size:23px;overflow-wrap:anywhere;margin:0}
+.profile-challenge-heading button{border:0;background:#1e3e60;color:#e3f1ff;border-radius:9px;min-height:40px;min-width:40px;cursor:pointer}
+.profile-challenge-inner>p{color:#acc3df;line-height:1.6;font-size:13px}
+.profile-challenge-inner form{display:grid;gap:13px;margin-top:15px}
+.profile-challenge-inner form>label{display:grid;gap:7px;font-size:13px;font-weight:700}
+.profile-challenge-inner input[type=number]{min-height:46px;background:#08172b;border:1px solid #33547a;border-radius:9px;padding:10px;color:#e9f4ff;font-size:16px}
+.profile-coin-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;border:0;margin:0;padding:0}
+.profile-coin-choices legend{font-size:13px;font-weight:800;margin-bottom:9px}
+.profile-coin-choices label{min-height:65px;display:grid;place-content:center;gap:5px;border:1px solid #3d5f85;border-radius:11px;background:#112e4d;text-align:center;cursor:pointer;font-size:12px}
+.profile-coin-choices label:has(input:checked){background:#21578b;border-color:#89c2ff}
+.profile-coin-choices label input{position:absolute;opacity:0}
+.profile-coin-choices label strong{font-size:15px}
+.profile-challenge-success{color:#7df0c0;font-size:13px;font-weight:700}
+.profile-challenge-error{color:#ffbdc9;font-size:13px}
+.profile-challenge-history h2{margin-top:0}
+.profile-challenge-history table{width:100%}
+@media(max-width:560px){
+ .arcade-challenge-versus{padding:14px;gap:8px}
+ .arcade-challenge-content{min-height:calc(100dvh - 65px);gap:12px}
+ .arcade-challenge-buttons{gap:8px}
+ .arcade-challenge-content h2{font-size:28px}
+ .pvp-side-symbol{height:56px;width:56px}
+ .arcade-challenge-wager{padding:13px}
+}
+@media(prefers-reduced-motion:reduce){
+ .arcade-pvp-coin.pvp-flip-animated{animation:none!important}
+}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.arcade-pending-profile-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:11px 0;border-top:1px solid #2b4c67;font-size:13px}
+.arcade-pending-profile-row form{margin:0}
+.arcade-pending-profile-row button{min-height:44px}

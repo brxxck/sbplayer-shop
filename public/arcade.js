@@ -10,6 +10,76 @@
   const queued=[];
   let busy=false,crashCleanup=()=>{};
 
+  // Spin the visible reel strips immediately, then stop sequentially on the
+  // three symbols confirmed by the server. These animations never choose rewards.
+  const reelFaces=['🍒','🍋','🔔','💎','7️⃣'];
+  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  function beginSlotSpin(){
+    if(reducedMotion)return {stop(){}};
+    const reels=[...document.querySelectorAll('.arcade-root [data-slot-reels] .arcade-reel')];
+    const tracks=[];
+    for(const reel of reels){
+      const windowNode=reel.querySelector('.arcade-reel-window');
+      if(!windowNode)continue;
+      const track=document.createElement('div');
+      track.className='arcade-reel-track';
+      const loop=Array.from({length:5},()=>reelFaces[Math.floor(Math.random()*reelFaces.length)]);
+      track.innerHTML=[...loop,...loop].map(symbol=>'<span>'+symbol+'</span>').join('');
+      windowNode.replaceChildren(track);
+      reel.classList.add('spinning');
+      track.style.animation='arcade-reel-running .46s linear infinite';
+      tracks.push({reel,track});
+    }
+    return {tracks,stop(){
+      for(const {reel,track} of tracks){
+        track.style.animation='';
+        reel.classList.remove('spinning');
+        if(reel.isConnected){
+          const initial=reel.dataset.symbol;
+          const face=document.createElement('div');face.className='arcade-reel-face';
+          face.textContent=({Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'})[initial]||'❔';
+          reel.querySelector('.arcade-reel-window')?.replaceChildren(face);
+        }
+      }
+    }};
+  }
+  async function finishSlotSpin(spin,payload){
+    if(!spin?.tracks?.length)return;
+    const template=document.createElement('template');
+    template.innerHTML=payload.html;
+    const finalReels=[...template.content.querySelectorAll('[data-slot-reels] .arcade-reel')];
+    const target=finalReels.map(x=>x.querySelector('.arcade-reel-face')?.textContent||'❔');
+    if(target.length!==spin.tracks.length)throw Error('Invalid reel result.');
+    const stops=spin.tracks.map(async({reel,track},i)=>{
+      const delay=160*i;await sleep(delay);
+      if(!reel.isConnected)return;
+      const windowNode=reel.querySelector('.arcade-reel-window');
+      if(!windowNode)return;
+      track.style.animation='';
+      const symbols=Array.from({length:13},()=>reelFaces[Math.floor(Math.random()*reelFaces.length)]);
+      symbols.push(target[i]);
+      track.innerHTML=symbols.map(x=>'<span>'+x+'</span>').join('');
+      track.style.transform='translate3d(0,0,0)';
+      const duration=440+i*130;
+      const height=windowNode.clientHeight||120;
+      if(typeof track.animate==='function'){
+        const motion=track.animate(
+          [{transform:'translate3d(0,0,0)'},{transform:'translate3d(0,-'+(13*height)+'px,0)'}],
+          {duration,easing:'cubic-bezier(.2,.7,.2,1)',fill:'forwards'});
+        await motion.finished.catch(()=>{});
+        motion.cancel();
+      }else await sleep(duration);
+      if(!reel.isConnected)return;
+      const face=document.createElement('div');
+      face.className='arcade-reel-face';face.textContent=target[i];
+      windowNode.replaceChildren(face);
+      reel.classList.remove('spinning');reel.classList.add('stopped');
+    });
+    await Promise.all(stops);
+    await sleep(130);
+  }
+
+
   function announce(message,error=false){
     const root=document.querySelector('.arcade-root');
     if(!root)return;
@@ -116,6 +186,7 @@
     const mine=tileReveal(form);
     const grid=mine?form.closest('.arcade-mine-grid'):null;
     const originalText=button?.textContent;
+    const slotSpin=form.action.endsWith('/arcade/slots/spin')?beginSlotSpin():null;
     const data=new FormData(form);
     if(button?.name)data.append(button.name,button.value);
     if(button){
@@ -133,6 +204,7 @@
       const payload=await parseResponse(response);
       if(!response.ok)throw Error(payload?.error||'Move was not accepted. Please retry.');
       if(payload?.ok!==true)throw Error(payload?.error||'Unable to confirm your game result.');
+      if(slotSpin)await finishSlotSpin(slotSpin,payload);
       replaceGame(payload);
       succeeded=true;
     }catch(error){
@@ -140,6 +212,7 @@
       if(stillOpen){
         announce(error?.message||'Unable to confirm this move. Refresh the game to check your balance.',true);
       }
+      slotSpin?.stop();
       queued.length=0; // Never replay a wager after an ambiguous network failure.
     }finally{
       if(button&&button.isConnected){
@@ -169,10 +242,36 @@
     if(!reducedMotion){
       const stage=root.querySelector('[data-coin-stage][data-coin-result]:not([data-coin-result=""])');
       stage?.querySelector('.arcade-coin-disc')?.classList.add('animated');
-      for(const reel of root.querySelectorAll('[data-slot-reels] .arcade-reel'))reel.classList.add('animated');
+      // Reels move when the player spins, rather than when old results are loaded.
     }
     const game=root.querySelector('[data-crash-game]');
     if(!game){crashCleanup=()=>{};return;}
+    const chartPath=game.querySelector('[data-crash-chart-line]');
+    const rocket=game.querySelector('[data-crash-rocket]');
+    const flightStage=game.querySelector('.arcade-crash-display');
+    // Logarithmic visual scale makes the rocket gain altitude alongside the
+    // server multiplier. No crash point is needed or exposed before settlement.
+    function flightPoint(value){
+      const fraction=Math.min(1,Math.max(0,Math.log(Math.max(1,value))/Math.log(30)));
+      return {x:28+640*fraction,y:232-184*Math.pow(fraction,1.1)};
+    }
+    function drawRocket(value){
+      if(!chartPath||!rocket||!flightStage)return;
+      const end=flightPoint(value);
+      const count=36;
+      const points=Array.from({length:count+1},(_,i)=>{
+        const t=i/count,curve=1+(Math.max(1,value)-1)*t;
+        return flightPoint(curve);
+      });
+      chartPath.setAttribute('d',points.map((pt,i)=>(i?'L ':'M ')+pt.x.toFixed(2)+' '+pt.y.toFixed(2)).join(' '));
+      const width=flightStage.clientWidth||700,height=flightStage.clientHeight||260;
+      rocket.style.transform='translate3d('+((end.x/700)*width-21)+'px,'+((end.y/260)*height-21)+'px,0) rotate(35deg)';
+    }
+    if(game.dataset.crashReplay==='1' && game.dataset.crashActive!=='1'){
+      drawRocket(1);
+      crashCleanup=()=>{};
+      return;
+    }
     const multiplier=game.querySelector('[data-crash-multiplier]');
     const message=game.querySelector('[data-crash-message]');
     const collect=game.querySelector('[data-crash-collect]');
@@ -184,11 +283,14 @@
       if(!game.isConnected||state?.round?.status!=='active')return;
       const clock=Date.now()+offset,start=state.round.startedAt;
       if(clock<start){
-        displayCrash(1);
+        displayCrash(1);drawRocket(1);
+        flightStage?.classList.remove('inflight');
         if(message)message.textContent='Starting in '+Math.max(1,Math.ceil((start-clock)/1000))+'…';
         if(collect)collect.disabled=true;
       }else{
-        displayCrash(Math.min(30,Math.exp((clock-start)/5000)));
+        const speed=Math.min(30,Math.exp((clock-start)/5000));
+        displayCrash(speed);drawRocket(speed);
+        flightStage?.classList.add('inflight');
         if(message)message.textContent='Collect points before the crash';
         if(collect&&!busy)collect.disabled=false;
       }
@@ -222,10 +324,15 @@
         state=data;
         if(data.round?.status==='active'){paint();return;}
         if(data.round?.status==='lost'){
-          game.querySelector('.arcade-crash-display')?.classList.add('crashed');
+          flightStage?.classList.remove('inflight');
+          flightStage?.classList.add('crashed');
+          drawRocket((data.round.crashAt||100)/100);
           displayCrash((data.round.crashAt||100)/100);
           if(message)message.textContent='Crashed!';
         }else if(data.round?.status==='cashed_out'){
+          flightStage?.classList.remove('inflight');
+          flightStage?.classList.add('collected');
+          drawRocket((data.round.cashAt||100)/100);
           displayCrash((data.round.cashAt||100)/100);
           if(message)message.textContent='Points collected!';
         }
@@ -240,14 +347,22 @@
     window.addEventListener('pagehide',onPageHide,{once:true});
     crashCleanup=()=>{
       ended=true;
-      if(animation!==null)clearInterval(animation);
+      if(animation!==null)cancelAnimationFrame(animation);
       if(polling!==null)clearInterval(polling);
       document.removeEventListener('visibilitychange',onVisibility);
       window.removeEventListener('pagehide',onPageHide);
     };
+    const terminal=game.dataset.crashOutcome;
+    if(terminal){
+      const finalValue=Number(game.dataset.crashFinal||1);
+      drawRocket(finalValue);
+      flightStage?.classList.toggle('collected',terminal==='cashed_out');
+      flightStage?.classList.toggle('crashed',terminal==='lost');
+    }else drawRocket(1);
     void refresh();
     if(game.dataset.crashActive==='1'){
-      animation=setInterval(paint,80);
+      const frame=()=>{if(ended)return;paint();animation=requestAnimationFrame(frame);};
+      animation=requestAnimationFrame(frame);
       polling=setInterval(refresh,650);
     }
   }

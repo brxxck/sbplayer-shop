@@ -170,8 +170,10 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
   assert.match(arcadeHomeHtml,/class="arcade-points-stat"/);
   assert.match(arcadeHomeHtml,/class="arcade-get-more" href="\/points"/);
   assert.match(arcadeHomeHtml,/Get more from levels/);
-  assert.match(html,/Play the house/);
-  assert.match(html,/Challenge a member/);
+   assert.doesNotMatch(arcadeHomeHtml,/class="arcade-disclaimer"/);
+   assert.doesNotMatch(arcadeHomeHtml,/Virtual entertainment points only\. House games favour the house/);
+  assert.match(html,/Play the House/i);
+  assert.match(html,/Challenge to Coin Flip/);
   assert.doesNotMatch(html.split('<div class="arcade-root">')[1],/\bRTP\b|40%|101%|50%/i);
   const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
   const send=(body)=>fetch(base+'/arcade/coinflip/house',{method:'POST',redirect:'manual',headers:{cookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)});
@@ -220,6 +222,7 @@ test('Fast Arcade returns a stable Mines grid and never inserts Saving into a ti
   const started=await start.json();
   assert.equal(started.ok,true);
   assert.match(started.html,/class="arcade-mine-grid"/);
+  assert.doesNotMatch(started.html,/action="\/arcade\/mines\/start"/,'the disabled wager form must not crowd an active grid');
   assert.doesNotMatch(started.html,/Saving/);
   assert.doesNotMatch(started.html,/<html|<head|<body/);
   assert.doesNotMatch(started.html,/💣/,'bomb locations stay hidden during active rounds');
@@ -312,4 +315,168 @@ test('Arcade no longer triggers the global Saving form message or page reload on
  assert.doesNotMatch(arcadeJs,/location\.assign|location\.reload|window\.location\.href=/);
  assert.match(arcadeCss,/\.arcade-mine-grid form\{/);
  assert.match(arcadeCss,/\.arcade-tile-pending/);
+});
+
+test('V1.21: Coin Flip keeps house mode in Arcade, with real SB and CAM faces and no PvP lobby',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'player'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ try{
+  const login=await fetch(base+'/__test/login/'+alice,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const res=await fetch(base+'/arcade/coinflip',{headers:{cookie}});
+  assert.equal(res.status,200);
+  const body=await res.text();
+  assert.match(body,/SB vs CAM/);
+  assert.match(body,/SB \(Heads\)/);
+  assert.match(body,/CAM \(Tails\)/);
+  assert.match(body,/class="arcade-coin-face arcade-coin-sb"/);
+  assert.match(body,/class="arcade-coin-face arcade-coin-cam"/);
+  assert.doesNotMatch(body,/<h2>⚔️ Challenge a member<\/h2>/);
+  assert.doesNotMatch(body,/<h2>Open coin flips<\/h2>/);
+  assert.doesNotMatch(body.split('<div class="arcade-root">')[1],/40%|50%|\bRTP\b/i);
+  const slots=await (await fetch(base+'/arcade/slots',{headers:{cookie}})).text();
+  assert.match(slots,/data-reel-index="0"/);
+  assert.match(slots,/data-reel-index="2"/);
+  assert.match(slots,/arcade-reel-window/);
+  const script=await fetch(base+'/static/arcade.js');
+  assert.equal(script.status,200);
+  const js=await script.text();
+  assert.match(js,/beginSlotSpin/);
+  assert.match(js,/finishSlotSpin/);
+  assert.match(js,/data-crash-rocket/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('V1.21: Private profile invites notify only targets; accept/decline settle once and retain history',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ const auth=async(id,path)=>{
+   const login=await fetch(base+'/__test/login/'+id,{redirect:'manual'});
+   const cookie=login.headers.get('set-cookie').split(';')[0];
+   const page=await (await fetch(base+path,{headers:{cookie}})).text();
+   return {cookie,csrf:/name="_csrf" value="([^"]+)"/.exec(page)[1],page};
+ };
+ try{
+  const a=await auth(alice,'/u/'+bob);
+  const b=await auth(bob,'/u/'+alice);
+  const outsider=await auth(charlie,'/arcade');
+  assert.match(a.page,/data-open-coin-challenge/);
+  assert.match(a.page,/data-profile-challenge-form/);
+  assert.ok(a.page.includes('name="target_id" value="'+bob+'"'));
+  assert.doesNotMatch(a.page.split('data-profile-challenge-dialog')[1].split('</dialog>')[0],/\bRTP\b|40%|50%/i);
+  const sent=await fetch(base+'/arcade/coinflip/challenges',{
+   method:'POST',redirect:'manual',headers:{cookie:a.cookie,accept:'application/json','x-arcade-challenge':'1'},
+   body:new URLSearchParams({_csrf:a.csrf,...form(125,{target_id:bob,face:'tails'})})
+  });
+  assert.equal(sent.status,200);
+  const created=await sent.json();assert.equal(created.ok,true);
+  const id=created.challenge.id;
+  assert.equal(created.challenge.status,'open');
+  assert.equal(created.challenge.result,null,'outcome hidden before acceptance');
+  const inbox=await fetch(base+'/arcade/api/challenges/incoming',{headers:{cookie:b.cookie}});
+  assert.equal(inbox.status,200);
+  const incoming=(await inbox.json()).challenges;
+  assert.ok(incoming.some(c=>c.id===id&&c.creator_id===alice&&c.target_id===bob));
+  const others=(await (await fetch(base+'/arcade/api/challenges/incoming',{headers:{cookie:outsider.cookie}})).json()).challenges;
+  assert.equal(others.some(c=>c.id===id),false,'challenges are private');
+  assert.equal((await fetch(base+'/arcade/api/challenges/'+id,{headers:{cookie:outsider.cookie}})).status,404);
+  const before=levelWallet(bob).balance;
+  const joined=await fetch(base+'/arcade/coinflip/challenges/'+id+'/join',{
+   method:'POST',redirect:'manual',headers:{cookie:b.cookie,accept:'application/json','x-arcade-challenge':'1'},
+   body:new URLSearchParams({_csrf:b.csrf})
+  });
+  assert.equal(joined.status,200);
+  const result=(await joined.json()).challenge;
+  assert.equal(result.status,'complete');
+  assert.ok(['heads','tails'].includes(result.result));
+  assert.ok([alice,bob].includes(result.winner_id));
+  assert.equal(arcade.challengeForUser(alice,id).status,'complete');
+  assert.ok(arcade.challengeHistory(alice).some(c=>c.id===id));
+  const again=await fetch(base+'/arcade/coinflip/challenges/'+id+'/join',{
+   method:'POST',redirect:'manual',headers:{cookie:b.cookie,accept:'application/json','x-arcade-challenge':'1'},
+   body:new URLSearchParams({_csrf:b.csrf})
+  });
+  assert.equal(again.status,200);
+  assert.equal(levelWallet(bob).balance,before-125+(result.winner_id===bob?250:0));
+  const selfProfile=await (await fetch(base+'/u/'+alice,{headers:{cookie:a.cookie}})).text();
+  assert.match(selfProfile,/Recent Coin Flips/);
+  const start=levelWallet(alice).balance;
+  const next=arcade.createChallenge(alice,form(150,{face:'heads',target_id:bob}));
+  const pendingProfile=await (await fetch(base+'/u/'+alice,{headers:{cookie:a.cookie}})).text();
+  assert.match(pendingProfile,/Pending Coin Flips/);
+  assert.match(pendingProfile,/Cancel &amp; Refund/);
+  const declined=await fetch(base+'/arcade/coinflip/challenges/'+next+'/decline',{
+   method:'POST',redirect:'manual',headers:{cookie:b.cookie,accept:'application/json','x-arcade-challenge':'1'},
+   body:new URLSearchParams({_csrf:b.csrf})
+  });
+  assert.equal(declined.status,200);
+  assert.equal((await declined.json()).challenge.status,'declined');
+  assert.equal(levelWallet(alice).balance,start);
+  arcade.declineChallenge(bob,next);assert.equal(levelWallet(alice).balance,start);
+  const js=(await (await fetch(base+'/static/arcade-challenges.js')).text());
+  assert.match(js,/sb:arcade-challenge/);
+  assert.match(js,/className='arcade-challenge-overlay'/);
+  assert.match(js,/data-pvp-accept/);
+  assert.match(js,/data-pvp-decline/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('V1.21: Crash rocket result screen persists payout until Play Again',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ try{
+  const login=await fetch(base+'/__test/login/'+charlie,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const id=arcade.startCrash(charlie,form(100,{auto_at:'1.50'}));
+  const round=arcade.getRound(charlie,id,'crash');
+  const modified={...round.details,startedAt:Date.now()-10000,crashAt:500,autoAt:150};
+  run('UPDATE arcade_rounds SET details_json=? WHERE id=?',JSON.stringify(modified),id);
+  const page=await fetch(base+'/arcade/crash',{headers:{cookie}});
+  assert.equal(page.status,200);
+  const html=await page.text();
+  assert.match(html,/Successfully Cashed Out!/);
+  assert.match(html,/1\.50×/);
+  assert.match(html,/POINTS PROFIT/);
+  assert.match(html,/\+50 points/);
+  assert.match(html,/data-crash-rocket/);
+  assert.match(html,/data-crash-chart-line/);
+  assert.match(html,/href="\/arcade\/crash\?again=1"/);
+  assert.doesNotMatch(html,/action="\/arcade\/crash\/start"/,'no new game form before Play Again');
+  const replay=(await (await fetch(base+'/arcade/crash?again=1',{headers:{cookie}})).text());
+  assert.match(replay,/action="\/arcade\/crash\/start"/);
+  assert.match(replay,/Ready to launch/);
+  assert.match(replay,/data-crash-replay="1"/);
+  assert.doesNotMatch(replay,/Successfully Cashed Out!/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('V1.21: Global form handlers cannot inject Saving messages into Mines or profile invites',()=>{
+ const global=readFileSync(new URL('../public/upgrade.js',import.meta.url),'utf8');
+ const arcadeJs=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ const arcadeCss=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ const pvpCss=readFileSync(new URL('../public/arcade-challenges.css',import.meta.url),'utf8');
+ assert.match(global,/form\.closest\('\.arcade-root'\)/);
+ assert.match(global,/form\.matches\('\[data-profile-challenge-form\]'\)/);
+ assert.match(arcadeJs,/root\.replaceWith\(updated\)/);
+ assert.match(arcadeCss,/grid-template-columns:repeat\(5,1fr\)/);
+ assert.match(pvpCss,/position:fixed/);
+ assert.match(pvpCss,/height:100dvh/);
 });
