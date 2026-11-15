@@ -7,7 +7,7 @@ export function navigationGroups(ctx){
  const groups=[{label:'Community',items:[['/','Home']]}];
  if(!ctx.user)return groups;
  if(!member){groups.push({label:'Support',items:[['/tickets/new/ban_appeal','Ban Appeal'],['/tickets/mine','My Appeals'],['/team','Meet the Team']]});return groups;}
- groups[0].items.push(['/feed','Main Feed'],['/suggestions','Suggestions'],['/points','Level Points'],['/arcade','Arcade']);
+ groups[0].items.push(['/feed','Main Feed'],['/suggestions','Suggestions'],['/points','Level Points'],['/points/daily','Daily Rewards'],['/arcade','Arcade']);
  groups.push({label:'People',items:[['/members','Members'],['/team','Teams']]},
   {label:'MegaSMP',items:[['/mega-team','Overview'],['/mega-team/leaderboard','Top 10'],['/mega-team/transactions','Transactions']]},
   {label:'Support',items:[['/tickets/new','New Ticket'],['/tickets/mine','My Tickets'],['/applications','Applications']]});
