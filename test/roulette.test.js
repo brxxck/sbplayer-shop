@@ -155,7 +155,7 @@ test('Actual winning number pays every winning selection; settlement is never re
  assert.equal(balance(alice),13700);
  assert.equal(balance(bob),10000,'Bob loses Black but wins 19–36, so the stakes break even');
  assert.equal(one("SELECT COUNT(*) AS count FROM arcade_rounds WHERE game='roulette_online'").count,2);
- assert.equal(one("SELECT COUNT(*) AS count FROM arcade_transfers WHERE reason='roulette.online.payout'").count,1);
+ assert.equal(one("SELECT COUNT(*) AS count FROM arcade_transfers WHERE reason='roulette.online.payout'").count,2,'Both Alice and Bob have winning bet selections');
  const before=balance(alice);
  rouletteTick(t+38001);
  assert.equal(balance(alice),before);
