@@ -6,9 +6,19 @@ const when=n=>n?new Date(n).toLocaleString('en-GB'):'Not synced yet';
 export function levelPointsPage(ctx,state,connection){return shell(ctx,'Level Points',`
 ${titlebar('DISCORD REWARDS','Your level. Your points.','Claim rewards for the Discord levels you already have, then earn more as you level up.')}
 <div class="stats-three"><div class="stat"><small>POINTS BALANCE</small><strong>${number(state.balance)}</strong></div><div class="stat"><small>DISCORD LEVEL</small><strong>${state.snapshot?number(state.snapshot.level):'Awaiting sync'}</strong></div><div class="stat"><small>READY TO CLAIM</small><strong>${number(state.claimable)}</strong></div></div>
+<section class="panel padded level-sync-help" aria-labelledby="level-sync-help-title">
+<h2 id="level-sync-help-title">🔄 How to sync your Discord level</h2>
+<p>Before you can claim your level points, you need to sync your level from our Discord server using <code>/website-points</code>.</p>
+<ol class="level-sync-steps">
+<li><strong>Open Discord</strong><span>Go to the SB's &amp; Cam's Store server. In a channel where bot commands are allowed, type <code>/website-points</code> and send it.</span></li>
+<li><strong>Sync your level</strong><span>Wait for the bot to confirm your current level has been sent to the website.</span></li>
+<li><strong>Refresh &amp; claim</strong><span>Return to this page, click <a href="/points">Refresh level</a>, then use the <strong>Claim points</strong> button below.</span></li>
+</ol>
+${!connection.configured?'<p class="alert alert-error">Level syncing is not connected yet. A website owner must finish setting up the Discord bot before this command can sync your points.</p>':!state.snapshot?'<p class="muted">No synced level received yet. Run <code>/website-points</code> in Discord, wait for confirmation, then refresh this page.</p>':''}
+<p class="muted tiny">Syncing updates your Discord level on the website; points are added to your balance only when you claim them. Each new level is worth ${POINTS_PER_LEVEL} points.</p>
+</section>
 <section class="panel padded"><h2>🎁 Daily Community Rewards</h2><p>Earn up to <strong>150 points every day</strong> by liking a Main Feed post, commenting on a post, and voting on a suggestion. Each task pays 50 points — no games or wagers needed.</p><p><a class="btn btn-primary" href="/points/daily">View Daily Challenges →</a></p></section>
 <section class="panel padded"><h2>Claim level rewards</h2><p>Every level earns ${POINTS_PER_LEVEL} points. Existing levels count on your first claim. Each level can be claimed once.</p>
-${connection.configured?'<p>Run <code>/website-points</code> in our Discord server to sync your current level, then refresh this page.</p>':'<p class="alert alert-error">The owner is still connecting the leveling bot. Claims unlock after your first verified sync.</p>'}
 <p class="muted">Last sync: ${esc(when(state.snapshot?.synced_at))} · Claimed through level ${number(state.claimedLevel)}</p>
 <form method="post" action="/points/claim">${token(ctx)}<button class="btn btn-primary" ${state.claimable?'':'disabled'}>Claim ${number(state.claimable)} points</button> <a class="btn btn-outline" href="/points">Refresh level</a></form>
 <p><a class="btn btn-primary" href="/arcade">🎰 Play in SB Arcade</a></p><p class="muted tiny">Entertainment points only. Points cannot be bought, cashed out or exchanged for prizes with monetary value. Visit the <a href="/arcade">SB Arcade</a>.</p></section>

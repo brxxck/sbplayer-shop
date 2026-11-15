@@ -104,7 +104,8 @@ test('Start hand is CSRF protected, charges one wager, then responds with hidden
  assert.equal(result.state.initialWager,100);
  assert.equal(result.state.wager,100);
  assert.equal(result.state.hands[0].cards.length,2);
- assert.equal(result.state.dealer.length,2);
+ assert.ok(result.state.dealer.length>=2,'A settled dealer may draw additional cards');
+ if(result.state.phase==='playing')assert.equal(result.state.dealer.length,2);
  assert.equal(Object.hasOwn(result.state,'shoe'),false);
  assert.doesNotMatch(JSON.stringify(result),/"shoe"/);
  assert.match(result.table,/SB BLACKJACK/);

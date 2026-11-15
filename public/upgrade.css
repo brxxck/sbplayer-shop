@@ -14,3 +14,15 @@ body{font-size:15px;line-height:1.6}.content{max-width:var(--page-width);width:1
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .sidebar-scroll>.sidebar-title:first-of-type,.sidebar-scroll>.sidebar-title:nth-of-type(2){display:block}.sidebar nav{margin-bottom:12px}.sidebar-scroll .brand{margin-bottom:22px}.sidebar .nav-link{padding:9px 11px}.content>.feature-grid{margin-bottom:22px}.social-tabs{flex-wrap:wrap;gap:10px}.dm-thread[aria-current=page]{border-color:#75b4ff;background:#193653}.profile-page .profile-columns:has(>.stack:first-child:empty){grid-template-columns:1fr}.page-heading:empty{display:none}
 body[data-page="/members"] .search-panel{display:grid;grid-template-columns:minmax(140px,1fr) minmax(120px,1fr) minmax(110px,1fr) auto auto;align-items:end;gap:12px}body[data-page="/members"] .search-panel label{font-size:12px}body[data-page="/members"] .search-panel input{width:100%}@media(max-width:1100px){body[data-page="/members"] .search-panel{grid-template-columns:1fr 1fr}body[data-page="/members"] .search-panel>input{grid-column:1/-1}}@media(max-width:480px){body[data-page="/members"] .search-panel{grid-template-columns:1fr}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Discord level sync help: visible before the claim form, responsive on phones. */
+.level-sync-help>p{line-height:1.65}
+.level-sync-help code{display:inline-block;max-width:100%;overflow-wrap:anywhere;padding:3px 7px;border:1px solid #365b83;border-radius:6px;background:#0a1b31;color:#a7d5ff;font-size:14px;font-weight:800;user-select:all}
+.level-sync-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0;margin:16px 0;list-style:none;counter-reset:level-sync-step}
+.level-sync-steps>li{min-width:0;display:grid;align-content:start;gap:10px;position:relative;counter-increment:level-sync-step;padding:17px 15px 17px 50px;border:1px solid #30547b;border-radius:12px;background:#10253e}
+.level-sync-steps>li::before{content:counter(level-sync-step);position:absolute;left:14px;top:16px;display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#276cac;color:#fff;font-weight:900;font-size:13px}
+.level-sync-steps>li strong{font-size:14px;color:#e9f4ff}
+.level-sync-steps>li span{font-size:13px;line-height:1.65;color:#b4cce3;overflow-wrap:anywhere}
+.level-sync-steps>li a{color:#9ecfff;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:840px){.level-sync-steps{grid-template-columns:1fr;gap:9px}.level-sync-steps>li{padding:15px 14px 15px 49px}.level-sync-steps>li::before{top:14px}.level-sync-help code{font-size:14px}}
