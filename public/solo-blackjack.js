@@ -151,8 +151,7 @@
   if(!form.reportValidity())return;
   rememberWager();
   busy=true;
-  const trigger=form.querySelector('button[type="submit"]');
-  const action=form.querySelector('input[name="action"]')?.value||'deal';
+  const action=form.querySelector('input[name="move"],input[name="action"]')?.value||'deal';
   const submittedButtons=[...controls.querySelectorAll('button')];
   for(const button of submittedButtons)button.disabled=true;
   status('Confirming '+action+' with the Blackjack server…');
@@ -162,7 +161,12 @@
    if(!fields.has('_csrf'))fields.set('_csrf',csrf);
    // Keep the original server-issued UUID for fallback, never mint a second
    // request ID after a connection failure.
-   const response=await fetch(form.action,{method:'POST',credentials:'same-origin',
+   // Never use form.action: an input named "action" on old open pages can
+   // shadow HTMLFormElement.action and send requests to a 404 address.
+   const destination=form.getAttribute('action');
+   if(!['/arcade/blackjack/start','/arcade/blackjack/action'].includes(destination))
+    throw Error('Unexpected Blackjack action URL. Refresh the table.');
+   const response=await fetch(destination,{method:'POST',credentials:'same-origin',
     cache:'no-store',redirect:'manual',
     headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded'},
     body:fields});
