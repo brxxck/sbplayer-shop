@@ -444,7 +444,7 @@ function xboxAccountCard(ctx,link,configured){
   (link?'<details><summary>Manage Xbox connection</summary><div class="actions">'+linkButton+unlink+'</div></details>':'<div class="actions">'+linkButton+'</div>')+
   '</section>';
 }
-export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],challengeHistory=[],pendingChallenges=[],xboxLink=null,xboxConfigured=false}){
+export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],challengeHistory=[],pendingChallenges=[],pvpWager={value:50,at:0},xboxLink=null,xboxConfigured=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
 const xboxBadge=canView&&xboxLink?'<span class="verified">'+icon('badge-check',{size:16})+' Xbox: '+esc(xboxLink.gamertag)+'</span>':'';
 const xboxTools=self?xboxAccountCard(ctx,xboxLink,xboxConfigured):'';
@@ -457,7 +457,7 @@ const challengeDialog=!self?`<dialog class="profile-challenge-dialog" data-profi
  <form method="post" action="/arcade/coinflip/challenges" data-profile-challenge-form>
  ${token(ctx)}<input type="hidden" name="request_id" value="${randomUUID()}">
  <input type="hidden" name="target_id" value="${attr(person.id)}">
- <label>Points to wager<input type="number" name="wager" min="10" max="1000" step="1" value="50" required></label>
+ <label>Points to wager<input type="number" name="wager" min="10" max="1000" step="1" data-pvp-wager data-last-round-at="${Number(pvpWager.at)||0}" value="${Math.max(10,Math.min(1000,Number(pvpWager.value)||50))}" required></label>
  <fieldset class="profile-coin-choices"><legend>Choose your side</legend>
  <label><input name="face" type="radio" value="heads" checked><strong>🟡 SB</strong> Heads</label>
  <label><input name="face" type="radio" value="tails"><strong>⚪ CAM</strong> Tails</label></fieldset>
