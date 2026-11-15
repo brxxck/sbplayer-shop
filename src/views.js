@@ -16,7 +16,7 @@ const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 export const assetVersion = '1.21.1';
  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
  // Cache-bust the Arcade-specific assets independently of other website work.
- const arcadeAssetVersion = 'leaderboard-1';
+ const arcadeAssetVersion = 'leaderboard-crown-2';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -52,6 +52,7 @@ const publicLinkPages=Object.freeze({
  '/arcade/history':["SB Arcade History | SB's & Cam's Store","View your Arcade game results and point transactions after signing in."],
  '/arcade/leaderboard':["SB Arcade Points Leaderboard | SB's & Cam's Store","See the highest current point balances in the SB Arcade community."],
  '/points':["Discord Level Points | SB's & Cam's Store","Claim points earned from your Discord levels to play in SB Arcade."],
+ '/points/daily':["Daily Community Rewards | SB's & Cam's Store","Like posts, comment on Main Feed, and vote on suggestions to earn 150 points every day."],
  '/team':["Our Team | SB's & Cam's Store","Meet the staff and community team of SB's & Cam's Store. Sign in with Discord to browse the team."],
  '/mega-team':["MegaSMP | SB's & Cam's Store","SBsxScam team statistics and captured MegaSMP Top 10 standings."],
  '/mega-team/leaderboard':["MegaSMP Top 10 | SB's & Cam's Store","Verified InPvP team standings, level, bank and stats."],
