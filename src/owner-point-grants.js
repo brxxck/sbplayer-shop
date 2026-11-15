@@ -75,9 +75,9 @@ async function onlineWebsiteMembers(discord,onlineIds){
   let members;
   try{members=await Promise.all(ids.slice(offset,offset+10).map(id=>discord.getGuildMember(id)));}
   catch{fail(503,'Unable to verify online website members against Discord. Nothing was granted.');}
-  for(const member of members){
-   const person=normalizedMember(member);
-   if(person)users.push(person);
+  for(let index=0;index<members.length;index++){
+   const person=normalizedMember(members[index]);
+   if(person&&person.id===ids[offset+index])users.push(person);
   }
  }
  return users;
