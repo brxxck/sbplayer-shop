@@ -65,7 +65,8 @@ test('HTTP routes require owner access and CSRF; only authenticated bot payloads
   assert.equal((await fetch(base+'/owner/level-points/key',{method:'POST',headers:{cookie:ownerCookie,'content-type':'application/x-www-form-urlencoded'},body:'_csrf=wrong'})).status,403);
   const created=await fetch(base+'/owner/level-points/key',{method:'POST',headers:{cookie:ownerCookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({_csrf:csrf})});
   assert.equal(created.status,200);const key=/value="([a-f0-9]{64})"/.exec(await created.text())[1];
-  const beforeSync=await fetch(base+'/points',{headers:{cookie:memberCookie}});
+  const unsyncedCookie=await login(other);
+  const beforeSync=await fetch(base+'/points',{headers:{cookie:unsyncedCookie}});
   assert.equal(beforeSync.status,200);
   const beforeSyncHtml=await beforeSync.text();
   assert.match(beforeSyncHtml,/How to sync your Discord level/);
@@ -85,7 +86,7 @@ test('HTTP routes require owner access and CSRF; only authenticated bot payloads
   assert.match(memberHtml,/How to sync your Discord level/);
   assert.match(memberHtml,/\/website-points/);
   assert.match(memberHtml,/Refresh level/);
-  assert.match(memberHtml,/Claim 3,000 points/);
+  assert.match(memberHtml,/Claim 1,900 points/);
   assert.doesNotMatch(memberHtml,/No synced level received yet/);
   const memberCsrf=/name="_csrf" value="([^"]+)"/.exec(memberHtml)[1];
   const claim=()=>fetch(base+'/points/claim',{method:'POST',redirect:'manual',headers:{cookie:memberCookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({_csrf:memberCsrf,user_id:other,level:'999999'})});
