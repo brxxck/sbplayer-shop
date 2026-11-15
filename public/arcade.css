@@ -117,3 +117,88 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 .arcade-live-notice.arcade-live-error{border-color:#9b4559;background:#381d2c;color:#ffd0d9}
 .arcade-mine-grid[aria-busy="true"]{pointer-events:auto}
 @media(prefers-reduced-motion:reduce){.arcade-mine-tile{transition:none!important}.arcade-mine-tile.arcade-tile-pending{transform:none}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* V1.21: Branded, genuinely two-sided SB/CAM coin and a large focused house panel. */
+.arcade-house-only{max-width:760px;width:100%;margin-inline:auto}
+.arcade-house-only .arcade-coin-stage{min-height:210px}
+.arcade-profile-invite{font-size:13px!important;text-align:center;margin-top:4px!important}
+.arcade-profile-invite a{color:#9fd1ff;text-decoration:underline}
+.arcade-coin-disc{position:relative;width:128px;height:128px;display:block;padding:0;border:0;background:transparent;box-shadow:none;border-radius:50%;transform-style:preserve-3d;transform:rotateY(0)}
+.arcade-coin-disc[data-landed="tails"]{transform:rotateY(180deg)}
+.arcade-coin-face{position:absolute;inset:0;display:grid;place-items:center;border-radius:50%;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 7px 27px #0009,inset 0 0 0 4px #ffffff4f,inset 0 0 0 11px #8062248a;font-size:35px;font-weight:900;text-shadow:0 2px 2px #5d421c66}
+.arcade-coin-sb{border:8px ridge #f9cb5d;background:radial-gradient(circle at 30% 25%,#fff0a8,#d39c38 70%,#95601e);color:#684109}
+.arcade-coin-cam{border:8px ridge #dfeaf7;background:radial-gradient(circle at 30% 25%,#f8fbff,#a5bad2 70%,#61768d);color:#263f5f;transform:rotateY(180deg);font-size:27px;box-shadow:0 7px 27px #0009,inset 0 0 0 4px #f2f8ff72,inset 0 0 0 11px #51698570}
+.arcade-coin-disc.animated[data-landed="heads"]{animation:sb-coin-heads 1.25s cubic-bezier(.17,.72,.23,1) both}
+.arcade-coin-disc.animated[data-landed="tails"]{animation:sb-coin-tails 1.25s cubic-bezier(.17,.72,.23,1) both}
+@keyframes sb-coin-heads{0%{transform:rotateY(0) scale(.85)}45%{transform:rotateY(900deg) scale(1.12)}100%{transform:rotateY(2160deg) scale(1)}}
+@keyframes sb-coin-tails{0%{transform:rotateY(0) scale(.85)}45%{transform:rotateY(900deg) scale(1.12)}100%{transform:rotateY(2340deg) scale(1)}}
+.arcade-branded-choices label{position:relative;flex-direction:column;gap:4px;min-height:104px}
+.arcade-branded-choices label input{position:absolute;top:11px;left:11px;width:18px;height:18px}
+.arcade-branded-choices label strong{font-size:14px}
+.arcade-branded-choices label small{font-size:11px;color:#b2cee7}
+.arcade-choice-coin{display:grid;place-items:center;width:38px;height:38px;border-radius:100%;border:3px solid #f7d687;background:#d6a342;color:#70430d;font-weight:900;font-size:14px}
+.arcade-face-cam .arcade-choice-coin{background:#9eafc1;border-color:#dbe6f2;color:#304961;font-size:11px}
+.arcade-branded-choices label:has(input:checked){border-color:#77b8ff;background:#1a426c}
+
+/* Three physically scrolling reel windows. Scripts only animate presentation. */
+.arcade-reel{overflow:hidden;position:relative;padding:0}
+.arcade-reel-window{position:relative;width:100%;height:100%;overflow:hidden;display:block}
+.arcade-reel-face,.arcade-reel-track>*{width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex:none;line-height:1}
+.arcade-reel-track{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;flex-direction:column;will-change:transform;transform:translate3d(0,0,0)}
+.arcade-reel-track>*{height:100%;font-size:clamp(40px,7vw,70px)}
+.arcade-reel.spinning{box-shadow:0 3px 20px #1e9bff61,inset 0 0 14px #40698d}
+.arcade-reel.spinning:after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(#07192b98,transparent 30%,transparent 70%,#07192b98)}
+.arcade-reel.stopped{border-color:#fce1a1}
+.arcade-reel.animated{animation:none}
+
+/* Crash rocket follows a real SVG progress path; cashout/crash are fixed by server. */
+.arcade-crash-display{height:clamp(230px,34vw,330px);min-height:230px;align-content:unset;justify-items:unset}
+.arcade-crash-display::before{content:none}
+.arcade-crash-stars{position:absolute;inset:0;opacity:.24;pointer-events:none;background-image:radial-gradient(circle,#d2ffff 1px,transparent 2px),radial-gradient(circle,#adfce7 1px,transparent 2px);background-size:67px 67px,109px 109px;background-position:12px 26px,31px 16px}
+.arcade-crash-chart{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.arcade-crash-chart path{filter:drop-shadow(0 0 5px #2fd5a888)}
+.arcade-crash-hud{position:absolute;top:10%;left:0;width:100%;display:grid;justify-items:center;gap:8px;pointer-events:none;z-index:4;text-shadow:0 2px 12px #041625}
+.arcade-crash-number{font-size:clamp(44px,7vw,72px)}
+.arcade-crash-hud small{font-size:13px}
+.arcade-rocket{position:absolute;left:0;top:0;z-index:3;display:grid;place-items:center;width:42px;height:42px;transform:translate3d(4%,370%,0) rotate(35deg);transform-origin:center;pointer-events:none;will-change:transform;filter:drop-shadow(0 5px 8px #0009)}
+.arcade-rocket-body{display:block;font-size:clamp(27px,4vw,38px);line-height:1}
+.arcade-rocket-exhaust{display:block;position:absolute;left:16px;top:38px;width:10px;height:16px;border-radius:65%;background:linear-gradient(#ffce66,#ff6d3f,transparent);filter:blur(2px);animation:arcade-exhaust .18s alternate infinite}
+@keyframes arcade-exhaust{from{transform:scaleY(.6)}to{transform:scaleY(1.35)}}
+.arcade-crash-display.collected .arcade-rocket{filter:drop-shadow(0 0 15px #32e1ac)}
+.arcade-crash-display.crashed .arcade-rocket-body{animation:arcade-rocket-burst .52s ease-out both}
+.arcade-crash-display.crashed .arcade-crash-flash{animation:arcade-flash-red .7s ease-out both}
+@keyframes arcade-rocket-burst{0%{opacity:1;transform:scale(1)}35%{opacity:1;transform:scale(1.8) rotate(65deg)}100%{opacity:0;transform:scale(.25) rotate(140deg)}}
+@keyframes arcade-flash-red{0%{opacity:0}22%{opacity:.32}100%{opacity:0}}
+.arcade-crash-flash{position:absolute;inset:0;background:radial-gradient(circle at 75% 30%,#ff4665,transparent 60%);opacity:0;pointer-events:none}
+.arcade-crash-display.crashed .arcade-crash-number{color:#ff8b9e}
+.arcade-crash-result{width:min(100%,550px);display:grid;gap:15px;border:1px solid #376878;border-radius:16px;padding:20px;background:linear-gradient(150deg,#11353d,#0a2134);color:#e3f6fa}
+.arcade-crash-result.arcade-crash-loss{background:linear-gradient(150deg,#402334,#142034);border-color:#984957}
+.arcade-crash-result-heading{display:flex;align-items:center;gap:12px}
+.arcade-crash-result-heading>span{font-size:32px}
+.arcade-crash-result-heading h2{margin:0 0 5px;font-size:clamp(18px,4vw,25px)}
+.arcade-crash-result-heading p{color:#b5c7d9;margin:0;font-size:13px}
+.arcade-crash-result-mult{font-size:clamp(38px,6vw,58px);font-weight:900;text-align:center;color:#55efb6}
+.arcade-crash-loss .arcade-crash-result-mult{color:#ff98a0}
+.arcade-crash-receipt{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.arcade-crash-receipt>div{display:grid;gap:4px;border:1px solid #2b5065;background:#102b408a;border-radius:10px;padding:13px}
+.arcade-crash-receipt span{font-size:12px;color:#a9c4da}
+.arcade-crash-receipt strong{font-size:18px}
+.arcade-crash-profit{display:grid;justify-items:center;gap:6px;background:#124c42;border-radius:12px;padding:13px}
+.arcade-crash-loss .arcade-crash-profit{background:#5c243b}
+.arcade-crash-profit small{font-size:11px;font-weight:800}
+.arcade-crash-profit strong{font-size:27px}
+.arcade-play-again{display:flex;align-items:center;justify-content:center;min-height:48px}
+@media(max-width:600px){
+ .arcade-crash-result{padding:14px}
+ .arcade-crash-display{height:250px}
+ .arcade-rocket{width:34px;height:34px}
+ .arcade-rocket-body{font-size:28px}
+ .arcade-rocket-exhaust{top:30px;left:13px}
+ .arcade-branded-choices label{min-height:95px}
+}
+@media(prefers-reduced-motion:reduce){
+ .arcade-coin-disc.animated,.arcade-rocket-body,.arcade-rocket-exhaust,.arcade-crash-flash{animation:none!important}
+ .arcade-reel-track{transition:none!important}
+ .arcade-rocket{will-change:auto}
+}
