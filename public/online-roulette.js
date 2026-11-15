@@ -28,7 +28,8 @@
   if(element)element.textContent=value;
  };
  const chipKey='sb-roulette:chip:'+userId;
- let chip=10,model=json(root.dataset.rouletteState)||null;
+ let chip=10,model=null;
+ const initial=json(root.dataset.rouletteState);
  let clockOffset=0,busy=false,active=true,polling=false,heartbeatBusy=false;
  let pending=[],fingerprint='',requestKey='',revision='';
  let frame=0,lastFrame=0,spinSoundAt=0,lastLandingRound=null,lastVerifiedRound=null;
@@ -85,7 +86,16 @@
   root.querySelector('[data-roulette-wallet]').textContent=number(model?.balance||0)+' pts';
   form.querySelector('[data-roulette-bets-json]').value=JSON.stringify(pending);
   form.querySelector('[data-roulette-form-round]').value=String(model?.roundId||'');
-  root.querySelectorAll('[data-roulette-choice],[data-roulette-chip]').forEach(button=>{
+  const amounts=new Map();
+  for(const bet of pending)amounts.set(bet.key,(amounts.get(bet.key)||0)+bet.stake);
+  root.querySelectorAll('[data-roulette-choice]').forEach(button=>{
+   const stake=amounts.get(button.dataset.rouletteChoice)||0;
+   button.classList.toggle('roulette-chip-marked',stake>0);
+   if(stake)button.dataset.chipTotal=number(stake);
+   else delete button.dataset.chipTotal;
+   button.disabled=!model?.canBet||busy;
+  });
+  root.querySelectorAll('[data-roulette-chip]').forEach(button=>{
    button.disabled=!model?.canBet||busy;
   });
   root.querySelector('[data-roulette-repeat]').disabled=!model?.canBet||busy||!model?.repeatBets?.length;
@@ -408,17 +418,23 @@
    if(total>model.remainingBudget||total>model.balance){
     announce('Not enough points to repeat your last confirmed bet slip.',5500);return;
    }
-   pending=last.flatMap(b=>{
-    // Split aggregated selections back into allowed 10–1000 point chips.
+   const repeated=last.flatMap(b=>{
+    // The database aggregates chips on identical selections. Reconstruct a
+    // valid new slip with each individual chip still between 10 and 1000.
     const items=[];let amount=b.stake;
     while(amount>0&&items.length<30){
      let stake=Math.min(1000,amount);
-     if(stake<10&&items.length){items[items.length-1].stake+=stake;break;}
-     if(stake<10)break;
+     if(amount>1000&&amount-1000<10)stake=amount-10;
+     if(stake<10||stake>1000)break;
      items.push({key:b.key,stake});amount-=stake;
     }
-    return items;
-   }).slice(0,30);
+    return amount===0?items:[];
+   });
+   if(repeated.length===0||repeated.length>30){
+    announce('The previous combined bet is too large to repeat in one confirmation.',5000);
+    return;
+   }
+   pending=repeated;
    renderSlip();announce('Previous chip selections loaded. Confirm to place them.',3500);
    experience()?.play('chip');return;
   }
@@ -441,6 +457,6 @@
   cancelAnimationFrame(frame);
  });
  chosenChip();renderSpecial();
- if(model){clockOffset=Number(model.serverTime)-Date.now();apply(model);}
+ if(initial){clockOffset=Number(initial.serverTime)-Date.now();apply(initial);}
  frame=requestAnimationFrame(frameLoop);void poll();
 })();
