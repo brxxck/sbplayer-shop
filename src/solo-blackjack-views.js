@@ -77,7 +77,7 @@ function actionsMarkup(ctx,state){
    token(ctx)+'<input type="hidden" name="round_id" value="'+state.roundId+'">'+
    '<input type="hidden" name="revision" value="'+state.revision+'">'+
    '<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
-   '<input type="hidden" name="action" value="'+action+'">'+
+   '<input type="hidden" name="move" value="'+action+'">'+
    '<button class="btn '+(action==='stand'?'btn-outline':'btn-primary')+'" type="submit">'+
    ({hit:'🎴 Hit',stand:'✋ Stand',double:'✦ Double Down',split:'♠ Split'}[action])+'</button></form>'
   ).join('')+'</div>';

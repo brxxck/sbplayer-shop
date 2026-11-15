@@ -19,7 +19,7 @@ const startState=()=>({
 function fakeBrowser(response){
  const events={},calls=[],native=[],formFields=[
   ['_csrf','sessioncsrf'],['round_id','42'],['revision','3'],
-  ['request_id','7b83cb79-62cd-4d3f-8a33-ec298fe2d1df'],['action','stand']
+  ['request_id','7b83cb79-62cd-4d3f-8a33-ec298fe2d1df'],['move','stand']
  ];
  let value=startState();
  const table={innerHTML:'',querySelectorAll:()=>[]};
@@ -31,11 +31,17 @@ function fakeBrowser(response){
  };
  const connection={textContent:'',classList:{toggle(){},remove(){}}};
  class FakeForm{
-  constructor(){this.isConnected=true;this.action='https://sbstore.info/arcade/blackjack/action';}
+  constructor(){
+   this.isConnected=true;
+   // Real browsers expose <input name="action"> as form.action.
+   // Model that DOM clobbering so any regression makes these tests fail.
+   this.action={toString:()=>"[object HTMLInputElement]",value:"stand"};
+  }
+  getAttribute(name){return name==='action'?'/arcade/blackjack/action':null;}
   reportValidity(){return true;}
   querySelector(sel){
    if(sel==='button[type="submit"]')return button;
-   if(sel==='input[name="action"]')return {value:'stand'};
+   if(sel==='input[name="move"],input[name="action"]')return {value:'stand'};
    return null;
   }
   matches(sel){return sel==='[data-sbj-form]';}
@@ -93,11 +99,13 @@ test('Solo Blackjack Hit/Stand form sends its real round, revision, csrf and UUI
  assert.equal(b.fire(),true);
  await b.flush();
  assert.equal(b.calls.length,1);
- assert.match(b.calls[0].url,/\/arcade\/blackjack\/action$/);
+ assert.equal(b.calls[0].url,'/arcade/blackjack/action',
+  'Never use the DOM-clobbered form.action input as the fetch URL');
  const fields=new URLSearchParams(b.calls[0].options.body);
  assert.equal(fields.get('round_id'),'42');
  assert.equal(fields.get('revision'),'3');
- assert.equal(fields.get('action'),'stand');
+ assert.equal(fields.get('move'),'stand');
+ assert.equal(fields.get('action'),null);
  assert.equal(fields.get('_csrf'),'sessioncsrf');
  assert.equal(fields.get('request_id'),'7b83cb79-62cd-4d3f-8a33-ec298fe2d1df');
  assert.equal(b.native.length,0);
@@ -114,7 +122,7 @@ test('Failed AJAX Blackjack request safely reuses the same UUID via browser-nati
  const fields=new URLSearchParams(b.calls[0].options.body);
  assert.equal(b.native[0].find(([key])=>key==='request_id')?.[1],
   fields.get('request_id'));
- assert.equal(b.native[0].find(([key])=>key==='action')?.[1],'stand');
+ assert.equal(b.native[0].find(([key])=>key==='move')?.[1],'stand');
  assert.equal(b.button.disabled,false);
 });
 test('Unexpected login redirect response uses the native form path, never a fresh request ID',async()=>{

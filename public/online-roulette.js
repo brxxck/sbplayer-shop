@@ -38,6 +38,13 @@
  const colour=n=>n===0?'green':reds.has(n)?'red':'black';
  const rgba=n=>colour(n)==='red'?'#c43d50':colour(n)==='green'?'#18885f':'#182b40';
  const sector=Math.PI*2/37;
+ // The source wheel order is shared with the server. Every rendered label,
+ // pocket outline, highlighted result and ball landing uses this same angle.
+ const pocketAngle=index=>-Math.PI/2+index*sector;
+ const pocketPoint=(index,radius)=>({
+  x:Math.cos(pocketAngle(index))*radius,
+  y:Math.sin(pocketAngle(index))*radius
+ });
  try{const value=Number(localStorage.getItem(chipKey));if([10,25,50,100,250,500,1000].includes(value))chip=value;}catch{}
  function announce(text,ms=4000){
   notice={text,until:Date.now()+ms};
@@ -280,17 +287,24 @@
    spinTurns*Math.PI*2+0.45:0.45;
   pen.save();pen.translate(cx,cy);pen.rotate(rotation);
   for(let i=0;i<37;i++){
-   const angle=-Math.PI/2+(i-.5)*sector;
-   pen.beginPath();pen.arc(0,0,260,angle,angle+sector);
-   pen.arc(0,0,180,angle+sector,angle,true);
+   const centerAngle=pocketAngle(i);
+   const begin=centerAngle-sector/2;
+   pen.beginPath();pen.arc(0,0,260,begin,begin+sector);
+   pen.arc(0,0,180,begin+sector,begin,true);
    pen.closePath();
    pen.fillStyle=rgba(wheel[i]);pen.fill();
    pen.strokeStyle='#d7ac68';pen.lineWidth=1.25;pen.stroke();
-   const at=-Math.PI/2+i*sector;
-   pen.save();pen.rotate(at);
-   pen.fillStyle='#f7e6bb';pen.textAlign='center';pen.textBaseline='middle';
-   pen.font='bold 14px system-ui,sans-serif';
-   pen.fillText(String(wheel[i]),0,-224);
+   // Previously pen.rotate(centerAngle) + (0,-224) shifted EVERY
+   // label by -90 degrees and rotated it upside-down on the lower half.
+   // Translate to the true pocket midpoint, then counter-rotate only
+   // the lettering so it stays legible throughout the wheel spin.
+   const pocket=pocketPoint(i,224);
+   pen.save();pen.translate(pocket.x,pocket.y);pen.rotate(-rotation);
+   pen.textAlign='center';pen.textBaseline='middle';
+   pen.font='900 22px system-ui,sans-serif';
+   pen.lineWidth=2.5;pen.strokeStyle='#06121b';
+   pen.strokeText(String(wheel[i]),0,0);
+   pen.fillStyle='#fff4d7';pen.fillText(String(wheel[i]),0,0);
    pen.restore();
   }
   const centerGrad=pen.createRadialGradient(0,0,30,0,0,179);
@@ -320,7 +334,7 @@
    }
   }else if(model.phase==='results'&&model.winningNumber!==null){
    const index=wheel.indexOf(model.winningNumber);
-   const target=-Math.PI/2+index*sector+rotation;
+   const target=pocketAngle(index)+rotation;
    const revealed=Math.max(0,Math.min(1,(now-model.spinEndsAt)/540));
    const prior=-Math.PI/2-2*Math.PI*9+.75;
    const delta=((target-prior+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;
@@ -336,9 +350,17 @@
   if(model.phase==='results'){
    pen.save();pen.translate(cx,cy);
    const index=wheel.indexOf(model.winningNumber);
-   const theta=-Math.PI/2+index*sector+rotation;
-   pen.rotate(theta);pen.beginPath();pen.arc(0,-225,13,0,2*Math.PI);
-   pen.strokeStyle='#fce29d';pen.lineWidth=3;pen.shadowBlur=18;pen.shadowColor='#f9d365';pen.stroke();pen.restore();
+   if(index>=0){
+    // Highlight the exact pocket corresponding to the revealed winning
+    // number; the old (0,-225) location was also displaced by 90 degrees.
+    const point=pocketPoint(index,225);
+    const x=point.x*Math.cos(rotation)-point.y*Math.sin(rotation);
+    const y=point.x*Math.sin(rotation)+point.y*Math.cos(rotation);
+    pen.beginPath();pen.arc(x,y,15,0,2*Math.PI);
+    pen.strokeStyle='#fce29d';pen.lineWidth=3;
+    pen.shadowBlur=18;pen.shadowColor='#f9d365';pen.stroke();
+   }
+   pen.restore();
   }
  }
  let lastRendered=0;

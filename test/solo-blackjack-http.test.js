@@ -132,7 +132,11 @@ test('POST actions validate revision, ownership and replay IDs with no double ch
  assert.equal(first.phase,'playing');
  assert.ok(first.actions.includes('double'));
  const fields={round_id:String(id),revision:String(first.revision),
-  action:'double',request_id:randomUUID()};
+  move:'double',request_id:randomUUID()};
+ const activeHtml=await (await fetch(base+'/arcade/blackjack?round='+id,
+  {headers:{cookie:a.cookie}})).text();
+ assert.match(activeHtml,/name="move" value="double"/);
+ assert.doesNotMatch(activeHtml,/name="action" value="double"/);
  let response=await post('/arcade/blackjack/action',a,fields,'invalid');
  assert.equal(response.status,403);
  assert.equal(balance(alice),4875);
