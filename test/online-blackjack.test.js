@@ -186,3 +186,22 @@ test('betting deadline cancels empty rounds without charging points',()=>{
  assert.notEqual(next.roundId,state.roundId);
  assert.equal(next.phase,'betting');
 });
+
+test('Only the active seat can act and stale table versions cannot reuse an action',()=>{
+ const t=8000000,state=start([alice,bob],t);
+ bet(alice,state.roundId,125,t+9);
+ bet(bob,state.roundId,150,t+10);
+ let current=blackjackSnapshot(alice,t+20000);
+ if(current.phase!=='playing')return;
+ // The active player alone can submit. Action requests carry the public table revision.
+ const wrong=current.turnUser===alice?bob:alice,active=current.turnUser;
+ const moneyBefore=balance(wrong);
+ assert.throws(()=>act(wrong,state.roundId,'stand',current.seq,t+20001),e=>e.status===409);
+ assert.equal(balance(wrong),moneyBefore);
+ const outdated=current.seq;
+ const progressed=act(active,state.roundId,'stand',outdated,t+20002);
+ assert.ok(['playing','settled'].includes(progressed.phase));
+ if(progressed.phase==='playing')
+  assert.throws(()=>act(progressed.turnUser,state.roundId,'hit',outdated,t+20003),e=>e.status===409);
+ assert.equal(one("SELECT COUNT(*) AS count FROM arcade_transfers WHERE reason='blackjack.online.wager'").count,2);
+});
