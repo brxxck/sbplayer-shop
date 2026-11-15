@@ -312,7 +312,9 @@
  document.addEventListener('input',event=>{
   if(event.target.matches?.('[data-gcr-wager],[data-gcr-auto]'))rememberInput(event.target);
  });
- const pollId=setInterval(()=>{void poll();},1100);
+ const pollId=setInterval(()=>{void poll();},3500);
+ // The existing website SSE stream triggers prompt refreshes on table changes.
+ window.addEventListener('sb:global-crash',()=>{if(document.visibilityState==='visible')void poll();});
  const beatId=setInterval(()=>{void heartbeat();},20000);
  document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'){void heartbeat();void poll();}
