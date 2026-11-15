@@ -4,7 +4,7 @@ import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,sync
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
- openChallenges,recentRounds,getRound,currentRound,transfersFor,sweepArcade} from './arcade.js';
+ openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
@@ -351,7 +351,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
         }else if(target.pathname==='/arcade/mines'){
           const round=roundId?getRound(user,roundId,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
-          markup=arcadeView.minesPage(context,summary(),{round,rounds:recentRounds(user,'mines',15)});
+          markup=arcadeView.minesPage(context,summary(),{round,rounds:recentRounds(user,'mines',15),currentPayout:previewMinesPayout(round)});
         }else if(target.pathname==='/arcade/crash'){
           markup=arcadeView.crashPage(context,summary(),crashStatus(user),recentRounds(user,'crash',15));
         }else missing();
@@ -372,7 +372,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='GET'&&pathname==='/arcade/mines'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
-        return html(arcadeView.minesPage(ctx,summary(),{round,rounds:recentRounds(user,'mines',15)}));
+        return html(arcadeView.minesPage(ctx,summary(),{round,rounds:recentRounds(user,'mines',15),currentPayout:previewMinesPayout(round)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/crash')
         return html(arcadeView.crashPage({...ctx,arcadePlayAgain:url.searchParams.get('again')==='1'},summary(),crashStatus(user),recentRounds(user,'crash',15)));
