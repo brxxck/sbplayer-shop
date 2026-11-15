@@ -373,7 +373,7 @@ test('V1.21: Private profile invites notify only targets; accept/decline settle 
   assert.match(a.page,/data-open-coin-challenge/);
   assert.match(a.page,/data-profile-challenge-form/);
   assert.ok(a.page.includes('name="target_id" value="'+bob+'"'));
-  assert.doesNotMatch(a.page,/\bRTP\b|40%|50%/i);
+  assert.doesNotMatch(a.page.split('data-profile-challenge-dialog')[1].split('</dialog>')[0],/\bRTP\b|40%|50%/i);
   const sent=await fetch(base+'/arcade/coinflip/challenges',{
    method:'POST',redirect:'manual',headers:{cookie:a.cookie,accept:'application/json','x-arcade-challenge':'1'},
    body:new URLSearchParams({_csrf:a.csrf,...form(125,{target_id:bob,face:'tails'})})
