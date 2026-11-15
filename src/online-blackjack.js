@@ -297,6 +297,9 @@ export function blackjackAction(userId,fields,now=Date.now()){
    walletChange(user,-cost,'blackjack.online.split','blackjack:split:'+round.id+':'+user);
    const a={cards:[first,drawBlackjackCard(game.shoe)],wager:cost,done:first.rank==='A',split:true,payout:0,outcome:null};
    const b={cards:[second,drawBlackjackCard(game.shoe)],wager:cost,done:second.rank==='A',split:true,payout:0,outcome:null};
+   // A 21 made after a split automatically stands; split aces draw one card each.
+   a.done=a.done||blackjackValue(a.cards).total===21;
+   b.done=b.done||blackjackValue(b.cards).total===21;
    person.hands=[a,b];
    run('INSERT INTO online_game_entries(round_id,user_id,entry_no,wager,payout) VALUES(?,?,1,?,0)',round.id,user,cost);
   }
