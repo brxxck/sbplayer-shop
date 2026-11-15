@@ -51,10 +51,13 @@
   try{localStorage.setItem(preferenceKey,JSON.stringify(prefs));}catch{}
   document.documentElement.dataset.arcadeMotion=prefs.motion;
   for(const button of document.querySelectorAll('[data-arcade-sound]')){
-   button.textContent=prefs.sound?'🔊 Sound on':'🔇 Sound off';
-   button.setAttribute('aria-pressed',prefs.sound?'true':'false');
+   const label=prefs.sound?'🔊 Sound on':'🔇 Sound off';
+   if(button.textContent!==label)button.textContent=label;
+   const pressed=prefs.sound?'true':'false';
+   if(button.getAttribute('aria-pressed')!==pressed)button.setAttribute('aria-pressed',pressed);
   }
-  for(const select of document.querySelectorAll('[data-arcade-motion]'))select.value=prefs.motion;
+  for(const select of document.querySelectorAll('[data-arcade-motion]'))
+   if(select.value!==prefs.motion)select.value=prefs.motion;
  }
  document.addEventListener('click',event=>{
   const toggle=event.target.closest?.('[data-arcade-sound]');
@@ -128,7 +131,8 @@
   }
   if(!reduced)play('bigwin');
   // Never trap the player; the celebration ends even if no interaction occurs.
-  setTimeout(()=>{if(overlay?.isConnected)dismiss();},reduced?1500:4400);
+  const currentOverlay=overlay;
+  setTimeout(()=>{if(overlay===currentOverlay&&currentOverlay.isConnected)dismiss();},reduced?1500:4400);
  }
  // Future Blackjack and Plinko modules can use the same sound engine.
  window.SBArcadeExperience={play,getPreferences:()=>({...prefs})};
