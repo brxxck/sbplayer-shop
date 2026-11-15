@@ -49,6 +49,11 @@
 .bj-hand{display:grid;justify-items:center;gap:3px;padding:4px;border-radius:9px;min-width:0}
 .bj-hand+.bj-hand{border-top:1px solid #ffffff22;margin-top:4px}
 .bj-hand-current{background:#ffd36b19}
+.bj-hand-win{background:#16a47b26;box-shadow:0 0 16px #38da9659;animation:bj-win-pulse .9s ease-out}
+.bj-hand-lose{background:#de566220;box-shadow:0 0 10px #d24c4f35}
+.bj-seat-ready .bj-chip{animation:bj-chip-drop .55s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes bj-chip-drop{0%{transform:translateY(-38px) scale(.7);opacity:0}70%{transform:translateY(3px) scale(1.1);opacity:1}100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes bj-win-pulse{0%{box-shadow:0 0 0 #38da9600}50%{box-shadow:0 0 26px #38da9699}100%{box-shadow:0 0 16px #38da9659}}
 .bj-hand .bj-cards{min-height:68px;max-width:100%;padding:4px;overflow:visible}
 .bj-hand .bj-card{width:43px;height:62px;flex-basis:43px;border-width:1px;border-radius:5px}
 .bj-hand .bj-card+.bj-card{margin-left:-10px}
@@ -96,6 +101,8 @@
 @media(max-width:1120px){.bj-table-surface{padding:24px 20px;border-width:9px;border-bottom-width:16px}.bj-seats{gap:7px}.bj-seat{padding:10px 7px}.bj-bet-form{grid-template-columns:1fr auto}.bj-quick-bets{grid-column:1 / -1;grid-row:2}}
 @media(max-width:850px){.bj-table-surface{border-radius:110px 110px 36px 36px/80px 80px 36px 36px;grid-template-rows:auto minmax(65px,1fr) auto auto}.bj-seats{grid-template-columns:repeat(2,minmax(0,1fr))}.bj-seat{min-height:155px}.bj-felt-logo strong{font-size:24px}.bj-dealer-cards .bj-card{width:62px;height:88px;flex-basis:62px}}
 @media(max-width:600px){.bj-hero h1{font-size:28px}.bj-live{margin-left:0;margin-top:8px;font-size:9px}.bj-table-surface{border:6px solid #6d4827;border-bottom-width:11px;padding:15px 9px 13px;min-height:530px;gap:8px}.bj-seat-top b{font-size:11px}.bj-felt-logo small{font-size:7px;line-height:1.4}.bj-dealer-badge{font-size:9px;padding:6px}.bj-dealer-area{gap:7px}.bj-seat{gap:5px;min-height:145px}.bj-dealer-cards{min-height:88px}.bj-wager-head strong{font-size:19px}.bj-wager-head>div{padding:9px}.bj-wager-head small{font-size:9px}.bj-action-zone{padding:13px}.bj-bet-form{grid-template-columns:1fr}.bj-quick-bets{grid-row:auto}.bj-actions form{flex:1 1 40%}.bj-actions button{font-size:14px}.bj-hand .bj-card{width:36px;height:54px;flex-basis:36px}.bj-hand .bj-card+.bj-card{margin-left:-9px}.bj-hand .bj-card-symbol{font-size:19px}.bj-hand-status{gap:4px;font-size:9px}.bj-card-corner{font-size:12px}}
-@media(prefers-reduced-motion:reduce){.bj-card-enter,.bj-card-flip{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.bj-card-enter,.bj-card-flip,.bj-seat-ready .bj-chip,.bj-hand-win{animation:none!important}}
 :root[data-arcade-motion="reduced"] .bj-card-enter{animation-duration:.15s}
 :root[data-arcade-motion="instant"] .bj-card-enter,:root[data-arcade-motion="instant"] .bj-card-flip{animation:none}
+
+:root[data-arcade-motion="instant"] .bj-seat-ready .bj-chip,:root[data-arcade-motion="instant"] .bj-hand-win{animation:none}
