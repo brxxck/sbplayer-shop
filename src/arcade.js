@@ -5,7 +5,7 @@ import {config} from './config.js';
 
 export const ARCADE_MIN_BET=10;
 export const ARCADE_MAX_BET=1000;
-export const ARCADE_GAMES=['coinflip','coinflip_pvp','slots','mines','crash','plinko','roulette_online'];
+export const ARCADE_GAMES=['coinflip','coinflip_pvp','slots','mines','crash','plinko','roulette_online','blackjack_solo'];
 const MAX_BALANCE=Number.MAX_SAFE_INTEGER-1000000;
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const requireId=value=>{const id=Number(value);if(!Number.isSafeInteger(id)||id<1)fail(400,'Invalid game ID.');return id;};

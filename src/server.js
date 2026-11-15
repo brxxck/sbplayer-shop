@@ -14,6 +14,8 @@ import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobb
 import {onlineGamesPage} from './online-games-views.js';
 import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
 import {blackjackPage} from './online-blackjack-views.js';
+import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction} from './solo-blackjack.js';
+import {soloBlackjackPage,soloTableMarkup,soloControlsMarkup} from './solo-blackjack-views.js';
 import {globalCrashTick,globalCrashSnapshot,globalCrashBet,globalCrashCashout} from './online-crash.js';
 import {globalCrashPage} from './online-crash-views.js';
 import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
@@ -170,7 +172,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -508,6 +510,40 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
       // Plinko is a solo Arcade game. The server saves all ball paths and
       // settles every multi-ball batch atomically before animation.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Private, restart-safe Blackjack against the dealer.
+      // The first game and every subsequent action debit and settle atomically.
+      const soloBlackjackResult=(roundId=null)=>{
+        const state=soloBlackjackSnapshot(user,roundId);
+        return {ok:true,state,table:soloTableMarkup(state),controls:soloControlsMarkup(ctx,state)};
+      };
+      if(req.method==='GET'&&pathname==='/arcade/blackjack'){
+        rate(ctx,'arcade.solo.blackjack.page',55,60000);
+        const state=soloBlackjackSnapshot(user,url.searchParams.get('round'));
+        return html(soloBlackjackPage(ctx,summary(),state,recentRounds(user,'blackjack_solo',15)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/blackjack/state'){
+        rate(ctx,'arcade.solo.blackjack.state',100,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(soloBlackjackResult(url.searchParams.get('round'))),
+          'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/blackjack/start'){
+        const {fields}=await form();rate(ctx,'arcade.solo.blackjack.start',40,60000);
+        const id=soloBlackjackStart(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(soloBlackjackResult(id)),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/blackjack?round='+id);
+      }
+      if(req.method==='POST'&&pathname==='/arcade/blackjack/action'){
+        const {fields}=await form();rate(ctx,'arcade.solo.blackjack.action',110,60000);
+        const id=soloBlackjackAction(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(soloBlackjackResult(id)),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/blackjack?round='+id);
+      }
       if(req.method==='GET'&&pathname==='/arcade/plinko'){
         rate(ctx,'arcade.plinko.page',55,60000);
         const roundId=idFrom(url.searchParams.get('round'));

@@ -7,7 +7,7 @@ const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
@@ -37,7 +37,7 @@ export const chrome=(ctx,page,summary,content)=>{
  </div>
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
+  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
  ${content}
 </div>`;
@@ -70,13 +70,14 @@ export function arcadeHome(ctx,summary,rounds){
  <div><small>GAMES COMPLETED</small><strong>${number(summary.played)}</strong></div>
  <div><small>GAMES WON</small><strong>${number(summary.wins)}</strong></div>
  <div><small>BIGGEST PROFIT</small><strong>${number(summary.biggest_win)}</strong></div></section>
- <div class="arcade-section-title"><h2>Choose a game</h2><span>Five solo games · one wallet</span></div>
+ <div class="arcade-section-title"><h2>Choose a game</h2><span>Six solo games · one wallet</span></div>
  <p><a class="btn btn-outline" href="/arcade/online">♠️ Online Games — four-player Blackjack and shared Crash lobbies →</a></p>
  <section class="arcade-grid">
  ${gameTile('/arcade/coinflip','🪙','Coin Flip','Play the house or challenge another member','arcade-coins')}
  ${gameTile('/arcade/slots','🎰','Slots','Spin the reels to find matching symbols','arcade-slots')}
  ${gameTile('/arcade/mines','💎','Mines','Uncover gems and decide when to collect','arcade-mines')}
  ${gameTile('/arcade/crash','🚀','Crash','Watch the multiplier rise and collect in time','arcade-crash')}
+ ${gameTile('/arcade/blackjack','♠️','Solo Blackjack','Hit, stand, double or split against the house dealer','arcade-blackjack-solo')}
  ${gameTile('/arcade/plinko','🔴','Plinko','Bounce through pegs and land on multiplier slots','arcade-plinko')}
  </section>
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
