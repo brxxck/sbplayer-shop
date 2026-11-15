@@ -142,7 +142,7 @@
   const oldSignature=signature;
   model=incoming;
   clockOffset=Number(incoming.serverTime||Date.now())-Date.now();
-  signature=String(incoming.roundId)+':'+incoming.phase+':'+incoming.seq;
+  signature=String(incoming.roundId)+':'+incoming.phase+':'+incoming.seq+':'+incoming.balance+':'+(incoming.actions||[]).join(',');
   if(signature!==oldSignature){
    const oldCards=new Set(cardKeys);
    renderTable(oldCards);
@@ -233,9 +233,27 @@
  document.addEventListener('input',event=>{
   if(event.target.matches?.('[data-blackjack-wager]'))saveWager(event.target.value);
  });
+ // Keep the lobby reservation alive while the player watches or plays at the table.
+ // The heartbeat does not register a new player or wager any points.
+ let beatBusy=false;
+ async function heartbeat(){
+  if(!active||!model?.joined||beatBusy||document.visibilityState==='hidden')return;
+  beatBusy=true;
+  try{
+   const response=await fetch('/arcade/online/heartbeat',{
+    method:'POST',credentials:'same-origin',cache:'no-store',
+    headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_csrf:csrf})
+   });
+   if(!response.ok)throw Error('Lobby heartbeat declined');
+  }catch{
+   if(connection)connection.textContent='Lobby connection interrupted — reconnecting';
+  }finally{beatBusy=false;}
+ }
  const pollId=setInterval(()=>{void poll();},1800);
+ const heartbeatId=setInterval(()=>{void heartbeat();},20000);
  const timerId=setInterval(updateCountdown,250);
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void poll();});
- window.addEventListener('pagehide',()=>{active=false;clearInterval(pollId);clearInterval(timerId);});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){void heartbeat();void poll();}});
+ window.addEventListener('pagehide',()=>{active=false;clearInterval(pollId);clearInterval(heartbeatId);clearInterval(timerId);});
  void poll();
 })();
