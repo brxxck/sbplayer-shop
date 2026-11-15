@@ -53,11 +53,24 @@
    [523,784,1047].forEach((tone,i)=>note(tone,now+i*.10,.26,.085,'triangle'));
    return;
   }
+  // Original synth cues; no third-party copyrighted casino samples.
+  if(cue==='roulette-spin'){
+   [330,440,520,440].forEach((freq,i)=>note(freq,now+i*.07,.18,.052,'triangle'));
+   return;
+  }
+  if(cue==='roulette-land'){
+   [523,659,784].forEach((freq,i)=>note(freq,now+i*.105,.22,.085,'triangle'));
+   return;
+  }
+  if(cue==='roulette-win'){
+   [659,784,988,1175].forEach((freq,i)=>note(freq,now+i*.09,.25,.105,'sine'));
+   return;
+  }
   const sounds={click:[360,.06,.04,'triangle'],chip:[630,.09,.07,'sine'],
    card:[240,.08,.025,'triangle'],peg:[880,.035,.02,'sine'],
-   win:[720,.16,.07,'sine'],loss:[180,.15,.045,'triangle'],countdown:[580,.075,.042,'triangle']};
+   win:[720,.16,.07,'sine'],loss:[180,.15,.045,'triangle'],countdown:[580,.075,.042,'triangle'], 'roulette-tick':[800,.045,.036,'triangle']};
   const spec=sounds[cue]||sounds.click;
-  note(spec[0]+(cue==='peg'?(Number(variation)%7)*29:0),now,spec[1],spec[2],spec[3]);
+  note(spec[0]+((cue==='peg'||cue==='roulette-tick')?(Number(variation)%7)*29:0),now,spec[1],spec[2],spec[3]);
  }
  document.addEventListener('pointerdown',()=>{const ctx=audioContext();if(ctx?.state==='suspended')void ctx.resume().catch(()=>{});},{passive:true});
  function save(){
