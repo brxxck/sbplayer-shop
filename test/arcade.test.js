@@ -672,3 +672,66 @@ test('Profile PvP Coin Flip remembers its own last wager independently of the ho
   assert.ok(html.includes('data-pvp-wager data-last-round-at="'+saved.at+'" value="375"'));
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+
+test('Crash auto-collect remembers the last submitted multiplier, including turning it off',async()=>{
+ const {crashPage}=await import('../src/arcade-views.js');
+ const ctx={user:{id:alice},pathname:'/arcade/crash',csrf:'test',arcadeFragment:true,arcadePlayAgain:true};
+ const summary={balance:1500,played:0,wins:0,biggest_win:0};
+ const baseRound=(autoAt,at=1731000000000)=>({
+  id:123,game:'crash',status:'lost',wager:100,payout:0,created_at:at,
+  updated_at:at,details:{autoAt,startedAt:at,crashAt:150}
+ });
+ const html=rounds=>crashPage(ctx,summary,{round:null},rounds);
+ assert.match(html([baseRound(275)]),/name="auto_at"[^>]*data-arcade-auto-collect[^>]*value="2\.75"/);
+ assert.match(html([baseRound(110)]),/name="auto_at"[^>]*value="1\.10"/);
+ assert.match(html([baseRound(2000)]),/name="auto_at"[^>]*value="20\.00"/);
+ const blank=html([baseRound(0,1732000000000),baseRound(275,1731000000000)]);
+ assert.match(blank,/name="auto_at"[^>]*data-last-round-at="1732000000000" value=""/,
+  'the latest explicitly disabled auto-collect overrides older enabled values');
+ assert.match(html([]),/name="auto_at"[^>]*data-last-round-at="0" value=""/);
+ const client=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ assert.match(client,/sb-store:arcade:auto-collect:/);
+ assert.match(client,/localStorage\.setItem\(autoCollectKey/);
+ assert.match(client,/hydrateAutoCollect\(root\)/);
+ assert.match(client,/if\(autoCollect\)rememberAutoCollect\(autoCollect\)/);
+ assert.match(client,/lastRoundAt/,'browser drafts must be superseded by newer saved server rounds');
+});
+
+test('Crash auto-collect from actual server rounds stays configured after replay and across sessions',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'test-member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ const unique='100000000000000093';
+ run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  unique,'auto-collect-tester','Auto Collect Tester',Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+  guild,unique,10000);
+ try{
+  const login=await fetch(base+'/__test/login/'+unique,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const roundId=arcade.startCrash(unique,form(100,{auto_at:'2.75'}));
+  const round=arcade.getRound(unique,roundId,'crash');
+  assert.equal(round.details.autoAt,275,'server saves the exact preference in the round');
+  run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
+   JSON.stringify({...round.details,startedAt:Date.now()-10000,crashAt:100}),roundId);
+  const page=await fetch(base+'/arcade/crash?again=1',{headers:{cookie}});
+  assert.equal(page.status,200);
+  const content=await page.text();
+  assert.match(content,/name="auto_at"[^>]*value="2\.75"/);
+  assert.match(content,/name="wager"[^>]*value="100"/);
+  const second=arcade.startCrash(unique,form(100,{auto_at:''}));
+  const record=arcade.getRound(unique,second,'crash');
+  assert.equal(record.details.autoAt,0,'blank disables auto-collect');
+  run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
+   JSON.stringify({...record.details,startedAt:Date.now()-10000,crashAt:100}),second);
+  const pageAgain=await fetch(base+'/arcade/crash?again=1',{headers:{cookie}});
+  assert.equal(pageAgain.status,200);
+  assert.match(await pageAgain.text(),/name="auto_at"[^>]*value=""/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
