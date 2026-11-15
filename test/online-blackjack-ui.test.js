@@ -21,7 +21,9 @@ function page(phase='playing'){
   actions:phase==='playing'?['hit','stand','double']:[],
   dealer:[],players:[],myResult:null
  };
- const requests=[],handlers={},controls={innerHTML:'',querySelector(){return null;},
+ const note={textContent:''};
+ const requests=[],handlers={},controls={innerHTML:'',
+  querySelector(selector){return selector==='.bj-message'?note:null;},
   querySelectorAll(){return [{disabled:false}]}};
  const table={innerHTML:''},countdown={textContent:''},wallet={textContent:''};
  const connection={textContent:''};
@@ -82,7 +84,7 @@ function page(phase='playing'){
   crypto:{randomUUID},setInterval(){return 1;},clearInterval(){}
  },{timeout:2000,filename:'public/online-blackjack.js'});
  return {
-  controls,connection,requests,
+  controls,connection,note,requests,
   submit(form){
    let prevented=false;
    handlers.submit({target:form,preventDefault(){prevented=true;}});
@@ -158,5 +160,5 @@ test('Unexpected destinations never send points or card actions',async()=>{
  browser.submit(form);
  await browser.flush();
  assert.equal(browser.requests.filter(call=>call.opts?.method==='POST').length,0);
- assert.match(browser.connection.textContent,/Invalid Blackjack form URL/);
+ assert.match(browser.note.textContent,/Invalid Blackjack form URL/);
 });
