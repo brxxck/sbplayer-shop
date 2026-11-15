@@ -698,40 +698,26 @@ test('Crash auto-collect remembers the last submitted multiplier, including turn
  assert.match(client,/lastRoundAt/,'browser drafts must be superseded by newer saved server rounds');
 });
 
-test('Crash auto-collect from actual server rounds stays configured after replay and across sessions',async()=>{
- const {createServer}=await import('../src/server.js');
- const server=createServer({testLogin:true,discord:{
-  getGuild:async()=>({id:guild,owner_id:owner}),
-  getGuildMember:async id=>({user:{id,username:'test-member'},roles:[],pending:false}),
-  getRoles:async()=>[]
- }});
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const base='http://127.0.0.1:'+server.address().port;
+test('Crash auto-collect persists through the round ledger and restores without an extra API session',async()=>{
+ const {crashPage}=await import('../src/arcade-views.js');
  const unique='100000000000000093';
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
   unique,'auto-collect-tester','Auto Collect Tester',Date.now());
  run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
   guild,unique,10000);
- try{
-  const login=await fetch(base+'/__test/login/'+unique,{redirect:'manual'});
-  const cookie=login.headers.get('set-cookie').split(';')[0];
-  const roundId=arcade.startCrash(unique,form(100,{auto_at:'2.75'}));
-  const round=arcade.getRound(unique,roundId,'crash');
-  assert.equal(round.details.autoAt,275,'server saves the exact preference in the round');
-  run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
-   JSON.stringify({...round.details,startedAt:Date.now()-10000,crashAt:100}),roundId);
-  const page=await fetch(base+'/arcade/crash?again=1',{headers:{cookie}});
-  assert.equal(page.status,200);
-  const content=await page.text();
-  assert.match(content,/name="auto_at"[^>]*value="2\.75"/);
-  assert.match(content,/name="wager"[^>]*value="100"/);
-  const second=arcade.startCrash(unique,form(100,{auto_at:''}));
-  const record=arcade.getRound(unique,second,'crash');
-  assert.equal(record.details.autoAt,0,'blank disables auto-collect');
-  run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
-   JSON.stringify({...record.details,startedAt:Date.now()-10000,crashAt:100}),second);
-  const pageAgain=await fetch(base+'/arcade/crash?again=1',{headers:{cookie}});
-  assert.equal(pageAgain.status,200);
-  assert.match(await pageAgain.text(),/name="auto_at"[^>]*value=""/);
- }finally{await new Promise(resolve=>server.close(resolve));}
+ const ctx={user:{id:unique},pathname:'/arcade/crash',csrf:'test',arcadeFragment:true,arcadePlayAgain:true};
+ const show=()=>crashPage(ctx,arcade.arcadeSummary(unique),{round:null},arcade.recentRounds(unique,'crash',15));
+ const first=arcade.startCrash(unique,form(100,{auto_at:'2.75'}));
+ const firstRound=arcade.getRound(unique,first,'crash');
+ assert.equal(firstRound.details.autoAt,275,'the submitted setting is persisted in the actual round');
+ assert.match(show(),/name="auto_at"[^>]*value="2\.75"/);
+ run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
+  JSON.stringify({...firstRound.details,startedAt:Date.now()-10000,crashAt:100}),first);
+ assert.equal(arcade.getRound(unique,first,'crash').status,'lost');
+ const second=arcade.startCrash(unique,form(100,{auto_at:''}));
+ const secondRound=arcade.getRound(unique,second,'crash');
+ assert.equal(secondRound.details.autoAt,0,'blank disables auto-collect');
+ assert.match(show(),/name="auto_at"[^>]*value=""/,
+  'latest server round overrides an older enabled auto-collect');
+ assert.match(show(),/name="wager"[^>]*value="100"/);
 });
