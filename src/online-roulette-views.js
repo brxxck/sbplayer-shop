@@ -3,6 +3,7 @@
 // the server's canonical bet catalogue; all outcomes and payments stay server-side.
 import {randomUUID} from 'node:crypto';
 import {shell,esc,token} from './views.js';
+import {arcadeMobileMenu} from './arcade-views.js';
 import {ROULETTE_WHEEL,ROULETTE_BETS,rouletteColor} from './roulette-rules.js';
 const n=value=>Number(value||0).toLocaleString('en-GB');
 const colour=num=>'roulette-number-'+rouletteColor(num);
@@ -58,6 +59,7 @@ export function onlineRoulettePage(ctx,summary,state){
   '<p>One European wheel shared by everyone. <b>30 full seconds to place bets</b>, then an 8-second spin and a 4-second reveal.</p>',
   '</div><a class="arcade-wallet" href="/points"><small>YOUR LEVEL POINTS</small>',
   '<strong data-roulette-balance>',n(summary.balance),' ✦</strong><small>Shared Arcade wallet</small></a></header>',
+  arcadeMobileMenu(ctx,'Live Roulette'),
   '<div class="roulette-toolbar"><a href="/arcade/online" class="btn btn-outline">← Online Games</a>',
   '<div class="arcade-experience-options"><button type="button" class="arcade-experience-sound" data-arcade-sound aria-pressed="true">🔊 Sound on</button>',
   '<label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>',

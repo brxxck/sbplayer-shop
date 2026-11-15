@@ -27,7 +27,7 @@ const lastWager=(rounds,game)=>{
 export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(1000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
-export const chrome=(ctx,page,summary,content)=>{
+export const arcadeMobileMenu=(ctx,page)=>{
  // Mobile uses an accessible, compact game menu instead of clipped horizontal tabs.
  const mobileGames=[
   ['/arcade','All Games'],['/arcade/online','Online Games'],
@@ -39,6 +39,10 @@ export const chrome=(ctx,page,summary,content)=>{
  const mobileGameMenu=`<details class="arcade-game-menu"><summary><span>🎮 Switch game</span><strong>${esc(page)}</strong></summary>
   <nav aria-label="Choose an arcade game">${mobileGames.map(([url,label])=>
     `<a href="${url}"${ctx.pathname===url?' aria-current="page"':''}>${label}</a>`).join('')}</nav></details>`;
+ return mobileGameMenu;
+};
+export const chrome=(ctx,page,summary,content)=>{
+ const mobileGameMenu=arcadeMobileMenu(ctx,page);
  const markup=`
 <div class="arcade-root">
  <div class="arcade-header">
