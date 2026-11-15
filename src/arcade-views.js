@@ -110,9 +110,9 @@ export function minesPage(ctx,summary,{round,rounds}){
  ${active?`<form class="arcade-mine-collect" action="/arcade/mines/${active.id}/collect" method="post">${token(ctx)}<button type="submit" class="btn btn-primary" ${!active.details.revealed.length?'disabled':''}>Collect Points</button></form>`:''}
  ${terminal?'<a class="btn btn-outline" href="/arcade/mines">Start another game</a>':''}
  `:'<div class="arcade-empty-grid"><span>💎</span><p>Start a game to reveal the grid.</p></div>'}
- <form action="/arcade/mines/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
+ ${!active?`<form action="/arcade/mines/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
  ${wagerField()}<label class="arc-label">Hidden mines<select name="bombs"><option value="1">1 mine</option><option value="2">2 mines</option><option value="3" selected>3 mines</option><option value="4">4 mines</option><option value="5">5 mines</option></select></label>
- <button type="submit" class="btn btn-primary" ${active?'disabled':''}>Start Mines</button></form>
+ <button type="submit" class="btn btn-primary">Start Mines</button></form>`:''}
  <p class="muted tiny">Only one Mines game can be active at a time. Your board is saved if you leave the page.</p></section>
  ${current&&terminal?resultBox(current):''}${historyList(rounds)}`);
 }
