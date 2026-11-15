@@ -41,6 +41,13 @@ const navLink=(link,label,unused,ctx)=>{const active=ctx.pathname===link||(link=
 // Public, non-sensitive Discord previews. Do not include private ticket details.
 const publicLinkPages=Object.freeze({
  '/':["SB's & Cam's Store","Official SB's & Cam's Store community website. Connect with Discord, share posts, open tickets and discover our team."],
+ '/arcade':["SB Arcade | SB's & Cam's Store","Play Coin Flip, Slots, Mines and Crash with points earned from Discord levels."],
+ '/arcade/coinflip':["SB Arcade Coin Flip | SB's & Cam's Store","Play SB vs CAM Coin Flip, or challenge members from their profiles using Discord level points."],
+ '/arcade/slots':["SB Arcade Slots | SB's & Cam's Store","Spin the reels in SB Slots using points earned from Discord levels."],
+ '/arcade/mines':["SB Arcade Mines | SB's & Cam's Store","Find gems, avoid mines and collect points in SB Arcade Mines."],
+ '/arcade/crash':["SB Arcade Crash | SB's & Cam's Store","Launch the rocket and collect points before it crashes in SB Arcade."],
+ '/arcade/history':["SB Arcade History | SB's & Cam's Store","View your Arcade game results and point transactions after signing in."],
+ '/points':["Discord Level Points | SB's & Cam's Store","Claim points earned from your Discord levels to play in SB Arcade."],
  '/team':["Our Team | SB's & Cam's Store","Meet the staff and community team of SB's & Cam's Store. Sign in with Discord to browse the team."],
  '/mega-team':["MegaSMP | SB's & Cam's Store","SBsxScam team statistics and captured MegaSMP Top 10 standings."],
  '/mega-team/leaderboard':["MegaSMP Top 10 | SB's & Cam's Store","Verified InPvP team standings, level, bank and stats."],

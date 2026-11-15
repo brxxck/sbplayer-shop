@@ -297,6 +297,13 @@ test('Discord receives SB Store branded previews without a login redirect',async
  const headers={'user-agent':'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)'};
  for(const [path,heading] of [
    ['/','SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade','SB Arcade | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade/coinflip','SB Arcade Coin Flip | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade/slots','SB Arcade Slots | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade/mines','SB Arcade Mines | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade/crash','SB Arcade Crash | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/arcade/history','SB Arcade History | SB&#39;s &amp; Cam&#39;s Store'],
+   ['/points','Discord Level Points | SB&#39;s &amp; Cam&#39;s Store'],
    ['/team','Our Team | SB&#39;s &amp; Cam&#39;s Store'],
    ['/feed','Main Feed | SB&#39;s &amp; Cam&#39;s Store'],
    ['/suggestions','Server Suggestions | SB&#39;s &amp; Cam&#39;s Store'],
@@ -320,6 +327,32 @@ test('Discord receives SB Store branded previews without a login redirect',async
    }
    assert.doesNotMatch(html,/discord\.com\/oauth2/,'site previews must not contain OAuth redirects');
  }
+});
+
+test('Discord Arcade preview shows SB Arcade branding without OAuth redirects or private game data',async()=>{
+ const base='http://127.0.0.1:'+server.address().port;
+ for(const path of ['/arcade','/arcade/coinflip','/arcade/slots','/arcade/mines','/arcade/crash','/arcade/history','/points']){
+  const response=await fetch(base+path+'?shared_in=discord',{redirect:'manual',headers:{
+   'user-agent':'Discordbot/2.0',accept:'text/html'
+  }});
+  assert.equal(response.status,200,'guest Arcade link must render branded preview: '+path);
+  assert.match(response.headers.get('content-type'),/text\/html/);
+  assert.equal(response.headers.get('location'),null,'guest share link must not redirect to login');
+  const html=await response.text();
+  assert.match(html,/property="og:site_name" content="SB&#39;s &amp; Cam&#39;s Store"/);
+  assert.match(html,/property="og:image" content="https:\/\/sbstore\.info\/static\/sb-logo\.png"/);
+  assert.ok(html.includes('property="og:url" content="https://sbstore.info'+path+'"'));
+  assert.match(html,/Continue with Discord/);
+  assert.ok(html.includes('/auth/login?next='+encodeURIComponent(path)));
+  assert.doesNotMatch(html,/discord\.com\/oauth2|name="wager"|\bAVAILABLE POINTS\b|arcade-mine-grid|arcade-history-panel/i);
+ }
+ const post=await fetch(base+'/arcade/coinflip/house',{method:'POST',redirect:'manual',headers:{
+  'user-agent':'Discordbot/2.0','content-type':'application/x-www-form-urlencoded'
+ },body:'wager=100&face=heads'});
+ assert.equal(post.status,303,'public link-preview route must never allow wagers');
+ assert.equal(post.headers.get('location'),'/auth/login');
+ const api=await fetch(base+'/arcade/api/challenges/incoming',{redirect:'manual',headers:{'user-agent':'Discordbot/2.0'}});
+ assert.equal(api.status,303,'private game APIs must remain authenticated');
 });
 
 test('guest preview never exposes ticket data or mistakes private URLs for public records',async()=>{

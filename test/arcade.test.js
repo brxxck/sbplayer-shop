@@ -189,7 +189,11 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
  const base='http://127.0.0.1:'+server.address().port;
  try{
   const publicPage=await fetch(base+'/arcade',{redirect:'manual'});
-  assert.equal(publicPage.status,303);
+  assert.equal(publicPage.status,200,'guests see an Arcade preview, not an OAuth redirect');
+  const previewHtml=await publicPage.text();
+  assert.match(previewHtml,/SB Arcade/);
+  assert.match(previewHtml,/Continue with Discord/);
+  assert.doesNotMatch(previewHtml,/name="wager"|arcade-mine-grid|arcade-history-panel/);
   const login=await fetch(base+'/__test/login/'+charlie,{redirect:'manual'});
   const cookie=login.headers.get('set-cookie').split(';')[0];
   const page=await fetch(base+'/arcade/coinflip',{headers:{cookie}});

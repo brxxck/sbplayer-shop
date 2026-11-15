@@ -327,6 +327,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return respond(res,200,JSON.stringify(result),'application/json; charset=utf-8');
       }catch(error){return respond(res,error.status||500,JSON.stringify({ok:false,error:error.status?error.message:'Level sync failed.'}),'application/json; charset=utf-8');}
     }
+    // Public metadata for signed-out share links must run BEFORE protected Arcade
+    // and Level Points routes. Without it Discordbot follows login redirects and
+    // mistakenly displays Discord's OAuth page as the link preview.
+    // This contains only fixed public page descriptions; private game data,
+    // account balances, ticket details and all POST handlers still require login.
+    if(req.method==='GET' && !ctx.user && pathname!=='/' && view.linkPreviewData(pathname))
+      return html(view.signedOutPreview(ctx));
+
     // V1.20 Phase 1 Arcade: Discord membership and CSRF protect every wallet operation.
     if(pathname==='/arcade'||pathname.startsWith('/arcade/')){
       await member();
@@ -587,12 +595,6 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return respond(res,200,JSON.stringify({saved:true}),
         'application/json; charset=utf-8');
     }
-
-    // SBs team recruitment routes are registered after member() below.
-    // Public, non-sensitive HTML for signed-out links. Discordbot can read OG tags
-    // without being redirected to Discord OAuth. Real protected data remains gated.
-    if(req.method==='GET' && !ctx.user && pathname!=='/' && view.linkPreviewData(pathname))
-      return html(view.signedOutPreview(ctx));
 
     // All routes below this point are server-member-only.
     await member();
