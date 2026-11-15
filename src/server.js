@@ -8,6 +8,8 @@ import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,star
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
  openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
+import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
+import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
 import {voteOnSuggestion,setSuggestionStatus,suggestionHistory,filteredSuggestions,decorateCases,markCaseRead,unifiedTransactions} from './upgrade-data.js';
@@ -158,7 +160,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -473,6 +475,25 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const id=cashCrash(user,crashCollect[1]);return arcadeResult('/arcade/crash?round='+id);
       }
       missing();
+    }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // Daily community activity rewards are separate from game wagers, and
+    // require real website actions plus one-time, server-side claims.
+    if(pathname==='/points/daily'&&req.method==='GET'){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
+      rate(ctx,'points.daily.page',75,60000);
+      const user=ctx.user.id;
+      return html(dailyRewardsPage(ctx,dailyRewardsStatus(user),
+        {balance:levelWallet(user).balance,history:dailyRewardHistory(user)}));
+    }
+    if(pathname==='/points/daily/claim'&&req.method==='POST'){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
+      const {fields}=await form();rate(ctx,'points.daily.claim',12,60000);
+      const result=claimDailyReward(ctx.user.id,String(fields.challenge||''));
+      return success('/points/daily',result.amount.toLocaleString('en-GB')+
+        ' daily reward points claimed!');
     }
     if(pathname==='/points'&&req.method==='GET'){
       await member();return html(levelPointsPage(ctx,levelWallet(ctx.user.id),levelConnection()));
