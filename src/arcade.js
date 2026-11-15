@@ -350,6 +350,13 @@ export function cancelChallenge(userId,id){
  });
 }
 // V1.21: targeted, consent-based player challenges live on member profiles.
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Profile-based PvP Coin Flip has a separate wager history from house games.
+export function lastPvpWager(userId){
+ const row=one('SELECT wager,created_at FROM arcade_challenges WHERE guild_id=? AND creator_id=? ORDER BY id DESC LIMIT 1',
+  config.guildId,userId);
+ return {value:row?.wager??50,at:row?.created_at||0};
+}
 export function incomingChallenges(userId){
  return all(`SELECT c.id,c.creator_id,c.target_id,c.wager,c.face,c.status,c.created_at,c.expires_at,
  u.display_name creator_name,u.username creator_username
