@@ -12,6 +12,8 @@ import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobb
 import {onlineGamesPage} from './online-games-views.js';
 import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
 import {blackjackPage} from './online-blackjack-views.js';
+import {globalCrashTick,globalCrashSnapshot,globalCrashBet,globalCrashCashout} from './online-crash.js';
+import {globalCrashPage} from './online-crash-views.js';
 import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
 import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
@@ -164,7 +166,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -379,6 +381,34 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
       // One server-authoritative shared Blackjack table per Discord guild.
       // Every point movement is transactional; viewing never places a bet.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // All Global Crash wagers and cash-outs are authenticated, CSRF checked,
+      // and settled transactionally against the existing Level Points wallet.
+      if(req.method==='GET'&&pathname==='/arcade/online/crash'){
+        rate(ctx,'arcade.global-crash.page',55,60000);
+        return html(globalCrashPage(ctx,summary(),globalCrashSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/crash/state'){
+        rate(ctx,'arcade.global-crash.state',110,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(globalCrashSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/crash/bet'){
+        const {fields}=await form();rate(ctx,'arcade.global-crash.bet',18,60000);
+        const state=globalCrashBet(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/crash','Wager placed in Global Crash.');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/crash/collect'){
+        const {fields}=await form();rate(ctx,'arcade.global-crash.collect',50,60000);
+        const state=globalCrashCashout(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/crash','Global Crash cash-out confirmed.');
+      }
       if(req.method==='GET'&&pathname==='/arcade/online/blackjack'){
         rate(ctx,'arcade.blackjack.page',55,60000);
         return html(blackjackPage(ctx,summary(),blackjackSnapshot(user)));
@@ -422,8 +452,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const {fields}=await form();rate(ctx,'arcade.online.queue',18,60000);
         if(pathname.endsWith('/join'))joinOnlineLobby(user,fields.game);
         else leaveOnlineLobby(user,fields.game);
-        return success('/arcade/online',pathname.endsWith('/join')?
-          'You joined the preview lobby. No points were wagered.':'You left the preview lobby.');
+        const destination=fields.game==='crash'&&fields.next==='crash'?'/arcade/online/crash':'/arcade/online';
+        return success(destination,pathname.endsWith('/join')?
+          (fields.game==='crash'?'You joined the Global Crash lobby.':'You joined the Blackjack queue.'):'You left the lobby.');
       }
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
@@ -2484,7 +2515,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   // Advance shared Blackjack even while every player's browser is disconnected.
   const blackjackTicker=setInterval(()=>{try{blackjackTick();}catch(error){console.error('[Online Blackjack]',String(error.message));}},1000);
   blackjackTicker.unref();
-  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);megaSync.stop();megaBrowser.stop();});
+  // The global round continues even with zero connected players.
+  const globalCrashTicker=setInterval(()=>{try{globalCrashTick();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
+  globalCrashTicker.unref();
+  try{globalCrashTick();}catch(error){console.error('[Global Crash startup]',String(error.message));}
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
