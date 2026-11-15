@@ -382,3 +382,115 @@
 @media (max-width:840px) and (prefers-reduced-motion:reduce) {
   .arcade-game-menu,.arcade-game-menu * { scroll-behavior:auto; transition:none!important; }
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* SOLO BLACKJACK MOBILE GAME-FIRST V2: final, scoped overrides. */
+@media (max-width:840px) {
+ .arcade-solo { gap:8px; }
+ .arcade-solo > .arcade-header { border-radius:12px; padding:9px 11px; }
+ .arcade-solo > .arcade-header h1 { font-size:clamp(20px,5.4vw,26px); margin:0; }
+ .arcade-solo > .arcade-header .arcade-eyebrow,
+ .arcade-solo > .arcade-header p { display:none; }
+ .arcade-solo > .arcade-header .arcade-wallet { background:#10253e; border-radius:9px; padding:7px 9px; }
+ .arcade-solo .sbj-utilities { display:block; min-width:0; border:1px solid #284563; border-radius:10px; background:#0b1c32; }
+ .arcade-solo .sbj-utilities > summary { display:flex; gap:8px; justify-content:space-between; align-items:center; list-style:none; cursor:pointer; min-height:38px; padding:7px 11px; font-size:12px; font-weight:800; color:#aec7e2; }
+ .arcade-solo .sbj-utilities > summary::-webkit-details-marker { display:none; }
+ .arcade-solo .sbj-utilities > summary:after { content:"⌄"; font-size:18px; line-height:1; color:#90b9dc; }
+ .arcade-solo .sbj-utilities[open] > summary:after { content:"⌃"; }
+ .arcade-solo .sbj-utilities-panel { display:grid; gap:8px; padding:9px; border-top:1px solid #284563; }
+ .arcade-solo .sbj-utilities-panel > .arcade-game-menu { display:block; }
+ .arcade-solo .sbj-utilities-panel > .arcade-game-menu > summary { min-height:43px; }
+ .arcade-solo .sbj-utilities-panel > .arcade-experience-options { display:flex; gap:8px; }
+ .arcade-solo .sbj-online-link { display:flex; justify-content:center; align-items:center; min-height:44px; padding:9px 10px; background:#163353; border:1px solid #3b6487; border-radius:9px; color:#daebff; font-size:12px; font-weight:750; }
+ .arcade-solo .sbj-root { display:flex; flex-direction:column; gap:8px; }
+ /* Keep the felt visible before wager and action controls in all round states. */
+ .arcade-solo .sbj-root > [data-sbj-table],
+ .arcade-solo .sbj-root:has(.sbj-felt[data-sbj-phase="playing"]) > [data-sbj-table] { order:0; min-width:0; }
+ .arcade-solo .sbj-root > [data-sbj-controls],
+ .arcade-solo .sbj-root:has(.sbj-felt[data-sbj-phase="playing"]) > [data-sbj-controls] { order:1; min-width:0; }
+ .arcade-solo .sbj-root > .sbj-connection { order:2; }
+ .arcade-solo .sbj-root > .sbj-rules-disclosure { order:3; }
+ .arcade-solo .sbj-root > .sbj-history-disclosure { order:4; }
+ .arcade-solo .sbj-intro { display:none; }
+ /* Preserve connection and transaction announcements for screen readers. */
+ .arcade-solo .sbj-connection:not(.sbj-connection-error) { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+ .arcade-solo .sbj-connection-error { display:block; position:static; padding:8px 10px; background:#4c2531; border:1px solid #a8576b; border-radius:8px; color:#ffe1e6; font-size:12px; line-height:1.4; }
+ /* A compact gaming felt rather than a vertically stretched dashboard. */
+ .arcade-solo .sbj-felt { display:flex; flex-direction:column; min-height:0; gap:11px; padding:13px 11px 12px; border:4px solid #876037; border-bottom-width:7px; border-radius:18px; background:radial-gradient(ellipse at 50% 35%,#1c5b47,#0c312a 94%); box-shadow:inset 0 0 0 2px #cf9f59,0 5px 16px #0005; }
+ .arcade-solo .sbj-felt:before,.arcade-solo .sbj-table-shimmer,.arcade-solo .sbj-table-logo { display:none; }
+ .arcade-solo .sbj-dealer { display:grid; justify-items:center; gap:5px; }
+ .arcade-solo .sbj-dealer-tag { gap:8px; font-size:11px; }
+ .arcade-solo .sbj-dealer-tag span { padding:5px 9px; border-radius:7px; font-size:10px; }
+ .arcade-solo .sbj-dealer-tag b { font-size:11px; color:#d0e8d5; }
+ .arcade-solo .sbj-dealer-cards { display:flex; justify-content:center; min-height:77px; padding:2px 4px; }
+ .arcade-solo .sbj-dealer-cards .bj-card { flex-basis:55px; width:55px; height:79px; border-radius:6px; }
+ .arcade-solo .sbj-dealer-cards .bj-card+.bj-card { margin-left:-12px; }
+ .arcade-solo .sbj-dealer-cards .bj-card-symbol { font-size:30px; }
+ .arcade-solo .sbj-dealer-cards .bj-card-corner { font-size:11px; }
+ .arcade-solo .sbj-dealer-cards .bj-card-corner small { font-size:9px; }
+ .arcade-solo .sbj-table-hands { display:flex; flex-wrap:wrap; justify-content:center; gap:7px; min-height:0; }
+ .arcade-solo .sbj-hand { min-width:0; flex:1 1 138px; display:grid; gap:5px; padding:9px 7px; border-radius:11px; }
+ .arcade-solo .sbj-hand-title { font-size:11px; flex-wrap:wrap; gap:3px; }
+ .arcade-solo .sbj-hand-title span { font-size:10px; }
+ .arcade-solo .sbj-player-cards { padding:3px; min-height:72px; }
+ .arcade-solo .sbj-player-cards .bj-card { flex-basis:53px; width:53px; height:76px; border-width:1px; border-radius:6px; }
+ .arcade-solo .sbj-player-cards .bj-card+.bj-card { margin-left:-12px; }
+ .arcade-solo .sbj-player-cards .bj-card-symbol { font-size:28px; }
+ .arcade-solo .sbj-player-cards .bj-card-corner { top:4px; left:4px; font-size:11px; }
+ .arcade-solo .sbj-player-cards .bj-card-corner small { font-size:9px; }
+ .arcade-solo .sbj-player-cards .bj-card-rotated { left:auto; top:auto; right:4px; bottom:4px; }
+ .arcade-solo .sbj-table-hands:has(.sbj-hand + .sbj-hand) .sbj-player-cards .bj-card { width:40px; flex-basis:40px; height:59px; }
+ .arcade-solo .sbj-table-hands:has(.sbj-hand + .sbj-hand) .sbj-player-cards .bj-card-symbol { font-size:21px; }
+ .arcade-solo .sbj-table-hands:has(.sbj-hand + .sbj-hand) .sbj-player-cards .bj-card+.bj-card { margin-left:-11px; }
+ .arcade-solo .sbj-hand-bottom { gap:6px; font-size:11px; }
+ .arcade-solo .sbj-hand-bottom>strong { font-size:20px; }
+ .arcade-solo .sbj-start-placeholder { width:100%; max-width:100%; padding:12px 10px; gap:4px; border-radius:10px; }
+ .arcade-solo .sbj-placeholder-chip { width:30px; height:30px; border-width:2px; font-size:15px; }
+ .arcade-solo .sbj-start-placeholder strong { font-size:12px; }
+ .arcade-solo .sbj-start-placeholder p { font-size:11px; }
+ /* Hide repeated status cards: balance remains in the header and hand wager on the felt. */
+ .arcade-solo .sbj-controls { padding:11px; border-radius:12px; }
+ .arcade-solo .sbj-controls-inner { display:grid; gap:9px; }
+ .arcade-solo .sbj-stats,.arcade-solo .sbj-message[data-sbj-message],.arcade-solo .sbj-safe-note { display:none; }
+ .arcade-solo .sbj-wager-form { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; align-items:stretch; }
+ .arcade-solo .sbj-wager-form label { display:grid; gap:5px; margin:0; font-size:11px; color:#b5cee6; }
+ .arcade-solo .sbj-wager-form input { min-height:46px; padding:9px 12px; font-size:17px; }
+ .arcade-solo .sbj-chip-values { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; grid-row:auto; }
+ .arcade-solo .sbj-chip-values button { min-width:0; width:100%; min-height:44px; padding:7px 4px; font-size:12px; border-radius:8px; }
+ .arcade-solo .sbj-chip-values button:last-child { grid-column:span 2; }
+ .arcade-solo .sbj-chip-values button.is-selected { background:#245e8e; border-color:#8ac2ef; color:#fff; box-shadow:inset 0 0 0 1px #67afea; }
+ .arcade-solo .sbj-deal { grid-row:auto; min-height:49px; font-size:15px; }
+ .arcade-solo .sbj-action-buttons { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+ .arcade-solo .sbj-action-buttons button { min-height:51px; font-size:14px; }
+ /* On an active hand, the live action area stays above the bottom navigation. */
+ .arcade-solo .sbj-root:has(.sbj-felt[data-sbj-phase="playing"]) > [data-sbj-controls] { position:sticky; bottom:calc(74px + env(safe-area-inset-bottom)); z-index:39; background:#0c2134; border-color:#537b97; box-shadow:0 -7px 22px #0008; }
+ /* Settlement belongs near the playable controls, not in an oversized result card. */
+ .arcade-solo .sbj-result { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; padding:9px 11px; border-radius:10px; }
+ .arcade-solo .sbj-result-label { gap:2px; }
+ .arcade-solo .sbj-result-label>span { font-size:9px; }
+ .arcade-solo .sbj-result-label>strong { font-size:clamp(18px,5vw,23px); white-space:nowrap; }
+ .arcade-solo .sbj-receipt { font-size:10px; gap:3px; text-align:right; }
+ .arcade-solo .sbj-receipt b { margin-left:3px; }
+ .arcade-solo .sbj-result>p { display:none; }
+ /* Rules and full history are opt-in, collapsed by the lightweight mobile initializer. */
+ .arcade-solo .sbj-lower-details { display:block; border:1px solid #2c4868; border-radius:11px; background:#102038; overflow:hidden; }
+ .arcade-solo .sbj-lower-details > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; list-style:none; padding:12px 13px; min-height:46px; color:#e9f3ff; font-size:13px; font-weight:800; }
+ .arcade-solo .sbj-lower-details > summary::-webkit-details-marker { display:none; }
+ .arcade-solo .sbj-lower-details > summary span { color:#86aacd; font-size:11px; font-weight:650; margin-left:auto; }
+ .arcade-solo .sbj-lower-details > summary:after { content:"⌄"; color:#a9cce8; font-size:18px; }
+ .arcade-solo .sbj-lower-details[open] > summary:after { content:"⌃"; }
+ .arcade-solo .sbj-lower-details > .panel { border:0; border-top:1px solid #2c4868; border-radius:0; box-shadow:none; margin:0; padding:12px; }
+ .arcade-solo .sbj-rules-disclosure .sbj-rules h2 { display:none; }
+ .arcade-solo .sbj-history-disclosure .arcade-section-title h2 { display:none; }
+ .arcade-solo .sbj-history-disclosure .arcade-history-panel { overflow:hidden; }
+ .arcade-solo .sbj-history-disclosure .arcade-history-panel .table-wrap { max-width:100%; overflow-x:auto; }
+}
+@media (max-width:365px) {
+ .arcade-solo .sbj-felt { padding:11px 6px; }
+ .arcade-solo .sbj-dealer-cards .bj-card { width:49px; flex-basis:49px; height:72px; }
+ .arcade-solo .sbj-player-cards .bj-card { width:45px; flex-basis:45px; height:67px; }
+ .arcade-solo .sbj-player-cards .bj-card-symbol { font-size:24px; }
+ .arcade-solo .sbj-chip-values { gap:5px; }
+ .arcade-solo .sbj-result-label>strong { font-size:18px; }
+}

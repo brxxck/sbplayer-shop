@@ -86,7 +86,7 @@ export function soloControlsMarkup(ctx,state){
  const stateLabel=state.phase==='playing'?'Choose an action for your highlighted hand.':
   state.phase==='settled'?'Hand settled. Ready for another round.':
   'Place your wager to deal a private hand.';
- return '<div class="sbj-controls-inner">'+
+ return '<div class="sbj-controls-inner" data-sbj-phase="'+esc(state.phase)+'">'+
   '<div class="sbj-stats"><div><small>AVAILABLE POINTS</small><strong>'+fmt(state.balance)+'</strong></div>'+
    '<div><small>POINTS WAGERED</small><strong>'+fmt(state.wager)+'</strong></div>'+
    '<div><small>HANDS IN PLAY</small><strong>'+fmt(state.hands.length)+'</strong></div></div>'+
@@ -112,8 +112,8 @@ export function soloBlackjackPage(ctx,summary,state,rounds){
   '<div data-sbj-table>'+soloTableMarkup(state)+'</div>'+
   '<section class="sbj-controls" data-sbj-controls>'+soloControlsMarkup(ctx,state)+'</section>'+
   cinematic+
-  '<section class="panel padded sbj-rules"><h2>How Solo Blackjack works</h2>'+
+  '<details class="sbj-lower-details sbj-rules-disclosure" data-sbj-mobile-disclosure open><summary>How Solo Blackjack works <span>Rules &amp; payouts</span></summary><section class="panel padded sbj-rules"><h2>How Solo Blackjack works</h2>'+
   '<p>Start with 10–1,000 Level Points. Hit, Stand, Double Down (one additional card) or Split a matching pair once. Split aces draw one extra card each. Doubling and splitting each reserve an additional equal wager. Dealer stands on every 17, including soft 17. A natural Blackjack pays 3:2, a normal win 1:1 and a tie returns the wager. Fractional payouts round down to whole points.</p>'+
-  '<p class="muted tiny">Only virtual community points are used. All cards, balances and payouts are confirmed by the server. Your current hand resumes after refresh.</p></section>'+
-  historyList(rounds)+'</div>');
+  '<p class="muted tiny">Only virtual community points are used. All cards, balances and payouts are confirmed by the server. Your current hand resumes after refresh.</p></section></details>'+
+  '<details class="sbj-lower-details sbj-history-disclosure" data-sbj-mobile-disclosure open><summary>Recent games <span>View history</span></summary>'+historyList(rounds)+'</details></div>');
 }

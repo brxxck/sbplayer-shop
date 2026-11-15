@@ -110,3 +110,15 @@
 :root[data-arcade-motion="instant"] .sbj-card-deal,:root[data-arcade-motion="instant"] .sbj-card-flip,
 :root[data-arcade-motion="instant"] .sbj-placeholder-chip{animation:none}
 :root[data-arcade-motion="reduced"] .sbj-card-deal,:root[data-arcade-motion="reduced"] .sbj-card-flip{animation-duration:.12s}
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Solo Blackjack V2: preserve the existing desktop layout. */
+@media (min-width:841px) {
+ .arcade-solo .sbj-utilities,
+ .arcade-solo .sbj-utilities-panel,
+ .arcade-solo .sbj-lower-details { display:contents; }
+ .arcade-solo .sbj-utilities > summary,
+ .arcade-solo .sbj-lower-details > summary,
+ .arcade-solo .sbj-online-link { display:none; }
+}
