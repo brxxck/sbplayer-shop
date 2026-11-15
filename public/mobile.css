@@ -4,6 +4,7 @@
   :root { -webkit-text-size-adjust:100%; }
   html { scroll-padding-top:86px; }
   body { overflow-x:clip; }
+  body.mobile-menu-open { overflow:hidden; }
   .shell,.main,.content { min-width:0; max-width:100%; }
   .content { padding:18px max(12px,env(safe-area-inset-right)) calc(102px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
   .footer { padding-bottom:calc(94px + env(safe-area-inset-bottom)); }
