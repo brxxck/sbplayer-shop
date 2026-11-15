@@ -6,13 +6,13 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-daily-rewards-'));
 const guild='100000000000000001',owner='100000000000000002';
-const alice='100000000000000003',bob='100000000000000004',other='100000000000000005';
+const alice='100000000000000003',bob='100000000000000004',other='100000000000000005',webMember='100000000000000011';
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'data.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,one,all,run}=await import('../src/db.js');
 const {levelWallet}=await import('../src/level-points.js');
 const rewards=await import('../src/daily-rewards.js');
 const arcade=await import('../src/arcade.js');
-for(const id of [owner,alice,bob,other]){
+for(const id of [owner,alice,bob,other,webMember]){
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
   id,'member-'+id.slice(-3),'Member '+id.slice(-3),Date.now());
 }
@@ -126,7 +126,7 @@ test('Signed-in member can complete a post like, comment and suggestion vote thr
   const guest=await fetch(base+'/points/daily',{redirect:'manual'});
   assert.equal(guest.status,200,'public Discord metadata page must not show private daily rewards');
   assert.doesNotMatch(await guest.text(),/action="\/points\/daily\/claim"/);
-  const auth=await fetch(base+'/__test/login/'+alice,{redirect:'manual'});
+  const auth=await fetch(base+'/__test/login/'+webMember,{redirect:'manual'});
   const cookie=auth.headers.get('set-cookie').split(';')[0];
   const get=path=>fetch(base+path,{headers:{cookie}});
   let response=await get('/points/daily');
@@ -145,7 +145,7 @@ test('Signed-in member can complete a post like, comment and suggestion vote thr
   });
   const noCsrf=await send('/points/daily/claim',{challenge:'feed-like'},'bad');
   assert.equal(noCsrf.status,403);
-  const before=levelWallet(alice).balance;
+  const before=levelWallet(webMember).balance;
   const notReady=await send('/points/daily/claim',{challenge:'feed-like'});
   assert.equal(notReady.status,409);
   const liked=await send('/post/'+post+'/like',{});
@@ -154,13 +154,13 @@ test('Signed-in member can complete a post like, comment and suggestion vote thr
   assert.match(await response.text(),/Completed — ready to claim/);
   const first=await send('/points/daily/claim',{challenge:'feed-like'});
   assert.equal(first.status,303);
-  assert.equal(levelWallet(alice).balance,before+50);
+  assert.equal(levelWallet(webMember).balance,before+50);
   assert.equal((await send('/points/daily/claim',{challenge:'feed-like'})).status,409);
   assert.equal((await send('/post/'+post+'/comment',{body:'A nice long community reply!'})).status,303);
   assert.equal((await send('/suggestions/'+suggestion+'/vote',{choice:'yes'})).status,303);
   assert.equal((await send('/points/daily/claim',{challenge:'feed-comment'})).status,303);
   assert.equal((await send('/points/daily/claim',{challenge:'suggestion-vote'})).status,303);
-  assert.equal(levelWallet(alice).balance,before+150);
+  assert.equal(levelWallet(webMember).balance,before+150);
   const final=(await (await get('/points/daily')).text());
   assert.match(final,/150 \/ 150 pts/);
   assert.match(final,/3 \/ 3/);
