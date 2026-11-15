@@ -232,7 +232,7 @@ test('Fast Arcade returns a stable Mines grid and never inserts Saving into a ti
   const rendered=await opened.json();
   assert.equal(rendered.ok,true);
   assert.match(rendered.html,/Safe picks <strong>1<\/strong>/);
-  assert.match(rendered.html,/class="arcade-mine-tile revealed"/);
+  assert.match(rendered.html,/class="arcade-mine-tile revealed(?: |")/);
   assert.doesNotMatch(rendered.html,/Saving/);
   assert.equal(calls.member,verified.member,'rapid arcade actions should reuse a verified session');
   assert.equal(calls.guild,verified.guild,'guild lookup should not run per tile');
