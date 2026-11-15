@@ -80,7 +80,7 @@ function controls(ctx,state){
    token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
    '<input type="hidden" name="round_id" value="'+esc(roundId)+'">'+
    '<input type="hidden" name="seq" value="'+String(state.seq)+'">'+
-   '<input type="hidden" name="action" value="'+action+'">'+
+   '<input type="hidden" name="move" value="'+action+'">'+
    '<button type="submit" class="btn '+(action==='stand'?'btn-outline':'btn-primary')+'">'+
    ({hit:'Hit',stand:'Stand',double:'Double Down',split:'Split'}[action])+'</button></form>'
  ).join('');
