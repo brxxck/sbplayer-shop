@@ -209,7 +209,9 @@ export function soloBlackjackStart(userId,fields,shoeOverride=null){
 export function soloBlackjackAction(userId,fields){
  const user=validUser(userId);
  const id=roundOf(fields?.round_id),revision=versionOf(fields?.revision);
- const action=String(fields?.action||''),key=uuid(fields?.request_id);
+ // Avoid an <input name="action"> that clobbers HTMLFormElement.action
+ // in browsers. Accept legacy POSTs from already-open tabs.
+ const action=String(fields?.move??fields?.action??''),key=uuid(fields?.request_id);
  if(!actions.has(action))bad('Unsupported Blackjack action.',400);
  return transaction(()=>{
   const original=one('SELECT round_id,user_id,action,expected_revision FROM solo_blackjack_actions WHERE request_key=?',key);
