@@ -267,6 +267,11 @@
       const width=flightStage.clientWidth||700,height=flightStage.clientHeight||260;
       rocket.style.transform='translate3d('+((end.x/700)*width-21)+'px,'+((end.y/260)*height-21)+'px,0) rotate(35deg)';
     }
+    if(game.dataset.crashReplay==='1' && game.dataset.crashActive!=='1'){
+      drawRocket(1);
+      crashCleanup=()=>{};
+      return;
+    }
     const multiplier=game.querySelector('[data-crash-multiplier]');
     const message=game.querySelector('[data-crash-message]');
     const collect=game.querySelector('[data-crash-collect]');
