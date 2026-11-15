@@ -7,7 +7,7 @@ const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',crash_online:'Global Crash'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',crash_online:'Global Crash',plinko:'Plinko'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
@@ -24,10 +24,10 @@ const lastWager=(rounds,game)=>{
  const last=rounds.find(r=>r.game===game);
  return {game,value:last?.wager??50,at:last?.created_at||0};
 };
-const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(1000,Number(value)||50))}" required></label>`;
+export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(1000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
-const chrome=(ctx,page,summary,content)=>{
+export const chrome=(ctx,page,summary,content)=>{
  const markup=`
 <div class="arcade-root">
  <div class="arcade-header">
@@ -37,14 +37,14 @@ const chrome=(ctx,page,summary,content)=>{
  </div>
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
+  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
  ${content}
 </div>`;
  return ctx.arcadeFragment ? markup : shell(ctx,'Arcade',markup);
 };
 const gameTile=(url,icon,name,description,className)=>`<a class="arcade-game-card ${className}" href="${url}"><span class="arcade-game-art">${icon}</span><span class="arcade-game-info"><strong>${name}</strong><small>${description}</small></span><span class="arcade-game-arrow">Play →</span></a>`;
-const resultBox=round=>{
+export const resultBox=round=>{
  if(!round)return '';
  const {status,wager,payout,game,details}=round;
  const label=states[status]||status;
@@ -56,10 +56,11 @@ const resultBox=round=>{
   if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
  }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
+ if(game==='plinko')extra=details.count+' ball'+(details.count===1?'':'s')+' · '+details.rows+' rows · '+esc(details.risk)+' risk · all results saved.';
  return `<section class="arcade-result panel padded"${cinemaAttrs(round)} role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
  <div class="arcade-result-value ${payout>=wager?'positive':'negative'}"><strong>${payout>=wager?'+':''}${number(payout-wager)} pts</strong><small>${number(payout)} returned from ${number(wager)} wagered</small></div></section>`;
 };
-const historyList=rounds=>`<section class="panel padded arcade-history-panel"><div class="arcade-section-title"><h2>Recent games</h2><a href="/arcade/history">View history →</a></div>
+export const historyList=rounds=>`<section class="panel padded arcade-history-panel"><div class="arcade-section-title"><h2>Recent games</h2><a href="/arcade/history">View history →</a></div>
  <div class="table-wrap"><table><thead><tr><th>Game</th><th>Wager</th><th>Returned</th><th>Result</th><th>Played</th></tr></thead><tbody>${rounds.map(r=>`<tr><td>${esc(gameNames[r.game]||r.game)}</td><td>${number(r.wager)}</td><td>${number(r.payout)}</td><td>${esc(states[r.status]||r.status)}</td><td>${date(r.created_at)}</td></tr>`).join('')||'<tr><td colspan="5">No games played yet.</td></tr>'}</tbody></table></div></section>`;
 
 export function arcadeHome(ctx,summary,rounds){
@@ -68,13 +69,14 @@ export function arcadeHome(ctx,summary,rounds){
  <div><small>GAMES COMPLETED</small><strong>${number(summary.played)}</strong></div>
  <div><small>GAMES WON</small><strong>${number(summary.wins)}</strong></div>
  <div><small>BIGGEST PROFIT</small><strong>${number(summary.biggest_win)}</strong></div></section>
- <div class="arcade-section-title"><h2>Choose a game</h2><span>Four solo games · one wallet</span></div>
+ <div class="arcade-section-title"><h2>Choose a game</h2><span>Five solo games · one wallet</span></div>
  <p><a class="btn btn-outline" href="/arcade/online">♠️ Online Games — four-player Blackjack and shared Crash lobbies →</a></p>
  <section class="arcade-grid">
  ${gameTile('/arcade/coinflip','🪙','Coin Flip','Play the house or challenge another member','arcade-coins')}
  ${gameTile('/arcade/slots','🎰','Slots','Spin the reels to find matching symbols','arcade-slots')}
  ${gameTile('/arcade/mines','💎','Mines','Uncover gems and decide when to collect','arcade-mines')}
  ${gameTile('/arcade/crash','🚀','Crash','Watch the multiplier rise and collect in time','arcade-crash')}
+ ${gameTile('/arcade/plinko','🔴','Plinko','Bounce through pegs and land on multiplier slots','arcade-plinko')}
  </section>
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
