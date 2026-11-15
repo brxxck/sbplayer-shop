@@ -23,7 +23,8 @@
       if(!windowNode)continue;
       const track=document.createElement('div');
       track.className='arcade-reel-track';
-      track.innerHTML=Array.from({length:7},(_,i)=>'<span>'+reelFaces[(i+reelFaces.length+Math.floor(Math.random()*reelFaces.length))%reelFaces.length]+'</span>').join('');
+      const loop=Array.from({length:5},()=>reelFaces[Math.floor(Math.random()*reelFaces.length)]);
+      track.innerHTML=[...loop,...loop].map(symbol=>'<span>'+symbol+'</span>').join('');
       windowNode.replaceChildren(track);
       reel.classList.add('spinning');
       track.style.animation='arcade-reel-running .46s linear infinite';
