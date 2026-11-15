@@ -7,7 +7,7 @@ const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',crash_online:'Global Crash',plinko:'Plinko'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
@@ -56,6 +56,7 @@ export const resultBox=round=>{
   if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
  }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
+ if(game==='roulette_online')extra='Global round #'+number(details.globalRound)+' · '+number(details.winningNumber)+' '+esc(details.color)+' · '+number(details.bets.length)+' bet selection(s).';
  if(game==='plinko')extra=details.count+' ball'+(details.count===1?'':'s')+' · '+details.rows+' rows · '+esc(details.risk)+' risk · all results saved.';
  return `<section class="arcade-result panel padded"${cinemaAttrs(round)} role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
  <div class="arcade-result-value ${payout>=wager?'positive':'negative'}"><strong>${payout>=wager?'+':''}${number(payout-wager)} pts</strong><small>${number(payout)} returned from ${number(wager)} wagered</small></div></section>`;
