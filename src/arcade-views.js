@@ -75,7 +75,7 @@ export function arcadeHome(ctx,summary,rounds){
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
 }
-export function coinflipPage(ctx,summary,{round,rounds}){
+export function coinflipPage(ctx,summary,{round,rounds,houseWager=null}){
  const newest=round||rounds.find(r=>r.game==='coinflip');
  const landed=newest?.game==='coinflip'?newest.details?.landed||'':'';
  return chrome(ctx,'Coin Flip',summary,`
@@ -84,7 +84,7 @@ export function coinflipPage(ctx,summary,{round,rounds}){
   <div class="arcade-coin-stage" data-coin-stage data-coin-result="${esc(landed)}">${coinArt(landed||'heads')}</div>
   <p>Choose SB (Heads) or CAM (Tails). Winning flips return twice the wager. The house has an advantage.</p>
   <form action="/arcade/coinflip/house" method="post" class="arcade-form">${token(ctx)}${request()}
-   ${wagerField(lastWager(rounds,'coinflip'))}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
+   ${wagerField(houseWager?{game:'coinflip',value:houseWager.wager,at:houseWager.created_at}:lastWager(rounds,'coinflip'))}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
   </form>
   <p class="muted tiny arcade-profile-invite">Want to challenge another member? Visit their <a href="/members">profile</a> and select <b>Challenge to Coin Flip</b>.</p>
  </section>
