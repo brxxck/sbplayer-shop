@@ -555,6 +555,12 @@ test('Saved wagers independently restore the last accepted bet for all four game
   round('coinflip_pvp',999,{landed:'heads'}),round('coinflip',135,{selected:'heads',landed:'tails'})
  ]});
  assert.match(mixed,/data-arcade-wager="coinflip" data-last-round-at="1731000000000" value="135"/,'PvP wager cannot override house wager');
+ const olderHouse=views.coinflipPage(ctx,summary,{
+  round:null,rounds:[round('coinflip_pvp',500,{landed:'heads'})],
+  houseWager:round('coinflip',326,{selected:'heads',landed:'tails'})
+ });
+ assert.match(olderHouse,/data-arcade-wager="coinflip" data-last-round-at="1731000000000" value="326"/,
+  'house wager survives many unrelated games and private PvP matches');
  const client=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
  assert.match(client,/localStorage\.setItem/);
  assert.match(client,/data-arcade-wager/);
