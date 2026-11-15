@@ -3,8 +3,8 @@ import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
- createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
- openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,transfersFor,sweepArcade} from './arcade.js';
+ createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
+ openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
@@ -353,7 +353,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           const round=roundId?getRound(user,roundId,'coinflip'):null;
           markup=arcadeView.coinflipPage(context,summary(),{
             round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),
-            challenges:openChallenges(user)});
+            houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)});
         }else if(target.pathname==='/arcade/slots'){
           const round=roundId?getRound(user,roundId,'slots'):null;
           markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
@@ -370,9 +370,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
       if(req.method==='GET'&&pathname==='/arcade/history')
         return html(arcadeView.arcadeHistoryPage(ctx,summary(),recentRounds(user,null,80),transfersFor(user)));
+      if(req.method==='GET'&&pathname==='/arcade/leaderboard'){
+        rate(ctx,'arcade.leaderboard',60,60000);
+        return html(arcadeView.arcadeLeaderboardPage(ctx,summary(),arcadePointsLeaderboard(user)));
+      }
       if(req.method==='GET'&&pathname==='/arcade/coinflip'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'coinflip'):null;
-        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),challenges:openChallenges(user)}));
+        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/slots'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
@@ -2050,7 +2054,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
       return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
-        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
+        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],pvpWager:lastPvpWager(ctx.user.id),xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){

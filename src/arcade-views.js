@@ -1,6 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {randomUUID} from 'node:crypto';
-import {shell,esc,token,titlebar} from './views.js';
+import {shell,esc,token,titlebar,avatar} from './views.js';
 
 const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
@@ -16,7 +16,14 @@ const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc 
 const faceChoices=`<fieldset class="arcade-face-choice arcade-branded-choices"><legend>Your choice</legend>
  <label class="arcade-face-sb"><input type="radio" name="face" value="heads" checked><span class="arcade-choice-coin">SB</span><strong>SB</strong><small>Heads</small></label>
  <label class="arcade-face-cam"><input type="radio" name="face" value="tails"><span class="arcade-choice-coin">CAM</span><strong>CAM</strong><small>Tails</small></label></fieldset>`;
-const wagerField=(value=50)=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" value="${value}" required></label>`;
+// The last accepted wager comes from the player's saved game rounds. This
+// restores bets across browsers/devices, with the browser optionally retaining
+// a newer unsubmitted edit until the next round is placed.
+const lastWager=(rounds,game)=>{
+ const last=rounds.find(r=>r.game===game);
+ return {game,value:last?.wager??50,at:last?.created_at||0};
+};
+const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(1000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const chrome=(ctx,page,summary,content)=>{
  const markup=`
@@ -27,7 +34,7 @@ const chrome=(ctx,page,summary,content)=>{
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/history">History</a>
+  <a href="/arcade">All Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a>
  </nav>
  ${content}
 </div>`;
@@ -68,7 +75,7 @@ export function arcadeHome(ctx,summary,rounds){
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
 }
-export function coinflipPage(ctx,summary,{round,rounds}){
+export function coinflipPage(ctx,summary,{round,rounds,houseWager=null}){
  const newest=round||rounds.find(r=>r.game==='coinflip');
  const landed=newest?.game==='coinflip'?newest.details?.landed||'':'';
  return chrome(ctx,'Coin Flip',summary,`
@@ -77,7 +84,7 @@ export function coinflipPage(ctx,summary,{round,rounds}){
   <div class="arcade-coin-stage" data-coin-stage data-coin-result="${esc(landed)}">${coinArt(landed||'heads')}</div>
   <p>Choose SB (Heads) or CAM (Tails). Winning flips return twice the wager. The house has an advantage.</p>
   <form action="/arcade/coinflip/house" method="post" class="arcade-form">${token(ctx)}${request()}
-   ${wagerField()}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
+   ${wagerField(houseWager?{game:'coinflip',value:houseWager.wager,at:houseWager.created_at}:lastWager(rounds,'coinflip'))}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
   </form>
   <p class="muted tiny arcade-profile-invite">Want to challenge another member? Visit their <a href="/members">profile</a> and select <b>Challenge to Coin Flip</b>.</p>
  </section>
@@ -90,7 +97,7 @@ export function slotsPage(ctx,summary,{round,rounds}){
  <div class="arcade-section-title"><h2>🎰 SB Slots</h2><span>Three reels</span></div>
  <div class="arcade-slot-reels" data-slot-reels>${reels.map((s,i)=>`<div class="arcade-reel" data-reel-index="${i}" data-symbol="${esc(s)}" aria-label="${esc(s)}"><div class="arcade-reel-window"><div class="arcade-reel-face">${symbolIcons[s]||esc(s)}</div></div></div>`).join('')}</div>
  <p>Match symbols across three reels to earn points. Results are settled instantly by the website.</p>
- <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField()}
+ <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
  <button type="submit" class="btn btn-primary">Spin Reels</button></form></section>
  ${resultBox(newest)}${historyList(rounds)}`);
 }
@@ -120,7 +127,7 @@ export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  ${terminal?'<a class="btn btn-outline" href="/arcade/mines">Start another game</a>':''}
  `:'<div class="arcade-empty-grid"><span>💎</span><p>Start a game to reveal the grid.</p></div>'}
  ${!active?`<form action="/arcade/mines/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
- ${wagerField()}<label class="arc-label">Hidden mines<select name="bombs"><option value="1">1 mine</option><option value="2">2 mines</option><option value="3" selected>3 mines</option><option value="4">4 mines</option><option value="5">5 mines</option></select></label>
+ ${wagerField(lastWager(rounds,'mines'))}<label class="arc-label">Hidden mines<select name="bombs"><option value="1">1 mine</option><option value="2">2 mines</option><option value="3" selected>3 mines</option><option value="4">4 mines</option><option value="5">5 mines</option></select></label>
  <button type="submit" class="btn btn-primary">Start Mines</button></form>`:''}
  <p class="muted tiny">Only one Mines game can be active at a time. Your board is saved if you leave the page.</p></section>
  ${current&&terminal?resultBox(current):''}${historyList(rounds)}`);
@@ -159,7 +166,7 @@ export function crashPage(ctx,summary,status,rounds){
  <a class="btn btn-primary arcade-play-again" href="/arcade/crash?again=1">🚀 Play Again</a>
  </div>`:''}
  ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
- ${wagerField()}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00"></label>
+ ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
  <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
  </section>${historyList(rounds)}`);
@@ -169,4 +176,31 @@ export function arcadeHistoryPage(ctx,summary,rounds,transfers){
  ${historyList(rounds)}</section><section class="panel padded"><h2>Points transactions</h2><div class="table-wrap"><table><thead><tr><th>Action</th><th>Change</th><th>Balance after</th><th>Date</th></tr></thead><tbody>
  ${transfers.map(t=>`<tr><td>${esc(t.reason.split('.').join(' '))}</td><td class="${t.delta>0?'arcade-positive':'arcade-negative'}">${t.delta>0?'+':''}${number(t.delta)}</td><td>${number(t.balance_after)}</td><td>${date(t.created_at)}</td></tr>`).join('')||'<tr><td colspan="4">No arcade point transactions yet.</td></tr>'}
  </tbody></table></div></section>`);
+}
+
+const leaderboardName=person=>person.nickname||person.display_name||person.username||'Member';
+const leaderboardMember=(person,selfId)=>`<div class="arcade-leaderboard-row ${person.position<=3?'arcade-leaderboard-top-'+person.position:''} ${person.user_id===selfId?'arcade-leaderboard-me':''}">
+ <span class="arcade-leaderboard-rank" aria-label="Rank ${person.position}">${person.position===1?'🥇':person.position===2?'🥈':person.position===3?'🥉':'#'+number(person.position)}</span>
+ ${avatar({...person,id:person.user_id},'sm',true)}
+ <div class="arcade-leaderboard-person">
+  ${person.profile_public?`<a href="/u/${esc(person.user_id)}">${esc(leaderboardName(person))}</a>`:`<strong>${esc(leaderboardName(person))}</strong>`}
+  <small>${person.user_id===selfId?'Your account':'Discord member'}</small>
+ </div>
+ <strong class="arcade-leaderboard-balance">${number(person.balance)} <span>pts</span></strong>
+ </div>`;
+export function arcadeLeaderboardPage(ctx,summary,{leaders=[],self=null,total=0}={}){
+ return chrome(ctx,'Points Leaderboard',summary,`<section class="panel padded arcade-leaderboard">
+ <div class="arcade-section-title"><h2>🏆 Points Leaderboard</h2><span>Top 50 members</span></div>
+ <p class="muted">Ranked by <strong>current point balances</strong> from Discord level claims and Arcade games. Balances change whenever points are earned, wagered or collected.</p>
+ <div class="arcade-leaderboard-summary">
+  <div><small>YOUR RANK</small><strong>${self?'#'+number(self.position):'Unranked'}</strong></div>
+  <div><small>YOUR POINTS</small><strong>${number(summary.balance)}</strong></div>
+  <div><small>MEMBERS WITH POINTS</small><strong>${number(total)}</strong></div>
+ </div>
+ ${leaders.length?`<div class="arcade-leaderboard-list" aria-label="Current points rankings">
+  ${leaders.map(person=>leaderboardMember(person,ctx.user.id)).join('')}
+ </div>`:'<p class="arcade-leaderboard-empty">No members have points yet. Claim points from your Discord levels to appear here.</p>'}
+ ${self&&!leaders.some(person=>person.user_id===self.user_id)?`<div class="arcade-leaderboard-own"><h3>Your position</h3>${leaderboardMember(self,ctx.user.id)}</div>`:''}
+ <p class="muted tiny">Only point balances are shown. Your private profile details and game history are not included.</p>
+ </section>`);
 }

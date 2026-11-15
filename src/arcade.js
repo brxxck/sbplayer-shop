@@ -350,6 +350,13 @@ export function cancelChallenge(userId,id){
  });
 }
 // V1.21: targeted, consent-based player challenges live on member profiles.
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Profile-based PvP Coin Flip has a separate wager history from house games.
+export function lastPvpWager(userId){
+ const row=one('SELECT wager,created_at FROM arcade_challenges WHERE guild_id=? AND creator_id=? ORDER BY id DESC LIMIT 1',
+  config.guildId,userId);
+ return {value:row?.wager??50,at:row?.created_at||0};
+}
 export function incomingChallenges(userId){
  return all(`SELECT c.id,c.creator_id,c.target_id,c.wager,c.face,c.status,c.created_at,c.expires_at,
  u.display_name creator_name,u.username creator_username
@@ -414,6 +421,31 @@ export function currentRound(userId,game){
 export function arcadeSummary(userId){
  const totals=one("SELECT COUNT(*) played,COALESCE(SUM(CASE WHEN status='won' OR (status='cashed_out' AND payout>wager) THEN 1 ELSE 0 END),0) wins,COALESCE(MAX(payout-wager),0) biggest_win FROM arcade_rounds WHERE guild_id=? AND user_id=? AND status!='active'",config.guildId,userId);
  return {balance:balance(userId),...totals};
+}
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Current wallet balances (not historical winnings), ranked inside this Discord guild.
+// A user beyond the first 50 is returned separately so they can still see their rank.
+export function arcadePointsLeaderboard(userId,limit=50){
+ const take=Math.max(1,Math.min(50,Number.isInteger(limit)?limit:50));
+ const rows=all(`WITH ranked AS (
+  SELECT user_id,balance,
+   ROW_NUMBER() OVER (ORDER BY balance DESC,user_id ASC) AS position
+  FROM level_point_wallets
+  WHERE guild_id=? AND balance>0
+ )
+ SELECT r.user_id,r.balance,r.position,
+  u.username,u.display_name,u.avatar,
+  COALESCE(p.public,1) AS profile_public,
+  CASE WHEN p.public=1 THEN p.nickname ELSE '' END AS nickname,
+  CASE WHEN p.public=1 THEN p.avatar_path ELSE '' END AS avatar_path
+ FROM ranked r
+ JOIN users u ON u.id=r.user_id
+ LEFT JOIN profiles p ON p.user_id=r.user_id
+ WHERE r.position<=? OR r.user_id=?
+ ORDER BY r.position ASC`,config.guildId,take,userId);
+ const total=one('SELECT COUNT(*) AS count FROM level_point_wallets WHERE guild_id=? AND balance>0',config.guildId)?.count||0;
+ return {leaders:rows.filter(r=>r.position<=take),
+   self:rows.find(r=>r.user_id===userId)||null,total};
 }
 export function transfersFor(userId){
  return all('SELECT reason,delta,balance_after,created_at FROM arcade_transfers WHERE guild_id=? AND user_id=? ORDER BY id DESC LIMIT 25',config.guildId,userId);
