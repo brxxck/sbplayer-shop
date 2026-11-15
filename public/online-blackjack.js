@@ -104,6 +104,9 @@
   if(model.canBet){
    const wager=Math.min(1000,Math.max(10,wagerDraft||model.lastWager||50));
    form='<form method="post" action="/arcade/online/blackjack/bet" data-blackjack-form data-bj-bet class="bj-bet-form">'+
+    '<input type="hidden" name="_csrf" value="'+escape(csrf)+'">'+
+    '<input type="hidden" name="round_id" value="'+escape(model.roundId)+'">'+
+    '<input type="hidden" name="request_id" value="'+crypto.randomUUID()+'">'+
     '<label>Wager in points <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="10" max="1000" step="1" value="'+wager+'" required></label>'+
     '<div class="bj-quick-bets">'+[10,50,100,500,1000].map(n=>'<button type="button" data-bj-wager="'+n+'">'+format(n)+'</button>').join('')+'</div>'+
     '<button type="submit" class="btn btn-primary" '+(model.balance<10?'disabled':'')+'>Place Wager</button></form>';
@@ -118,7 +121,11 @@
   if(model.actions?.length){
    form+='<div class="bj-actions">'+model.actions.map(action=>
     '<form method="post" action="/arcade/online/blackjack/action" data-blackjack-form data-bj-action>'+
-    '<input type="hidden" name="action" value="'+escape(action)+'">'+
+    '<input type="hidden" name="_csrf" value="'+escape(csrf)+'">'+
+    '<input type="hidden" name="round_id" value="'+escape(model.roundId)+'">'+
+    '<input type="hidden" name="seq" value="'+escape(model.seq)+'">'+
+    '<input type="hidden" name="request_id" value="'+crypto.randomUUID()+'">'+
+    '<input type="hidden" name="move" value="'+escape(action)+'">'+
     '<button type="submit" class="btn '+(action==='stand'?'btn-outline':'btn-primary')+'">'+
     ({hit:'Hit',stand:'Stand',double:'Double Down',split:'Split'}[action]||action)+'</button></form>').join('')+'</div>';
   }
@@ -199,18 +206,27 @@
   if(busy||!model)return;
   const isBet=form.matches('[data-bj-bet]');
   if(isBet&&!form.reportValidity())return;
-  const data=new URLSearchParams({request_id:crypto.randomUUID(),round_id:String(model.roundId),_csrf:csrf});
+  // Preserve the server-rendered form's request ID and round revision if
+  // present. These survive retry attempts without making a second wager.
+  const requestId=form.querySelector('input[name="request_id"]')?.value||crypto.randomUUID();
+  const roundId=form.querySelector('input[name="round_id"]')?.value||String(model.roundId);
+  const data=new URLSearchParams({request_id:requestId,round_id:roundId,_csrf:csrf});
   if(isBet){
    const wager=form.querySelector('input[name="wager"]').value;
    data.set('wager',wager);saveWager(wager);
   }else{
-   data.set('action',form.querySelector('input[name="action"]').value);
-   data.set('seq',String(model.seq));
+   data.set('move',form.querySelector('input[name="move"],input[name="action"]').value);
+   data.set('seq',form.querySelector('input[name="seq"]')?.value||String(model.seq));
   }
   busy=true;
   for(const btn of panel.querySelectorAll('button'))btn.disabled=true;
   try{
-   const response=await fetch(form.action,{method:'POST',credentials:'same-origin',cache:'no-store',
+   // A hidden input named "action" clobbers HTMLFormElement.action.
+   // Read the literal form attribute, never the shadowed property.
+   const destination=form.getAttribute('action');
+   if(!['/arcade/online/blackjack/bet','/arcade/online/blackjack/action'].includes(destination))
+    throw Error('Invalid Blackjack form URL. Refresh the table and try again.');
+   const response=await fetch(destination,{method:'POST',credentials:'same-origin',cache:'no-store',
     redirect:'manual',headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded'},
     body:data});
    const payload=await response.json();
