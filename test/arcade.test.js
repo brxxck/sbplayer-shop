@@ -164,6 +164,12 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
   const page=await fetch(base+'/arcade/coinflip',{headers:{cookie}});
   assert.equal(page.status,200);
   const html=await page.text();
+  const arcadeHome=await fetch(base+'/arcade',{headers:{cookie}});
+  assert.equal(arcadeHome.status,200);
+  const arcadeHomeHtml=await arcadeHome.text();
+  assert.match(arcadeHomeHtml,/class="arcade-points-stat"/);
+  assert.match(arcadeHomeHtml,/class="arcade-get-more" href="\/points"/);
+  assert.match(arcadeHomeHtml,/Get more from levels/);
   assert.match(html,/Play the house/);
   assert.match(html,/Challenge a member/);
   assert.doesNotMatch(html.split('<div class="arcade-root">')[1],/\bRTP\b|40%|101%|50%/i);
