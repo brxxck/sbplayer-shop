@@ -138,6 +138,10 @@
  }
  function apply(incoming){
   if(!incoming||typeof incoming!=='object'||typeof incoming.phase!=='string')throw Error('Invalid table state');
+  // An older poll can finish after a successful action. Ignore stale responses
+  // rather than replacing the current hand with an out-of-date table.
+  if(model&&incoming.roundId&&model.roundId&&incoming.roundId<model.roundId)return;
+  if(model&&incoming.roundId===model.roundId&&Number(incoming.seq)<Number(model.seq))return;
   const previous=model;
   const oldSignature=signature;
   model=incoming;
