@@ -327,6 +327,7 @@
   .roulette-left,.roulette-right,.roulette-betting-panel,.roulette-wheel-panel,.roulette-betting-table { min-width:0; max-width:100%; }
   .roulette-wheel-panel,.roulette-betting-panel,.roulette-my-results { padding:12px; }
   .roulette-wheel-box { width:min(100%,315px); margin:2px auto; }
+  .roulette-wheel-header,.roulette-section-title { flex-wrap:wrap; gap:7px; }
   .roulette-wheel-header h2 { font-size:17px; }
   .roulette-time { min-width:90px; padding:6px; }
   .roulette-time strong { font-size:20px; }
