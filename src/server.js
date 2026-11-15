@@ -384,7 +384,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return html(blackjackPage(ctx,summary(),blackjackSnapshot(user)));
       }
       if(req.method==='GET'&&pathname==='/arcade/online/blackjack/state'){
-        rate(ctx,'arcade.blackjack.state',45,60000);
+        rate(ctx,'arcade.blackjack.state',110,60000);
         res.setHeader('Cache-Control','no-store');
         return respond(res,200,JSON.stringify(blackjackSnapshot(user)),'application/json; charset=utf-8');
       }
