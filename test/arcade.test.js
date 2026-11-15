@@ -700,7 +700,7 @@ test('Crash auto-collect remembers the last submitted multiplier, including turn
 
 test('Crash auto-collect persists through the round ledger and restores without an extra API session',async()=>{
  const {crashPage}=await import('../src/arcade-views.js');
- const unique='100000000000000093';
+ const unique='100000000000007777';
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
   unique,'auto-collect-tester','Auto Collect Tester',Date.now());
  run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
