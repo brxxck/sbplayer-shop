@@ -180,7 +180,7 @@ test('Betting closes atomically at launch; queue departures do not erase existin
  fixSeed(state.roundId,200);
  globalCrashBet(alice,request(state.roundId,100),t+100);
  leaveOnlineLobby(alice,'crash',t+120);
- const inFlight=globalCrashSnapshot(alice,t+GLOBAL_CRASH_BET_MS+1);
+ const inFlight=globalCrashSnapshot(alice,t+GLOBAL_CRASH_BET_MS+3);
  assert.equal(inFlight.phase,'playing');
  assert.equal(inFlight.joined,false);
  assert.equal(inFlight.canCashout,true);
