@@ -30,11 +30,21 @@
   if(!field||!/^\d+$/.test(field.value)||!Number.isSafeInteger(amount)||amount<10||amount>1000)return;
   try{localStorage.setItem(wagerKey,JSON.stringify({wager:amount,at:Date.now()}));}catch{}
  }
+ function syncQuickWager(){
+  const field=controls.querySelector('[data-sbj-wager]');
+  const amount=Number(field?.value);
+  for(const choice of controls.querySelectorAll('[data-sbj-quick]')){
+   const selected=!!field&&amount===Number(choice.dataset.sbjQuick);
+   choice.classList.toggle('is-selected',selected);
+   choice.setAttribute('aria-pressed',String(selected));
+  }
+ }
  function hydrateWager(){
   const field=controls.querySelector('[data-sbj-wager]');
   if(!field)return;
   const cached=lastLocalWager();
   if(cached!==null)field.value=String(cached);
+  syncQuickWager();
  }
  function status(message,isError=false){
   if(!connection)return;
@@ -215,10 +225,10 @@
   const field=controls.querySelector('[data-sbj-wager]');
   if(!field)return;
   field.value=String(choice.dataset.sbjQuick);
-  rememberWager();cue('click');
+  rememberWager();syncQuickWager();cue('click');
  });
  document.addEventListener('change',event=>{
-  if(event.target.matches?.('[data-sbj-wager]'))rememberWager();
+  if(event.target.matches?.('[data-sbj-wager]')){rememberWager();syncQuickWager();}
  });
  document.addEventListener('input',event=>{
   if(event.target.matches?.('[data-sbj-wager]'))rememberWager();
@@ -230,5 +240,13 @@
   active=false;if(noticeTimeout)clearTimeout(noticeTimeout);
   if(cinemaTimeout)clearTimeout(cinemaTimeout);
  });
+ // One set of real controls: mobile collapses secondary sections, desktop keeps them open.
+ const smallScreen=window.matchMedia('(max-width:840px)');
+ const disclosures=document.querySelectorAll?.('[data-sbj-mobile-disclosure]')||[];
+ const matchViewport=()=>{
+  for(const disclosure of disclosures)disclosure.open=!smallScreen.matches;
+ };
+ matchViewport();
+ smallScreen.addEventListener?.('change',matchViewport);
  hydrateWager();
 })();
