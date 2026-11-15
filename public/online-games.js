@@ -16,8 +16,8 @@
  };
  const notice=root.querySelector('[data-online-connection]');
  function apply(snapshot){
-  if(!snapshot||typeof snapshot!=='object'||!snapshot.blackjack||!snapshot.crash)return;
-  const bj=snapshot.blackjack,crash=snapshot.crash;
+  if(!snapshot||typeof snapshot!=='object'||!snapshot.blackjack||!snapshot.crash||!snapshot.roulette)return;
+  const bj=snapshot.blackjack,crash=snapshot.crash,roulette=snapshot.roulette;
   set('blackjack.seated',number(bj.seated)+' / 4');
   set('blackjack.waiting',number(bj.waiting));
   set('blackjack.lobbyPlayers',number(bj.lobbyPlayers));
@@ -26,6 +26,10 @@
   set('crash.lobbyPlayers',number(crash.lobbyPlayers));
   set('crash.roundPlayers',number(crash.roundPlayers));
   set('crash.roundWager',number(crash.roundWager)+' pts');
+  set('roulette.watching',number(roulette.watching));
+  set('roulette.roundPlayers',number(roulette.roundPlayers));
+  set('roulette.roundWager',number(roulette.roundWager)+' pts');
+  set('roulette.phase',roulette.phase==='spinning'?'SPINNING':roulette.phase==='results'?'RESULT':'BETTING');
   status('blackjack',bj.joined?(bj.atTable?'You have a seat (#'+number(bj.position)+').':
     'You are #'+number(bj.position)+' in the waiting queue.'):'You have not joined the preview lobby.');
   status('crash',crash.joined?'You are in the shared Crash preview lobby.':
