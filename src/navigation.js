@@ -39,7 +39,7 @@ export function renderMobile(ctx){
  }).join('');
  const moreSelected=!quick.some(([p])=>here(p));
  return quickLinks+`<details class="mobile-more" data-mobile-more ${moreSelected?'data-current="true"':''}>
- <summary class="mobile-nav-tab" aria-label="More pages"><span class="mobile-nav-icon" aria-hidden="true">${icon('menu',{size:21})}</span><span class="mobile-nav-label">More</span></summary>
+ <summary class="mobile-nav-tab" aria-label="More pages"><span class="mobile-nav-icon" aria-hidden="true">${icon('list',{size:21})}</span><span class="mobile-nav-label">More</span></summary>
  <button type="button" class="mobile-nav-scrim" data-mobile-more-close aria-label="Close page menu"></button>
  <nav aria-label="All website pages">
   <div class="mobile-menu-header"><h2>Browse the website</h2><button type="button" class="mobile-page-search" data-mobile-page-search>${icon('search',{size:18})} Find a page</button></div>
