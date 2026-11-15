@@ -10,6 +10,8 @@ import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,star
 import * as arcadeView from './arcade-views.js';
 import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby} from './online-games.js';
 import {onlineGamesPage} from './online-games-views.js';
+import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
+import {blackjackPage} from './online-blackjack-views.js';
 import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
 import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
@@ -162,7 +164,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -374,6 +376,34 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       };
       // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
       // Shared preview lobbies: no endpoint here moves points or settles rounds.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // One server-authoritative shared Blackjack table per Discord guild.
+      // Every point movement is transactional; viewing never places a bet.
+      if(req.method==='GET'&&pathname==='/arcade/online/blackjack'){
+        rate(ctx,'arcade.blackjack.page',55,60000);
+        return html(blackjackPage(ctx,summary(),blackjackSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/blackjack/state'){
+        rate(ctx,'arcade.blackjack.state',45,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(blackjackSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/blackjack/bet'){
+        const {fields}=await form();rate(ctx,'arcade.blackjack.bet',15,60000);
+        const state=blackjackBet(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/blackjack','Wager accepted for the current Blackjack round.');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/blackjack/action'){
+        const {fields}=await form();rate(ctx,'arcade.blackjack.action',90,60000);
+        const state=blackjackAction(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/online/blackjack');
+      }
       if(req.method==='GET'&&pathname==='/arcade/online'){
         rate(ctx,'arcade.online.page',60,60000);
         return html(onlineGamesPage(ctx,summary(),onlineGamesSnapshot(user)));
@@ -2451,7 +2481,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   megaBrowser.start();
   const arcadeTicker=setInterval(()=>{try{sweepArcade();}catch(error){console.error('[Arcade maintenance]',String(error.message));}},5000);
   arcadeTicker.unref();
-  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);megaSync.stop();megaBrowser.stop();});
+  // Advance shared Blackjack even while every player's browser is disconnected.
+  const blackjackTicker=setInterval(()=>{try{blackjackTick();}catch(error){console.error('[Online Blackjack]',String(error.message));}},1000);
+  blackjackTicker.unref();
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
