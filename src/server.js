@@ -16,8 +16,7 @@ import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './on
 import {blackjackPage} from './online-blackjack-views.js';
 import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction} from './solo-blackjack.js';
 import {soloBlackjackPage,soloTableMarkup,soloControlsMarkup} from './solo-blackjack-views.js';
-import {globalCrashTick,globalCrashSnapshot,globalCrashBet,globalCrashCashout} from './online-crash.js';
-import {globalCrashPage} from './online-crash-views.js';
+import {suspendGlobalCrash} from './online-crash.js';
 import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
 import {onlineRoulettePage} from './online-roulette-views.js';
 import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
@@ -172,7 +171,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -195,6 +194,12 @@ function rate(ctx,name,max,windowMs=60000){
 setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)rateBuckets.delete(k);run('DELETE FROM sessions WHERE expires_at<?',t);},3600000).unref();
 
 export function createServer({discord=liveDiscord,testLogin=false}={}){
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // Stop Global Crash before accepting traffic. Refund unsettled positions
+  // once, preserving completed games and the existing points ledger.
+  const pausedGlobalCrash=suspendGlobalCrash();
+  if(pausedGlobalCrash.refundedPlayers)
+   console.info('[Global Crash paused] Unfinished wagers refunded:',pausedGlobalCrash.refundedPlayers);
   let teamCache=null;
   // Short-lived, session-bound proof for arcade routes only. Other website
   // permission checks continue to verify Discord normally.
@@ -333,6 +338,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const privateOwner=one('SELECT user_id FROM profiles WHERE public=0 AND (avatar_path=? OR banner_path=? OR background_path=?)',pathname,pathname,pathname);
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // Global Crash stays unavailable even through direct links or cached
+    // client requests. Check before public-preview, auth and static routes.
+    if(pathname==='/arcade/online/crash'||pathname.startsWith('/arcade/online/crash/')||
+       pathname==='/static/online-crash.js'||pathname==='/static/online-crash.css'){
+      res.setHeader('Cache-Control','no-store');
+      throw new HttpError(404,'Global Crash is temporarily unavailable.');
+    }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
     if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.21.1',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/api/integrations/botghost/levels'&&req.method==='POST'){
@@ -419,31 +432,6 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
           success('/arcade/online/roulette','Roulette chips confirmed for the current round.');
       }
-      if(req.method==='GET'&&pathname==='/arcade/online/crash'){
-        rate(ctx,'arcade.global-crash.page',55,60000);
-        return html(globalCrashPage(ctx,summary(),globalCrashSnapshot(user)));
-      }
-      if(req.method==='GET'&&pathname==='/arcade/online/crash/state'){
-        rate(ctx,'arcade.global-crash.state',110,60000);
-        res.setHeader('Cache-Control','no-store');
-        return respond(res,200,JSON.stringify(globalCrashSnapshot(user)),'application/json; charset=utf-8');
-      }
-      if(req.method==='POST'&&pathname==='/arcade/online/crash/bet'){
-        const {fields}=await form();rate(ctx,'arcade.global-crash.bet',18,60000);
-        const state=globalCrashBet(user,fields);
-        res.setHeader('Cache-Control','no-store');
-        return String(req.headers.accept||'').includes('application/json')?
-          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
-          success('/arcade/online/crash','Wager placed in Global Crash.');
-      }
-      if(req.method==='POST'&&pathname==='/arcade/online/crash/collect'){
-        const {fields}=await form();rate(ctx,'arcade.global-crash.collect',50,60000);
-        const state=globalCrashCashout(user,fields);
-        res.setHeader('Cache-Control','no-store');
-        return String(req.headers.accept||'').includes('application/json')?
-          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
-          success('/arcade/online/crash','Global Crash cash-out confirmed.');
-      }
       if(req.method==='GET'&&pathname==='/arcade/online/blackjack'){
         rate(ctx,'arcade.blackjack.page',55,60000);
         return html(blackjackPage(ctx,summary(),blackjackSnapshot(user)));
@@ -491,10 +479,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         // Joining Blackjack from the lobby/table takes the player straight
         // to the real table instead of leaving them on a preview-only queue.
         const destination=pathname.endsWith('/join')&&fields.game==='blackjack'&&fields.next==='blackjack'?
-          '/arcade/online/blackjack':
-          fields.game==='crash'&&fields.next==='crash'?'/arcade/online/crash':'/arcade/online';
+          '/arcade/online/blackjack':'/arcade/online';
         return success(destination,pathname.endsWith('/join')?
-          (fields.game==='crash'?'You joined the Global Crash lobby.':'You joined the Blackjack queue.'):'You left the lobby.');
+          'You joined the Blackjack queue.':'You left the lobby.');
       }
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
@@ -2609,21 +2596,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   // Advance shared Blackjack even while every player's browser is disconnected.
   const blackjackTicker=setInterval(()=>{try{blackjackTick();}catch(error){console.error('[Online Blackjack]',String(error.message));}},1000);
   blackjackTicker.unref();
-  // The global round continues even with zero viewers. Coalesce frequent
-  // wager events so thousands of members don't create a poll storm.
-  let globalSignal='',globalSignalAt=0,globalPhase='';
-  const advanceGlobalCrash=()=>{
-   const state=globalCrashTick();
-   const signal=state.roundId+':'+state.phase+':'+state.seq;
-   const stamp=Date.now();
-   if(signal!==globalSignal&&(state.phase!==globalPhase||stamp-globalSignalAt>=950)){
-    globalSignal=signal;globalSignalAt=stamp;globalPhase=state.phase;
-    notifyEveryone('global-crash',{roundId:state.roundId,phase:state.phase,seq:state.seq});
-   }
-  };
-  const globalCrashTicker=setInterval(()=>{try{advanceGlobalCrash();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
-  globalCrashTicker.unref();
-  try{advanceGlobalCrash();}catch(error){console.error('[Global Crash startup]',String(error.message));}
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // Global Crash's half-second ticker is removed while it is disabled.
+  // Only Solo Crash, Online Blackjack and Roulette continue running.
   // Coalesced website-wide SSE refresh for Roulette. A single timer advances
   // the game even when every browser has disconnected.
   let rouletteLastSignal='',rouletteLastBroadcast=0,rouletteLastPhase='';
@@ -2638,7 +2613,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   const rouletteTicker=setInterval(()=>{try{advanceRoulette();}catch(error){console.error('[Live Roulette]',String(error.message));}},500);
   rouletteTicker.unref();
   try{advanceRoulette();}catch(error){console.error('[Live Roulette startup]',String(error.message));}
-  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);clearInterval(rouletteTicker);megaSync.stop();megaBrowser.stop();});
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(rouletteTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
