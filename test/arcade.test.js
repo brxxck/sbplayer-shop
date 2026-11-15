@@ -2,7 +2,7 @@
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-arcade-'));
@@ -187,4 +187,129 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
   assert.equal((await fetch(base+'/arcade/slots',{headers:{cookie}})).status,200);
   assert.equal((await fetch(base+'/arcade/history',{headers:{cookie}})).status,200);
  }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('Fast Arcade returns a stable Mines grid and never inserts Saving into a tile',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const calls={guild:0,member:0,roles:0};
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>{calls.guild++;return {id:guild,owner_id:owner};},
+  getGuildMember:async id=>{calls.member++;return {user:{id,username:'fast-test'},roles:[],pending:false};},
+  getRoles:async()=>{calls.roles++;return [];}
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ const headers={'accept':'application/json','x-arcade-async':'1'};
+ try{
+  const login=await fetch(base+'/__test/login/'+alice,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const page=await fetch(base+'/arcade/mines',{headers:{cookie}});
+  assert.equal(page.status,200);
+  const html=await page.text();
+  const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
+  const verified={...calls};
+  assert.ok(verified.member>=1,'initial page verifies guild membership');
+  const send=(url,fields,fast=true)=>fetch(base+url,{
+   method:'POST',redirect:'manual',
+   headers:{cookie,'content-type':'application/x-www-form-urlencoded',...(fast?headers:{})},
+   body:new URLSearchParams({_csrf:csrf,...fields})
+  });
+  const start=await send('/arcade/mines/start',form(100,{bombs:'3'}));
+  assert.equal(start.status,200);
+  assert.match(start.headers.get('content-type'),/application\/json/);
+  const started=await start.json();
+  assert.equal(started.ok,true);
+  assert.match(started.html,/class="arcade-mine-grid"/);
+  assert.doesNotMatch(started.html,/Saving/);
+  assert.doesNotMatch(started.html,/<html|<head|<body/);
+  assert.doesNotMatch(started.html,/💣/,'bomb locations stay hidden during active rounds');
+  assert.equal((started.html.match(/class="arcade-mine-tile"/g)||[]).length,25);
+  const roundId=Number(new URL(started.url,'http://localhost').searchParams.get('round'));
+  const bombs=arcade.getRound(alice,roundId,'mines').details.bombs;
+  const safe=Array.from({length:25},(_,i)=>i).find(i=>!bombs.includes(i));
+  const opened=await send('/arcade/mines/'+roundId+'/reveal',{tile:String(safe)});
+  assert.equal(opened.status,200);
+  const rendered=await opened.json();
+  assert.equal(rendered.ok,true);
+  assert.match(rendered.html,/Safe picks <strong>1<\/strong>/);
+  assert.match(rendered.html,/class="arcade-mine-tile revealed(?: |")/);
+  assert.doesNotMatch(rendered.html,/Saving/);
+  assert.equal(calls.member,verified.member,'rapid arcade actions should reuse a verified session');
+  assert.equal(calls.guild,verified.guild,'guild lookup should not run per tile');
+  assert.equal(calls.roles,verified.roles,'role lookup should not run per tile');
+  const before=levelWallet(alice).balance;
+  const failed=await send('/arcade/mines/'+roundId+'/collect',{_csrf:'bad'});
+  assert.equal(failed.status,403);
+  assert.equal((await failed.json()).ok,false);
+  assert.equal(levelWallet(alice).balance,before);
+  const claimed=await send('/arcade/mines/'+roundId+'/collect',{});
+  assert.equal(claimed.status,200);
+  const collected=await claimed.json();
+  assert.match(collected.html,/LAST RESULT/);
+  assert.equal(arcade.getRound(alice,roundId,'mines').status,'cashed_out');
+  assert.equal(calls.member,verified.member);
+  const native=await send('/arcade/mines/start',form(100,{bombs:'2'}),false);
+  assert.equal(native.status,303,'ordinary forms must retain no-JS redirects');
+ }finally{
+  await new Promise(resolve=>server.close(resolve));
+ }
+});
+
+test('Fast Arcade settles house, slots and Crash without a page navigation or leaking outcomes',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'fast-tester'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ try{
+  const login=await fetch(base+'/__test/login/'+bob,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const page=await (await fetch(base+'/arcade/coinflip',{headers:{cookie}})).text();
+  const csrf=/name="_csrf" value="([^"]+)"/.exec(page)[1];
+  const send=async(path,fields)=>{
+   const response=await fetch(base+path,{
+    method:'POST',redirect:'manual',
+    headers:{cookie,accept:'application/json','x-arcade-async':'1','content-type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams({_csrf:csrf,...fields})
+   });
+   assert.equal(response.status,200,path+' responds with in-page update');
+   const payload=await response.json();
+   assert.equal(payload.ok,true);
+   assert.match(payload.html,/class="arcade-root"/);
+   assert.ok(!payload.html.includes('<html'),'no entire page reload markup');
+   return payload;
+  };
+  const house=await send('/arcade/coinflip/house',form(100,{face:'heads'}));
+  assert.match(house.html,/LAST RESULT/);
+  assert.match(house.url,/^\/arcade\/coinflip\?round=/);
+  assert.doesNotMatch(house.html,/40%|50%|RTP/i);
+  const slots=await send('/arcade/slots/spin',form(100));
+  assert.match(slots.html,/class="arcade-slot-reels"/);
+  assert.match(slots.html,/LAST RESULT/);
+  const crash=await send('/arcade/crash/start',form(100,{auto_at:'1.50'}));
+  assert.match(crash.html,/data-crash-active="1"/);
+  assert.doesNotMatch(crash.html,/crashAt|autoTime|crashTime/,'crash position must remain secret until result');
+  const status=await fetch(base+'/arcade/api/crash/fragment',{
+   headers:{cookie,accept:'application/json','x-arcade-async':'1'},redirect:'manual'
+  });
+  assert.equal(status.status,200);
+  assert.match((await status.json()).html,/data-crash-active="1"/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('Arcade no longer triggers the global Saving form message or page reload on every tile',()=>{
+ const globalFormJs=readFileSync(new URL('../public/upgrade.js',import.meta.url),'utf8');
+ const arcadeJs=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ const arcadeCss=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ assert.match(globalFormJs,/form\.closest\('\.arcade-root'\)/);
+ assert.match(arcadeJs,/root\.replaceWith\(updated\)/);
+ assert.match(arcadeJs,/function queueTile\(/);
+ assert.match(arcadeJs,/aria-busy/);
+ assert.match(arcadeJs,/x-arcade-async/);
+ assert.doesNotMatch(arcadeJs,/location\.assign|location\.reload|window\.location\.href=/);
+ assert.match(arcadeCss,/\.arcade-mine-grid form\{/);
+ assert.match(arcadeCss,/\.arcade-tile-pending/);
 });

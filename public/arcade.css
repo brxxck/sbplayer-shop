@@ -105,3 +105,15 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 @media(max-width:720px){.arcade-header{align-items:stretch;flex-direction:column;padding:18px}.arcade-wallet{min-width:0;text-align:left}.arcade-two-columns{grid-template-columns:1fr}.arcade-root{gap:16px}.arcade-game-art{font-size:54px}.arcade-game-card{min-height:205px;padding:14px}.arcade-game-info strong{font-size:18px}.arcade-metrics strong{font-size:23px}.arcade-result-value{text-align:left}.arcade-challenge{align-items:flex-start}}
 @media(max-width:380px){.arcade-grid{grid-template-columns:1fr}.arcade-game-card{min-height:160px}.arcade-game-art{padding:0;font-size:50px}}
 @media(prefers-reduced-motion:reduce){.arcade-game-card,.arcade-coin-disc.animated,.arcade-reel.animated{transition:none;animation:none}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Fast-play feedback stays on the clicked control; it must not add grid children. */
+.arcade-mine-grid form{min-width:0;min-height:0;position:relative}
+.arcade-mine-tile{position:relative;transition:background-color .12s,border-color .12s,transform .12s}
+.arcade-mine-tile.arcade-tile-pending{background:linear-gradient(135deg,#225f83,#164369);border-color:#89c8f2;transform:scale(.97);color:#d8edff;opacity:1}
+.arcade-mine-tile.arcade-tile-pending:after{content:"";position:absolute;right:7px;top:7px;width:7px;height:7px;background:#77e3ff;border-radius:50%;box-shadow:0 0 12px #65ceff}
+.arcade-form button.arcade-action-pending,.arcade-mine-collect button.arcade-action-pending,.arcade-round-panel button.arcade-action-pending{opacity:.82;cursor:progress}
+.arcade-live-notice{margin:0;padding:11px 15px;border:1px solid #386995;border-radius:10px;background:#112e4c;color:#bde1ff;font-size:13px;line-height:1.45}
+.arcade-live-notice.arcade-live-error{border-color:#9b4559;background:#381d2c;color:#ffd0d9}
+.arcade-mine-grid[aria-busy="true"]{pointer-events:auto}
+@media(prefers-reduced-motion:reduce){.arcade-mine-tile{transition:none!important}.arcade-mine-tile.arcade-tile-pending{transform:none}}

@@ -10,11 +10,12 @@ const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slo
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const wagerField=(value=50)=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" value="${value}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
-const chrome=(ctx,page,summary,content)=>shell(ctx,'Arcade',`
+const chrome=(ctx,page,summary,content)=>{
+ const markup=`
 <div class="arcade-root">
  <div class="arcade-header">
   <div><div class="arcade-eyebrow">SB'S & CAM'S STORE · LEVEL POINTS</div><h1>${esc(page)}</h1>
-   <p>Play with points earned from Discord levels. No real money or redeemable prizes.</p></div>
+   <p>Play with points earned from Discord levels. No real money.</p></div>
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
  <nav class="arcade-tabs" aria-label="Arcade games">
@@ -22,7 +23,9 @@ const chrome=(ctx,page,summary,content)=>shell(ctx,'Arcade',`
  </nav>
  ${content}
  <p class="arcade-disclaimer">Virtual entertainment points only. House games favour the house. Points cannot be purchased, withdrawn, or exchanged for items or prizes of monetary value. Results and wallet changes are decided by the server.</p>
-</div>`);
+</div>`;
+ return ctx.arcadeFragment ? markup : shell(ctx,'Arcade',markup);
+};
 const gameTile=(url,icon,name,description,className)=>`<a class="arcade-game-card ${className}" href="${url}"><span class="arcade-game-art">${icon}</span><span class="arcade-game-info"><strong>${name}</strong><small>${description}</small></span><span class="arcade-game-arrow">Play →</span></a>`;
 const resultBox=round=>{
  if(!round)return '';
