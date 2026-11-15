@@ -100,7 +100,6 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 .arcade-crash-display small{color:#c1d6e6;font-size:13px;z-index:1}
 .arcade-round-panel{display:grid;justify-items:center;gap:15px}
 .arcade-round-panel p{margin:0;text-align:center}
-.arcade-disclaimer{margin:0 0 8px;color:#839bb6;font-size:12px;line-height:1.65}
 @media(max-width:1050px){.arcade-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.arcade-game-card{min-height:220px}.arcade-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.arcade-header{align-items:stretch;flex-direction:column;padding:18px}.arcade-wallet{min-width:0;text-align:left}.arcade-two-columns{grid-template-columns:1fr}.arcade-root{gap:16px}.arcade-game-art{font-size:54px}.arcade-game-card{min-height:205px;padding:14px}.arcade-game-info strong{font-size:18px}.arcade-metrics strong{font-size:23px}.arcade-result-value{text-align:left}.arcade-challenge{align-items:flex-start}}
 @media(max-width:380px){.arcade-grid{grid-template-columns:1fr}.arcade-game-card{min-height:160px}.arcade-game-art{padding:0;font-size:50px}}
