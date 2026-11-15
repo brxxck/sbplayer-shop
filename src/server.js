@@ -2515,10 +2515,21 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   // Advance shared Blackjack even while every player's browser is disconnected.
   const blackjackTicker=setInterval(()=>{try{blackjackTick();}catch(error){console.error('[Online Blackjack]',String(error.message));}},1000);
   blackjackTicker.unref();
-  // The global round continues even with zero connected players.
-  const globalCrashTicker=setInterval(()=>{try{globalCrashTick();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
+  // The global round continues even with zero viewers. Coalesce frequent
+  // wager events so thousands of members don't create a poll storm.
+  let globalSignal='',globalSignalAt=0,globalPhase='';
+  const advanceGlobalCrash=()=>{
+   const state=globalCrashTick();
+   const signal=state.roundId+':'+state.phase+':'+state.seq;
+   const stamp=Date.now();
+   if(signal!==globalSignal&&(state.phase!==globalPhase||stamp-globalSignalAt>=950)){
+    globalSignal=signal;globalSignalAt=stamp;globalPhase=state.phase;
+    notifyEveryone('global-crash',{roundId:state.roundId,phase:state.phase,seq:state.seq});
+   }
+  };
+  const globalCrashTicker=setInterval(()=>{try{advanceGlobalCrash();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
   globalCrashTicker.unref();
-  try{globalCrashTick();}catch(error){console.error('[Global Crash startup]',String(error.message));}
+  try{advanceGlobalCrash();}catch(error){console.error('[Global Crash startup]',String(error.message));}
   website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
