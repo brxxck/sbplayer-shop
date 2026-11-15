@@ -170,6 +170,8 @@ test('HTTP arcade routes require verified login and CSRF; pages omit numeric odd
   assert.match(arcadeHomeHtml,/class="arcade-points-stat"/);
   assert.match(arcadeHomeHtml,/class="arcade-get-more" href="\/points"/);
   assert.match(arcadeHomeHtml,/Get more from levels/);
+   assert.doesNotMatch(arcadeHomeHtml,/class="arcade-disclaimer"/);
+   assert.doesNotMatch(arcadeHomeHtml,/Virtual entertainment points only\. House games favour the house/);
   assert.match(html,/Play the House/i);
   assert.match(html,/Challenge to Coin Flip/);
   assert.doesNotMatch(html.split('<div class="arcade-root">')[1],/\bRTP\b|40%|101%|50%/i);
