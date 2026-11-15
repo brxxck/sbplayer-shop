@@ -176,6 +176,7 @@
     const multiplier=game.querySelector('[data-crash-multiplier]');
     const message=game.querySelector('[data-crash-message]');
     const collect=game.querySelector('[data-crash-collect]');
+    if(game.dataset.crashActive==='1'&&collect)collect.disabled=true;
     let offset=0,state=null,inRequest=false,finished=false,ended=false;
     let animation=null,polling=null;
     const displayCrash=(value)=>{if(multiplier)multiplier.textContent=symbols(value);};
@@ -202,6 +203,7 @@
         const payload=await parseResponse(response);
         if(!response.ok||payload?.ok!==true)throw Error(payload?.error||'Failed to load the round result.');
         if(game.isConnected&&!busy)replaceGame(payload,false);
+        else finished=false;
       }catch{
         finished=false; // Poll again if a result request momentarily fails.
       }
