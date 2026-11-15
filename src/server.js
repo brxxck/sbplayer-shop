@@ -3,7 +3,7 @@ import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
- createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
+ createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
  openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
@@ -2054,7 +2054,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
       return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
-        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
+        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],pvpWager:lastPvpWager(ctx.user.id),xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){
