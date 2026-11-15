@@ -50,7 +50,7 @@
     allKeys.add(key);if(!seen.has(key))newSounds.push('card');
     return cardMarkup(card,key,seen.size>0&&!seen.has(key));
    }).join('');
-   return '<div class="bj-hand '+(activeTurn&&model.handIndex===index?'bj-hand-current':'')+'">'+
+   return '<div class="bj-hand '+(activeTurn&&model.handIndex===index?'bj-hand-current ':'')+(['won','blackjack'].includes(hand.outcome)?'bj-hand-win':hand.outcome==='lost'||hand.outcome==='bust'?'bj-hand-lose':'')+'">'+
     '<div class="bj-cards">'+cards+'</div>'+
     '<div class="bj-hand-status"><strong>'+format(hand.value?.total||0)+'</strong>'+
     '<span>'+escape(handLabel(hand))+'</span><small>'+format(hand.wager)+' pts</small></div></div>';
