@@ -141,7 +141,7 @@ test('Actual winning number pays every winning selection; settlement is never re
  roulettePlace(alice,form(s.roundId,[bet('number:32',100),bet('color:red',200)]),t+30);
  roulettePlace(bob,form(s.roundId,[bet('color:black',100),bet('half:high',100)]),t+31);
  assert.equal(balance(alice),9700);
- assert.equal(balance(bob),10000,'Bob loses Black but wins 19–36, so the stakes break even');
+ assert.equal(balance(bob),9800,'Both wagers were deducted when the bets were accepted.');
  rouletteTick(t+30000);
  assert.equal(rouletteSnapshot(alice,t+30001).winningNumber,null);
  const ended=rouletteSnapshot(alice,t+38000);
@@ -153,7 +153,7 @@ test('Actual winning number pays every winning selection; settlement is never re
  assert.equal(ended.myPayout,4000);
  assert.equal(ended.myProfit,3700);
  assert.equal(balance(alice),13700);
- assert.equal(balance(bob),9800);
+ assert.equal(balance(bob),10000,'Bob loses Black but wins 19–36, so the stakes break even');
  assert.equal(one("SELECT COUNT(*) AS count FROM arcade_rounds WHERE game='roulette_online'").count,2);
  assert.equal(one("SELECT COUNT(*) AS count FROM arcade_transfers WHERE reason='roulette.online.payout'").count,1);
  const before=balance(alice);
