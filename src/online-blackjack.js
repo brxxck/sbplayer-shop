@@ -265,7 +265,9 @@ export function blackjackBet(userId,fields,now=Date.now()){
 
 export function blackjackAction(userId,fields,now=Date.now()){
  const user=validUser(userId),at=timeOf(now);
- const action=String(fields?.action||'');
+ // Keep legacy action= requests valid for clients with an already-open tab,
+ // but use move= for new forms: name="action" shadows form.action in browsers.
+ const action=String(fields?.move??fields?.action??'');
  if(!['hit','stand','double','split'].includes(action))bad('Unknown Blackjack action.',400);
  const roundId=whole(fields?.round_id,1,Number.MAX_SAFE_INTEGER,'round'),key=uuid(fields?.request_id);
  const expected=whole(fields?.seq,0,1000000,'table version');
