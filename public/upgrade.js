@@ -90,7 +90,7 @@
  // Handle failed ordinary forms in place so text and file choices survive validation/network errors.
  document.addEventListener('submit',async event=>{
   const form=event.target;
-  if(!(form instanceof HTMLFormElement)||form.closest('.arcade-root')||form.method.toLowerCase()!=='post'||event.defaultPrevented||form.matches('[data-dm-send],#staff-chat-form,[data-post-like],[data-post-repost],[data-post-bookmark]')||form.action.includes('/auth/'))return;
+  if(!(form instanceof HTMLFormElement)||(form.closest('.arcade-root')||form.matches('[data-profile-challenge-form]'))||form.method.toLowerCase()!=='post'||event.defaultPrevented||form.matches('[data-dm-send],#staff-chat-form,[data-post-like],[data-post-repost],[data-post-bookmark]')||form.action.includes('/auth/'))return;
   if(event.submitter?.name==='action'&&/reveal/.test(form.action))return;
   // OAuth and one-time reveal actions keep their navigation semantics.
   if(/microsoft\/(?:start|reveal)|session\/(?:pair|download)/.test(form.action))return;
