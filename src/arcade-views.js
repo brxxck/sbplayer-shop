@@ -181,7 +181,7 @@ export function arcadeHistoryPage(ctx,summary,rounds,transfers){
 const leaderboardName=person=>person.nickname||person.display_name||person.username||'Member';
 const leaderboardMember=(person,selfId)=>`<div class="arcade-leaderboard-row ${person.position<=3?'arcade-leaderboard-top-'+person.position:''} ${person.user_id===selfId?'arcade-leaderboard-me':''}">
  <span class="arcade-leaderboard-rank" aria-label="Rank ${person.position}">${person.position===1?'🥇':person.position===2?'🥈':person.position===3?'🥉':'#'+number(person.position)}</span>
- ${avatar({...person,id:person.user_id},'sm',true)}
+ <span class="arcade-leaderboard-avatar-wrap">${person.position===1?'<span class="arcade-leaderboard-crown" role="img" aria-label="First place crown">👑</span>':''}${avatar({...person,id:person.user_id},'sm',true)}</span>
  <div class="arcade-leaderboard-person">
   ${person.profile_public?`<a href="/u/${esc(person.user_id)}">${esc(leaderboardName(person))}</a>`:`<strong>${esc(leaderboardName(person))}</strong>`}
   <small>${person.user_id===selfId?'Your account':'Discord member'}</small>
