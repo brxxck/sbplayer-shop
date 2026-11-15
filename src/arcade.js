@@ -53,7 +53,7 @@ db.exec("CREATE TABLE IF NOT EXISTS arcade_rounds ("
 function balance(userId){
  return one('SELECT balance FROM level_point_wallets WHERE guild_id=? AND user_id=?',config.guildId,userId)?.balance||0;
 }
-function walletChange(userId,delta,reason,eventKey){
+export function walletChange(userId,delta,reason,eventKey){
  if(!Number.isSafeInteger(delta)||delta===0)fail(400,'Invalid point transfer.');
  // Existing level claims and arcade activity write to the exact same durable wallet.
  run('INSERT OR IGNORE INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,0,0)',config.guildId,userId);
