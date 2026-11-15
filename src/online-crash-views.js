@@ -90,6 +90,7 @@ export function globalCrashPage(ctx,summary,state){
   '<div><span>STILL FLYING</span><strong data-gcr-stat="active">'+n(state.activePlayers)+'</strong></div>'+
   '<div><span>CASHED OUT</span><strong data-gcr-stat="collected">'+n(state.collectedPlayers)+'</strong></div></section>'+
   '<div class="gcr-fairness"><span>PRE-ROUND COMMITMENT</span><code data-gcr-commitment>'+esc(state.commitment||'—')+'</code>'+
+  '<span data-gcr-seed-label hidden>REVEALED SERVER SEED</span><code data-gcr-seed hidden></code>'+
   '<p data-gcr-fairness-note>Server-generated outcome; the hidden seed is revealed after the round finishes.</p></div>'+
   '<section class="panel padded gcr-history-panel"><div class="arcade-section-title"><h2>Recent crashes</h2>'+
   '<span>Latest results across the website</span></div>'+history(state)+'</section>'+
