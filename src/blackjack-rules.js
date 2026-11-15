@@ -43,7 +43,7 @@ export function blackjackValue(cards){
 export const blackjackNatural=hand=>!hand.split&&hand.cards.length===2&&blackjackValue(hand.cards).total===21;
 export const blackjackCanSplit=cards=>cards.length===2&&cards[0].rank===cards[1].rank;
 export function blackjackAllowed(hand,player,balance){
- if(!hand||hand.done)return [];
+ if(!hand||hand.done||blackjackValue(hand.cards).total>=21)return [];
  const available=['hit','stand'];
  if(hand.cards.length===2&&balance>=hand.wager)available.push('double');
  if(player.hands.length===1&&blackjackCanSplit(hand.cards)&&balance>=hand.wager)available.push('split');
