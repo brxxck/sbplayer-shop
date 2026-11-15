@@ -129,3 +129,11 @@ test('mobile patch stays entirely in responsive media queries',()=>{
  const before=section.slice(0,pos).replace(/\*\/[\s\S]*?\/\*/g,'');
  assert.doesNotMatch(before,/(^|\})\s*\.[\w-]+\s*\{/);
 });
+
+
+test('desktop arcade does not show duplicate mobile game menu',()=>{
+ const arcadeCss=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ assert.match(arcadeCss,/\.arcade-game-menu\{display:none\}/);
+ assert.match(css,/\.arcade-game-menu \{ display:block;/);
+ assert.match(views,/global-crash-disabled-v1-mobile-first-r1/);
+});
