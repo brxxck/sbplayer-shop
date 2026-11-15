@@ -30,7 +30,6 @@ const chrome=(ctx,page,summary,content)=>{
   <a href="/arcade">All Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/history">History</a>
  </nav>
  ${content}
- <p class="arcade-disclaimer">Virtual entertainment points only. House games favour the house. Points cannot be purchased, withdrawn, or exchanged for items or prizes of monetary value. Results and wallet changes are decided by the server.</p>
 </div>`;
  return ctx.arcadeFragment ? markup : shell(ctx,'Arcade',markup);
 };
