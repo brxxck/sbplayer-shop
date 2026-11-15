@@ -75,7 +75,7 @@ function controls(ctx,state){
   '<form method="post" data-blackjack-form data-bj-action action="/arcade/online/blackjack/action">'+
    token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
    '<input type="hidden" name="round_id" value="'+esc(roundId)+'">'+
-   '<input type="hidden" name="seq" value="'+n(state.seq)+'">'+
+   '<input type="hidden" name="seq" value="'+String(state.seq)+'">'+
    '<input type="hidden" name="action" value="'+action+'">'+
    '<button type="submit" class="btn '+(action==='stand'?'btn-outline':'btn-primary')+'">'+
    ({hit:'Hit',stand:'Stand',double:'Double Down',split:'Split'}[action])+'</button></form>'
