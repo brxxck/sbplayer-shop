@@ -142,7 +142,8 @@
   if(!form.reportValidity())return;
   rememberWager();
   busy=true;
-  for(const button of controls.querySelectorAll('button'))button.disabled=true;
+  const submittedButtons=[...controls.querySelectorAll('button')];
+  for(const button of submittedButtons)button.disabled=true;
   try{
    const fields=new URLSearchParams(new FormData(form));
    if(!fields.has('_csrf'))fields.set('_csrf',csrf);
@@ -162,7 +163,8 @@
    await refresh();
   }finally{
    busy=false;
-   for(const button of controls.querySelectorAll('button'))button.disabled=false;
+   // Do not re-enable controls that the newly rendered server state disabled.
+   for(const button of submittedButtons)if(button.isConnected)button.disabled=false;
   }
  }
  document.addEventListener('submit',event=>{
