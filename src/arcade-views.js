@@ -43,15 +43,18 @@ export const arcadeMobileMenu=(ctx,page)=>{
 };
 export const chrome=(ctx,page,summary,content)=>{
  const mobileGameMenu=arcadeMobileMenu(ctx,page);
+ const solo=ctx.pathname==='/arcade/blackjack';
  const markup=`
-<div class="arcade-root">
+<div class="arcade-root${solo?' arcade-solo':''}">
  <div class="arcade-header">
   <div><div class="arcade-eyebrow">SB'S & CAM'S STORE · LEVEL POINTS</div><h1>${esc(page)}</h1>
    <p>Play with points earned from Discord levels. No real money.</p></div>
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
+ ${solo?'<details class="sbj-utilities" data-sbj-mobile-disclosure open><summary>⚙ Game options</summary><div class="sbj-utilities-panel">':''}
  ${mobileGameMenu}
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
+ ${solo?'<a class="sbj-online-link" href="/arcade/online/blackjack">♠ Multiplayer Blackjack</a></div></details>':''}
  <nav class="arcade-tabs" aria-label="Arcade games">
   <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
