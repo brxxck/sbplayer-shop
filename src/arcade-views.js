@@ -9,13 +9,13 @@ const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',activ
 const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
-const coinArt=(selected='heads')=>\`<div class="arcade-coin-disc" data-coin-disc data-landed="\${selected}">
+const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
   <span class="arcade-coin-face arcade-coin-sb">SB</span>
   <span class="arcade-coin-face arcade-coin-cam">CAM</span>
- </div>\`;
-const faceChoices=\`<fieldset class="arcade-face-choice arcade-branded-choices"><legend>Your choice</legend>
+ </div>`;
+const faceChoices=`<fieldset class="arcade-face-choice arcade-branded-choices"><legend>Your choice</legend>
  <label class="arcade-face-sb"><input type="radio" name="face" value="heads" checked><span class="arcade-choice-coin">SB</span><strong>SB</strong><small>Heads</small></label>
- <label class="arcade-face-cam"><input type="radio" name="face" value="tails"><span class="arcade-choice-coin">CAM</span><strong>CAM</strong><small>Tails</small></label></fieldset>\`;
+ <label class="arcade-face-cam"><input type="radio" name="face" value="tails"><span class="arcade-choice-coin">CAM</span><strong>CAM</strong><small>Tails</small></label></fieldset>`;
 const wagerField=(value=50)=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" value="${value}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
 const chrome=(ctx,page,summary,content)=>{
