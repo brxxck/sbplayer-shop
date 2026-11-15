@@ -200,7 +200,7 @@ export function arcadeLeaderboardPage(ctx,summary,{leaders=[],self=null,total=0}
  ${leaders.length?`<div class="arcade-leaderboard-list" aria-label="Current points rankings">
   ${leaders.map(person=>leaderboardMember(person,ctx.user.id)).join('')}
  </div>`:'<p class="arcade-leaderboard-empty">No members have points yet. Claim points from your Discord levels to appear here.</p>'}
- ${self&&self.position>50?`<div class="arcade-leaderboard-own"><h3>Your position</h3>${leaderboardMember(self,ctx.user.id)}</div>`:''}
+ ${self&&!leaders.some(person=>person.user_id===self.user_id)?`<div class="arcade-leaderboard-own"><h3>Your position</h3>${leaderboardMember(self,ctx.user.id)}</div>`:''}
  <p class="muted tiny">Only point balances are shown. Your private profile details and game history are not included.</p>
  </section>`);
 }
