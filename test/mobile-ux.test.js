@@ -114,6 +114,7 @@ test('mobile game views are compact without removing accessible wager and action
  assert.match(css,/\.sbj-action-buttons button/);
  assert.match(css,/\.bj-actions button/);
  assert.match(css,/\.roulette-number-grid \{ min-width:0/);
+ assert.match(css,/\.roulette-number-row \{ display:grid; grid-template-columns:repeat\(3/);
  assert.match(css,/\.arcade-tabs \{ display:none!important;/);
  assert.match(css,/\.arcade-game-menu > nav a/);
  assert.match(solo,/data-sbj-controls/);
