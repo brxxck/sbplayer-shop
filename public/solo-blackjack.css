@@ -1,0 +1,112 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Solo Blackjack: detailed green felt table, playable cards, sounds and mobile layouts. */
+.sbj-root{display:grid;gap:19px;max-width:1380px;margin:0 auto;min-width:0}
+.sbj-intro{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;
+ background:linear-gradient(120deg,#142f40,#0c2b29 65%,#102534);border:1px solid #426b69;
+ border-radius:16px;padding:21px 24px;box-shadow:0 8px 22px #0003}
+.sbj-intro p{margin:0 0 6px;color:#b3d3bd;font-size:11px;font-weight:900;letter-spacing:1.2px}
+.sbj-intro h2{margin:0 0 7px;font-size:clamp(21px,3vw,29px);font-weight:900;color:#f0ecda}
+.sbj-intro span{font-size:13px;color:#b5d2c8;line-height:1.6;display:block;max-width:670px}
+.sbj-intro .btn{white-space:nowrap}
+.sbj-connection{display:flex;align-items:center;color:#79efbc;font-weight:800;font-size:12px;min-height:19px}
+.sbj-connection-error{color:#ffadba}
+.sbj-felt{position:relative;isolation:isolate;overflow:hidden;min-height:560px;
+ border:12px solid #5b3e2c;border-bottom:20px solid #6d4d35;border-radius:240px 240px 40px 40px/160px 160px 35px 35px;
+ background:radial-gradient(ellipse at 50% 32%,#216c52 0%,#17533e 40%,#103d32 75%,#0a2725 100%);
+ box-shadow:inset 0 0 0 5px #c09b58,inset 0 20px 90px #051d1766,0 15px 35px #0007;
+ display:grid;grid-template-rows:auto minmax(85px,1fr) auto;gap:20px;padding:32px 28px 27px}
+.sbj-felt:before{content:"";inset:5px;position:absolute;border:2px solid #edd69850;border-radius:225px 225px 32px 32px/145px 145px 32px 32px;pointer-events:none}
+.sbj-table-shimmer{position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:repeating-linear-gradient(45deg,#ffffff02 0 2px,transparent 2px 5px),
+ radial-gradient(circle at 50% 120%,#237e5a88,transparent 65%)}
+.sbj-dealer{display:grid;justify-items:center;gap:12px;z-index:1;align-self:start}
+.sbj-dealer-tag{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;
+ color:#eaf5e1;font-weight:800;font-size:12px}
+.sbj-dealer-tag span{padding:7px 12px;border:1px solid #e1c78595;border-radius:10px;background:#123a30;color:#fbdf93;font-weight:900;letter-spacing:1.1px}
+.sbj-dealer-tag b{color:#c2dfc8;font-size:11px;letter-spacing:.5px}
+.sbj-dealer-cards{display:flex;align-items:center;justify-content:center;padding:8px 18px;min-height:116px}
+.sbj-dealer-cards .bj-card+.bj-card{margin-left:-11px}
+.sbj-table-logo{display:grid;gap:7px;justify-items:center;align-self:center;text-align:center;
+ transform:translateY(4px);opacity:.75}
+.sbj-table-logo strong{font-size:clamp(23px,5vw,49px);font-weight:950;letter-spacing:3px;color:#e6dea6;text-shadow:0 4px 18px #000b}
+.sbj-table-logo small{font-size:10px;letter-spacing:1.1px;color:#c5dfc7;font-weight:900}
+.sbj-table-hands{display:flex;gap:12px;justify-content:center;align-items:stretch;z-index:1;flex-wrap:wrap;min-height:172px}
+.sbj-hand{flex:0 1 330px;min-width:220px;display:grid;gap:10px;justify-items:center;
+ background:linear-gradient(145deg,#0b302aee,#092b27ee);border:1px solid #cad1a375;
+ border-radius:17px;padding:14px;box-shadow:0 8px 18px #0005}
+.sbj-hand-active{border:2px solid #f4d782;background:linear-gradient(145deg,#154738ed,#0e302ce8);box-shadow:0 0 0 2px #e4be5c55,0 0 22px #f5d27845}
+.sbj-hand-win{background:linear-gradient(145deg,#164b40ed,#0c3331ea);border-color:#6be8ac}
+.sbj-hand-loss{background:linear-gradient(145deg,#3d3032ec,#192c2ae8);border-color:#ac7273}
+.sbj-hand-title{width:100%;display:flex;align-items:center;justify-content:space-between;gap:9px;
+ font-size:12px;font-weight:800;color:#f6df98}
+.sbj-hand-title span{font-size:11px;color:#bad3c6;font-weight:750}
+.sbj-player-cards{display:flex;align-items:center;justify-content:center;min-height:112px;padding:2px 12px;max-width:100%}
+.sbj-player-cards .bj-card+.bj-card{margin-left:-14px}
+.sbj-player-cards .bj-card{width:67px;height:96px;flex-basis:67px}
+.sbj-player-cards .bj-card-corner{font-size:12px}
+.sbj-player-cards .bj-card-symbol{font-size:35px}
+.sbj-hand-bottom{display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px;font-weight:900;color:#e0f6dd}
+.sbj-hand-bottom>strong{font-size:21px;color:#f9dc8a}
+.sbj-hand-bottom>span{letter-spacing:.7px}
+.sbj-hand-bottom small{color:#a2f0c1;font-size:10px}
+.sbj-start-placeholder{display:grid;place-items:center;align-content:center;gap:8px;max-width:360px;
+ text-align:center;color:#e2eedf;border:1px dashed #d9dfac71;border-radius:17px;padding:20px 30px;
+ background:#092a2680}
+.sbj-placeholder-chip{width:44px;height:44px;display:grid;place-items:center;color:#f5e3b8;
+ border-radius:50%;border:4px dashed #f3e2ad;background:radial-gradient(circle,#ce9e49,#8c5d28);font-size:23px;
+ box-shadow:0 5px 14px #0009;animation:sbj-chip-drop .7s cubic-bezier(.24,1.3,.36,1)}
+.sbj-start-placeholder strong{font-size:14px;letter-spacing:.8px}
+.sbj-start-placeholder p{font-size:12px;color:#b9d8ca;margin:0;line-height:1.5}
+.sbj-empty-cards{display:flex;gap:0}
+.sbj-empty-cards .bj-card+.bj-card{margin-left:-14px}
+.sbj-controls{border:1px solid #375979;border-radius:18px;background:linear-gradient(165deg,#152b42,#0b1a2d);padding:20px}
+.sbj-controls-inner{display:grid;gap:16px}
+.sbj-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sbj-stats>div{display:grid;gap:6px;padding:13px 15px;background:#0b2136;
+ border:1px solid #2e526d;border-radius:12px}
+.sbj-stats small{font-size:10px;font-weight:850;letter-spacing:.6px;color:#9cbdd7}
+.sbj-stats strong{font-size:clamp(20px,2.5vw,26px);font-weight:950;font-variant-numeric:tabular-nums;color:#f3d385}
+.sbj-message{margin:0;text-align:center;color:#cbe3f2;font-size:13px;line-height:1.55}
+.sbj-wager-form{display:grid;grid-template-columns:minmax(140px,1fr) auto;gap:11px;align-items:end}
+.sbj-wager-form label{display:grid;gap:7px;font-size:11px;font-weight:850;letter-spacing:.6px;color:#a6c2d9}
+.sbj-wager-form input{width:100%;min-height:46px;background:#07182c;border:1px solid #46708b;border-radius:9px;
+ padding:10px 13px;font-size:17px;font-weight:900;color:#f5d88c}
+.sbj-wager-form .sbj-chip-values{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.sbj-chip-values button{min-height:40px;min-width:44px;border:1px solid #46708d;border-radius:9px;
+ background:#173a59;color:#d4e9fb;padding:8px 10px;font-size:12px;font-weight:900;cursor:pointer}
+.sbj-chip-values button:hover{background:#246486;filter:brightness(1.12)}
+.sbj-deal{grid-column:1/-1;min-height:52px;font-size:17px;font-weight:900;
+ background:linear-gradient(120deg,#e5b654,#fae19d)!important;border-color:#f4d280!important;color:#1d2d37!important;
+ box-shadow:0 0 17px #f0be643e}
+.sbj-action-buttons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.sbj-action-buttons form{margin:0;min-width:0}
+.sbj-action-buttons button{width:100%;min-height:52px;font-weight:900;font-size:14px;white-space:normal}
+.sbj-action-buttons form:nth-child(3) button,.sbj-action-buttons form:nth-child(4) button{background:#6b502e;border-color:#ae814c;color:#fff4d7}
+.sbj-action-buttons button:disabled{opacity:.48;cursor:not-allowed}
+.sbj-result{display:flex;align-items:center;justify-content:space-between;gap:17px;flex-wrap:wrap;
+ border:1px solid #5bb797;background:#103c38;border-radius:13px;padding:17px}
+.sbj-result-lost{border-color:#955763;background:#382635}
+.sbj-result-label{display:grid;gap:6px}
+.sbj-result-label>span{font-size:11px;letter-spacing:.8px;font-weight:900;color:#9cdec6}
+.sbj-result-label>strong{font-size:30px;color:#7ff0bb;font-weight:950}
+.sbj-result-lost .sbj-result-label>strong{color:#ff9aa8}
+.sbj-receipt{display:grid;gap:7px;font-size:12px;color:#bed4df}
+.sbj-receipt b{margin-left:5px;color:#f2d391;font-weight:900}
+.sbj-result p{flex:0 0 100%;margin:0;color:#bcd8d4;font-size:12px;line-height:1.5}
+.sbj-safe-note{font-size:11px;color:#92b5d0;margin:0;line-height:1.6;text-align:center}
+.sbj-rules p{color:#abc3d5;line-height:1.65}
+.sbj-card-deal{animation:sbj-deal .58s cubic-bezier(.2,1.15,.3,1) both}
+.sbj-card-flip{animation:sbj-flip .7s ease both}
+@keyframes sbj-deal{0%{opacity:0;transform:translate3d(-100px,-85px,0) rotate(-16deg) scale(.66)}
+ 72%{opacity:1;transform:translate3d(5px,1px,0) rotate(2deg) scale(1.08)}
+ 100%{opacity:1;transform:translate3d(0,0,0) rotate(0) scale(1)}}
+@keyframes sbj-flip{0%{opacity:.4;transform:rotateY(85deg)}70%{transform:rotateY(-10deg)}100%{transform:rotateY(0)}}
+@keyframes sbj-chip-drop{0%{transform:translateY(-50px) scale(.65);opacity:0}
+ 70%{transform:translateY(4px) scale(1.1);opacity:1}100%{transform:none;opacity:1}}
+@media(max-width:1010px){.sbj-felt{padding:28px 17px 24px;border-width:9px;border-bottom-width:17px}.sbj-wager-form{grid-template-columns:1fr}.sbj-chip-values{grid-row:2}.sbj-deal{grid-row:3}}
+@media(max-width:740px){.sbj-felt{border-radius:125px 125px 34px 34px/85px 85px 33px 33px;min-height:510px}.sbj-hand{flex-basis:250px;min-width:185px}.sbj-table-logo strong{font-size:27px}.sbj-action-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}.sbj-stats>div{padding:11px}}
+@media(max-width:540px){.sbj-intro{padding:15px}.sbj-intro h2{font-size:21px}.sbj-intro .btn{width:100%;text-align:center}.sbj-felt{border:6px solid #69472a;border-bottom-width:12px;min-height:460px;padding:22px 9px 15px;gap:10px}.sbj-felt:before{border-radius:130px 130px 30px 30px/85px 85px 25px 25px}.sbj-dealer{gap:5px}.sbj-dealer-cards{min-height:98px}.sbj-dealer-cards .bj-card{width:60px;height:85px;flex-basis:60px}.sbj-dealer-cards .bj-card-symbol{font-size:30px}.sbj-table-logo strong{font-size:22px;letter-spacing:1.2px}.sbj-table-logo small{font-size:7px;line-height:1.4}.sbj-table-hands{min-height:130px;gap:6px}.sbj-hand{flex:1 1 140px;min-width:137px;padding:7px 5px;gap:7px}.sbj-player-cards{min-height:78px;padding:2px}.sbj-player-cards .bj-card{width:40px;height:61px;flex-basis:40px;border-width:1px}.sbj-player-cards .bj-card+.bj-card{margin-left:-8px}.sbj-player-cards .bj-card-symbol{font-size:20px}.sbj-player-cards .bj-card-corner{font-size:8px;left:3px;top:3px}.sbj-player-cards .bj-card-corner small{font-size:7px}.sbj-player-cards .bj-card-rotated{left:auto;top:auto;bottom:3px;right:3px}.sbj-hand-title{font-size:9px;flex-wrap:wrap}.sbj-hand-title span{font-size:9px}.sbj-hand-bottom strong{font-size:16px}.sbj-hand-bottom{font-size:10px}.sbj-controls{padding:12px}.sbj-stats{gap:5px}.sbj-stats>div{padding:9px 6px}.sbj-stats small{font-size:8px}.sbj-stats strong{font-size:17px}.sbj-chip-values button{flex:1 1 15%}.sbj-result-label strong{font-size:25px}.sbj-receipt{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.sbj-card-deal,.sbj-card-flip,.sbj-placeholder-chip{animation:none!important}}
+:root[data-arcade-motion="instant"] .sbj-card-deal,:root[data-arcade-motion="instant"] .sbj-card-flip,
+:root[data-arcade-motion="instant"] .sbj-placeholder-chip{animation:none}
+:root[data-arcade-motion="reduced"] .sbj-card-deal,:root[data-arcade-motion="reduced"] .sbj-card-flip{animation-duration:.12s}

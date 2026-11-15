@@ -1,12 +1,13 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {randomUUID} from 'node:crypto';
-import {shell,esc,token,titlebar} from './views.js';
+import {shell,esc,token,titlebar,avatar} from './views.js';
+import {isCinematicWin} from './arcade-cinematic-rules.js';
 
 const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
@@ -16,9 +17,17 @@ const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc 
 const faceChoices=`<fieldset class="arcade-face-choice arcade-branded-choices"><legend>Your choice</legend>
  <label class="arcade-face-sb"><input type="radio" name="face" value="heads" checked><span class="arcade-choice-coin">SB</span><strong>SB</strong><small>Heads</small></label>
  <label class="arcade-face-cam"><input type="radio" name="face" value="tails"><span class="arcade-choice-coin">CAM</span><strong>CAM</strong><small>Tails</small></label></fieldset>`;
-const wagerField=(value=50)=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" value="${value}" required></label>`;
+// The last accepted wager comes from the player's saved game rounds. This
+// restores bets across browsers/devices, with the browser optionally retaining
+// a newer unsubmitted edit until the next round is placed.
+const lastWager=(rounds,game)=>{
+ const last=rounds.find(r=>r.game===game);
+ return {game,value:last?.wager??50,at:last?.created_at||0};
+};
+export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="1000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(1000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
-const chrome=(ctx,page,summary,content)=>{
+const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
+export const chrome=(ctx,page,summary,content)=>{
  const markup=`
 <div class="arcade-root">
  <div class="arcade-header">
@@ -26,15 +35,16 @@ const chrome=(ctx,page,summary,content)=>{
    <p>Play with points earned from Discord levels. No real money.</p></div>
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
+ <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/history">History</a>
+  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
  ${content}
 </div>`;
  return ctx.arcadeFragment ? markup : shell(ctx,'Arcade',markup);
 };
 const gameTile=(url,icon,name,description,className)=>`<a class="arcade-game-card ${className}" href="${url}"><span class="arcade-game-art">${icon}</span><span class="arcade-game-info"><strong>${name}</strong><small>${description}</small></span><span class="arcade-game-arrow">Play →</span></a>`;
-const resultBox=round=>{
+export const resultBox=round=>{
  if(!round)return '';
  const {status,wager,payout,game,details}=round;
  const label=states[status]||status;
@@ -46,10 +56,12 @@ const resultBox=round=>{
   if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
  }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
- return `<section class="arcade-result panel padded" role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
+ if(game==='roulette_online')extra='Global round #'+number(details.globalRound)+' · '+number(details.winningNumber)+' '+esc(details.color)+' · '+number(details.bets.length)+' bet selection(s).';
+ if(game==='plinko')extra=details.count+' ball'+(details.count===1?'':'s')+' · '+details.rows+' rows · '+esc(details.risk)+' risk · all results saved.';
+ return `<section class="arcade-result panel padded"${cinemaAttrs(round)} role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
  <div class="arcade-result-value ${payout>=wager?'positive':'negative'}"><strong>${payout>=wager?'+':''}${number(payout-wager)} pts</strong><small>${number(payout)} returned from ${number(wager)} wagered</small></div></section>`;
 };
-const historyList=rounds=>`<section class="panel padded arcade-history-panel"><div class="arcade-section-title"><h2>Recent games</h2><a href="/arcade/history">View history →</a></div>
+export const historyList=rounds=>`<section class="panel padded arcade-history-panel"><div class="arcade-section-title"><h2>Recent games</h2><a href="/arcade/history">View history →</a></div>
  <div class="table-wrap"><table><thead><tr><th>Game</th><th>Wager</th><th>Returned</th><th>Result</th><th>Played</th></tr></thead><tbody>${rounds.map(r=>`<tr><td>${esc(gameNames[r.game]||r.game)}</td><td>${number(r.wager)}</td><td>${number(r.payout)}</td><td>${esc(states[r.status]||r.status)}</td><td>${date(r.created_at)}</td></tr>`).join('')||'<tr><td colspan="5">No games played yet.</td></tr>'}</tbody></table></div></section>`;
 
 export function arcadeHome(ctx,summary,rounds){
@@ -58,17 +70,20 @@ export function arcadeHome(ctx,summary,rounds){
  <div><small>GAMES COMPLETED</small><strong>${number(summary.played)}</strong></div>
  <div><small>GAMES WON</small><strong>${number(summary.wins)}</strong></div>
  <div><small>BIGGEST PROFIT</small><strong>${number(summary.biggest_win)}</strong></div></section>
- <div class="arcade-section-title"><h2>Choose a game</h2><span>Four games · one wallet</span></div>
+ <div class="arcade-section-title"><h2>Choose a game</h2><span>Six solo games · one wallet</span></div>
+ <p><a class="btn btn-outline" href="/arcade/online">♠️ Online Games — four-player Blackjack and shared Crash lobbies →</a></p>
  <section class="arcade-grid">
  ${gameTile('/arcade/coinflip','🪙','Coin Flip','Play the house or challenge another member','arcade-coins')}
  ${gameTile('/arcade/slots','🎰','Slots','Spin the reels to find matching symbols','arcade-slots')}
  ${gameTile('/arcade/mines','💎','Mines','Uncover gems and decide when to collect','arcade-mines')}
  ${gameTile('/arcade/crash','🚀','Crash','Watch the multiplier rise and collect in time','arcade-crash')}
+ ${gameTile('/arcade/blackjack','♠️','Solo Blackjack','Hit, stand, double or split against the house dealer','arcade-blackjack-solo')}
+ ${gameTile('/arcade/plinko','🔴','Plinko','Bounce through pegs and land on multiplier slots','arcade-plinko')}
  </section>
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
 }
-export function coinflipPage(ctx,summary,{round,rounds}){
+export function coinflipPage(ctx,summary,{round,rounds,houseWager=null}){
  const newest=round||rounds.find(r=>r.game==='coinflip');
  const landed=newest?.game==='coinflip'?newest.details?.landed||'':'';
  return chrome(ctx,'Coin Flip',summary,`
@@ -77,7 +92,7 @@ export function coinflipPage(ctx,summary,{round,rounds}){
   <div class="arcade-coin-stage" data-coin-stage data-coin-result="${esc(landed)}">${coinArt(landed||'heads')}</div>
   <p>Choose SB (Heads) or CAM (Tails). Winning flips return twice the wager. The house has an advantage.</p>
   <form action="/arcade/coinflip/house" method="post" class="arcade-form">${token(ctx)}${request()}
-   ${wagerField()}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
+   ${wagerField(houseWager?{game:'coinflip',value:houseWager.wager,at:houseWager.created_at}:lastWager(rounds,'coinflip'))}${faceChoices}<button class="btn btn-primary" type="submit">Flip vs House</button>
   </form>
   <p class="muted tiny arcade-profile-invite">Want to challenge another member? Visit their <a href="/members">profile</a> and select <b>Challenge to Coin Flip</b>.</p>
  </section>
@@ -90,7 +105,7 @@ export function slotsPage(ctx,summary,{round,rounds}){
  <div class="arcade-section-title"><h2>🎰 SB Slots</h2><span>Three reels</span></div>
  <div class="arcade-slot-reels" data-slot-reels>${reels.map((s,i)=>`<div class="arcade-reel" data-reel-index="${i}" data-symbol="${esc(s)}" aria-label="${esc(s)}"><div class="arcade-reel-window"><div class="arcade-reel-face">${symbolIcons[s]||esc(s)}</div></div></div>`).join('')}</div>
  <p>Match symbols across three reels to earn points. Results are settled instantly by the website.</p>
- <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField()}
+ <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
  <button type="submit" class="btn btn-primary">Spin Reels</button></form></section>
  ${resultBox(newest)}${historyList(rounds)}`);
 }
@@ -120,11 +135,19 @@ export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  ${terminal?'<a class="btn btn-outline" href="/arcade/mines">Start another game</a>':''}
  `:'<div class="arcade-empty-grid"><span>💎</span><p>Start a game to reveal the grid.</p></div>'}
  ${!active?`<form action="/arcade/mines/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
- ${wagerField()}<label class="arc-label">Hidden mines<select name="bombs"><option value="1">1 mine</option><option value="2">2 mines</option><option value="3" selected>3 mines</option><option value="4">4 mines</option><option value="5">5 mines</option></select></label>
+ ${wagerField(lastWager(rounds,'mines'))}<label class="arc-label">Hidden mines<select name="bombs"><option value="1">1 mine</option><option value="2">2 mines</option><option value="3" selected>3 mines</option><option value="4">4 mines</option><option value="5">5 mines</option></select></label>
  <button type="submit" class="btn btn-primary">Start Mines</button></form>`:''}
  <p class="muted tiny">Only one Mines game can be active at a time. Your board is saved if you leave the page.</p></section>
  ${current&&terminal?resultBox(current):''}${historyList(rounds)}`);
 }
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Crash records an explicit auto-collect preference in each round: 0 means off.
+const lastAutoCollect=rounds=>{
+ const latest=rounds.find(r=>r.game==='crash');
+ const cents=Number(latest?.details?.autoAt||0);
+ const value=Number.isInteger(cents)&&cents>=110&&cents<=2000?(cents/100).toFixed(2):'';
+ return {value,at:latest?.created_at||0};
+};
 export function crashPage(ctx,summary,status,rounds){
  const round=status.round;
  const active=round?.status==='active';
@@ -151,7 +174,7 @@ export function crashPage(ctx,summary,status,rounds){
  </div>
  ${active?`<div class="arcade-round-panel"><p>Your wager: <strong>${number(round.wager)} points</strong>${round.autoAt?' · Auto-collect: '+(round.autoAt/100).toFixed(2)+'×':''}</p>
   <form method="post" action="/arcade/crash/${round.id}/collect">${token(ctx)}<button type="submit" class="btn btn-primary" data-crash-collect>🚀 Collect Points</button></form></div>`:''}
- ${terminal&&!replay?`<div class="arcade-crash-result ${cashout?'arcade-crash-win':'arcade-crash-loss'}" role="status">
+ ${terminal&&!replay?`<div class="arcade-crash-result ${cashout?'arcade-crash-win':'arcade-crash-loss'}"${cinemaAttrs(round)} role="status">
  <div class="arcade-crash-result-heading"><span aria-hidden="true">${cashout?'✅':'💥'}</span><div><h2>${cashout?'Successfully Cashed Out!':'Rocket Crashed!'}</h2><p>${cashout?'You collected before the crash.':'You did not collect before the crash.'}</p></div></div>
  <div class="arcade-crash-result-mult">${finishedAt.toFixed(2)}×</div>
  <div class="arcade-crash-receipt"><div><span>Wager</span><strong>${number(round.wager)} pts</strong></div><div><span>Returned</span><strong>${number(round.payout)} pts</strong></div></div>
@@ -159,7 +182,7 @@ export function crashPage(ctx,summary,status,rounds){
  <a class="btn btn-primary arcade-play-again" href="/arcade/crash?again=1">🚀 Play Again</a>
  </div>`:''}
  ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
- ${wagerField()}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00"></label>
+ ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00" data-arcade-auto-collect data-last-round-at="${Number(lastAutoCollect(rounds).at)||0}" value="${lastAutoCollect(rounds).value}"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
  <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
  </section>${historyList(rounds)}`);
@@ -169,4 +192,31 @@ export function arcadeHistoryPage(ctx,summary,rounds,transfers){
  ${historyList(rounds)}</section><section class="panel padded"><h2>Points transactions</h2><div class="table-wrap"><table><thead><tr><th>Action</th><th>Change</th><th>Balance after</th><th>Date</th></tr></thead><tbody>
  ${transfers.map(t=>`<tr><td>${esc(t.reason.split('.').join(' '))}</td><td class="${t.delta>0?'arcade-positive':'arcade-negative'}">${t.delta>0?'+':''}${number(t.delta)}</td><td>${number(t.balance_after)}</td><td>${date(t.created_at)}</td></tr>`).join('')||'<tr><td colspan="4">No arcade point transactions yet.</td></tr>'}
  </tbody></table></div></section>`);
+}
+
+const leaderboardName=person=>person.nickname||person.display_name||person.username||'Member';
+const leaderboardMember=(person,selfId)=>`<div class="arcade-leaderboard-row ${person.position<=3?'arcade-leaderboard-top-'+person.position:''} ${person.user_id===selfId?'arcade-leaderboard-me':''}">
+ <span class="arcade-leaderboard-rank" aria-label="Rank ${person.position}">${person.position===1?'🥇':person.position===2?'🥈':person.position===3?'🥉':'#'+number(person.position)}</span>
+ <span class="arcade-leaderboard-avatar-wrap">${person.position===1?'<span class="arcade-leaderboard-crown" role="img" aria-label="First place crown">👑</span>':''}${avatar({...person,id:person.user_id},'sm',true)}</span>
+ <div class="arcade-leaderboard-person">
+  ${person.profile_public?`<a href="/u/${esc(person.user_id)}">${esc(leaderboardName(person))}</a>`:`<strong>${esc(leaderboardName(person))}</strong>`}
+  <small>${person.user_id===selfId?'Your account':'Discord member'}</small>
+ </div>
+ <strong class="arcade-leaderboard-balance">${number(person.balance)} <span>pts</span></strong>
+ </div>`;
+export function arcadeLeaderboardPage(ctx,summary,{leaders=[],self=null,total=0}={}){
+ return chrome(ctx,'Points Leaderboard',summary,`<section class="panel padded arcade-leaderboard">
+ <div class="arcade-section-title"><h2>🏆 Points Leaderboard</h2><span>Top 50 members</span></div>
+ <p class="muted">Ranked by <strong>current point balances</strong> from Discord level claims and Arcade games. Balances change whenever points are earned, wagered or collected.</p>
+ <div class="arcade-leaderboard-summary">
+  <div><small>YOUR RANK</small><strong>${self?'#'+number(self.position):'Unranked'}</strong></div>
+  <div><small>YOUR POINTS</small><strong>${number(summary.balance)}</strong></div>
+  <div><small>MEMBERS WITH POINTS</small><strong>${number(total)}</strong></div>
+ </div>
+ ${leaders.length?`<div class="arcade-leaderboard-list" aria-label="Current points rankings">
+  ${leaders.map(person=>leaderboardMember(person,ctx.user.id)).join('')}
+ </div>`:'<p class="arcade-leaderboard-empty">No members have points yet. Claim points from your Discord levels to appear here.</p>'}
+ ${self&&!leaders.some(person=>person.user_id===self.user_id)?`<div class="arcade-leaderboard-own"><h3>Your position</h3>${leaderboardMember(self,ctx.user.id)}</div>`:''}
+ <p class="muted tiny">Only point balances are shown. Your private profile details and game history are not included.</p>
+ </section>`);
 }

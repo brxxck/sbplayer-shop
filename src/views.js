@@ -14,6 +14,9 @@ const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
 export const assetVersion = '1.21.2';
+ // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+ // Cache-bust the Arcade-specific assets independently of other website work.
+ const arcadeAssetVersion = 'plinko-wallet-hotfix-v1';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -42,12 +45,20 @@ const navLink=(link,label,unused,ctx)=>{const active=ctx.pathname===link||(link=
 const publicLinkPages=Object.freeze({
  '/':["SB's & Cam's Store","Official SB's & Cam's Store community website. Connect with Discord, share posts, open tickets and discover our team."],
  '/arcade':["SB Arcade | SB's & Cam's Store","Play Coin Flip, Slots, Mines and Crash with points earned from Discord levels."],
+ '/arcade/online':["Online Games | SB's & Cam's Store","Play four-seat Blackjack or Global Crash together using Discord Level Points."],
+ '/arcade/online/crash':["Global Crash | SB's & Cam's Store","Join live website-wide Crash rounds with synchronized wagers and cash-outs."],
+ '/arcade/online/roulette':["Live Roulette | SB's & Cam's Store","Join global European Roulette rounds with 30 seconds of betting and synchronized wheel animations."],
+ '/arcade/blackjack':["Solo Blackjack | SB's & Cam's Store","Play private Blackjack against the dealer with saved wagers, cards and Level Points."],
+ '/arcade/online/blackjack':["Live Blackjack | SB's & Cam's Store","Play synchronized four-player Blackjack against one dealer using community points."],
  '/arcade/coinflip':["SB Arcade Coin Flip | SB's & Cam's Store","Play SB vs CAM Coin Flip, or challenge members from their profiles using Discord level points."],
  '/arcade/slots':["SB Arcade Slots | SB's & Cam's Store","Spin the reels in SB Slots using points earned from Discord levels."],
  '/arcade/mines':["SB Arcade Mines | SB's & Cam's Store","Find gems, avoid mines and collect points in SB Arcade Mines."],
+ '/arcade/plinko':["SB Arcade Plinko | SB's & Cam's Store","Drop glowing balls through the Plinko board with Low, Medium or High risk and Discord Level Points."],
  '/arcade/crash':["SB Arcade Crash | SB's & Cam's Store","Launch the rocket and collect points before it crashes in SB Arcade."],
  '/arcade/history':["SB Arcade History | SB's & Cam's Store","View your Arcade game results and point transactions after signing in."],
+ '/arcade/leaderboard':["SB Arcade Points Leaderboard | SB's & Cam's Store","See the highest current point balances in the SB Arcade community."],
  '/points':["Discord Level Points | SB's & Cam's Store","Claim points earned from your Discord levels to play in SB Arcade."],
+ '/points/daily':["Daily Community Rewards | SB's & Cam's Store","Like posts, comment on Main Feed, and vote on suggestions to earn 150 points every day."],
  '/team':["Our Team | SB's & Cam's Store","Meet the staff and community team of SB's & Cam's Store. Sign in with Discord to browse the team."],
  '/mega-team':["MegaSMP | SB's & Cam's Store","SBsxScam team statistics and captured MegaSMP Top 10 standings."],
  '/mega-team/leaderboard':["MegaSMP Top 10 | SB's & Cam's Store","Verified InPvP team standings, level, bank and stats."],
@@ -170,7 +181,7 @@ export function shell(ctx,title,content) {
   const messageUnread=user&&role!=='appeal-only'?dmUnreadCount(user.id):0;
   return `<!doctype html>
 <!-- // BUILT BY SB // RUNING ON WEED AND CAFFEINE -->
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><link rel="stylesheet" href="/static/polish.css?v=${assetVersion}"><link rel="stylesheet" href="/static/upgrade.css?v=${assetVersion}">${ctx.pathname.startsWith("/arcade")?`<link rel="stylesheet" href="/static/arcade.css?v=${assetVersion}">`:""}<link rel="stylesheet" href="/static/mobile.css?v=${assetVersion}"><link rel="stylesheet" href="/static/arcade-challenges.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script><script src="/static/upgrade.js?v=${assetVersion}" defer></script><script src="/static/community.js?v=${assetVersion}" defer></script><script src="/static/evidence.js?v=${assetVersion}" defer></script><script src="/static/mega-team.js?v=${assetVersion}" defer></script><script src="/static/mega-top10.js?v=${assetVersion}" defer></script><script src="/static/mobile.js?v=${assetVersion}" defer></script><script src="/static/arcade-challenges.js?v=${assetVersion}" defer></script>${ctx.pathname.startsWith("/arcade")?`<script src="/static/arcade.js?v=${assetVersion}" defer></script>`:""}</head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#071325"><title>${esc(title)} · SB's & Cam's Store</title>${socialMetadata(ctx)}<link rel="icon" href="/static/sb-logo.png?v=${assetVersion}" type="image/png"><link rel="stylesheet" href="/static/style.css?v=${assetVersion}"><link rel="stylesheet" href="/static/polish.css?v=${assetVersion}"><link rel="stylesheet" href="/static/upgrade.css?v=${assetVersion}">${ctx.pathname.startsWith("/arcade")?`<link rel="stylesheet" href="/static/arcade.css?v=${arcadeAssetVersion}"><link rel="stylesheet" href="/static/arcade-cinematics.css?v=${arcadeAssetVersion}">${ctx.pathname==='/arcade/online'?`<link rel="stylesheet" href="/static/online-games.css?v=${arcadeAssetVersion}">`:''}${ctx.pathname==='/arcade/online/blackjack'?`<link rel="stylesheet" href="/static/online-blackjack.css?v=${arcadeAssetVersion}">`:''}${ctx.pathname==='/arcade/blackjack'?`<link rel="stylesheet" href="/static/online-blackjack.css?v=${arcadeAssetVersion}"><link rel="stylesheet" href="/static/solo-blackjack.css?v=${arcadeAssetVersion}">`:''}${ctx.pathname==='/arcade/online/crash'?`<link rel="stylesheet" href="/static/online-crash.css?v=${arcadeAssetVersion}">`:''}${ctx.pathname==='/arcade/online/roulette'?`<link rel="stylesheet" href="/static/online-roulette.css?v=${arcadeAssetVersion}">`:''}${ctx.pathname==='/arcade/plinko'?`<link rel="stylesheet" href="/static/plinko.css?v=${arcadeAssetVersion}">`:''}`:""}<link rel="stylesheet" href="/static/mobile.css?v=${assetVersion}"><link rel="stylesheet" href="/static/arcade-challenges.css?v=${assetVersion}"><script src="/static/app.js?v=${assetVersion}" defer></script><script src="/static/upgrade.js?v=${assetVersion}" defer></script><script src="/static/community.js?v=${['/arcade/online/crash','/arcade/online/roulette'].includes(ctx.pathname)?arcadeAssetVersion:assetVersion}" defer></script><script src="/static/evidence.js?v=${assetVersion}" defer></script><script src="/static/mega-team.js?v=${assetVersion}" defer></script><script src="/static/mega-top10.js?v=${assetVersion}" defer></script><script src="/static/mobile.js?v=${assetVersion}" defer></script><script src="/static/arcade-challenges.js?v=${arcadeAssetVersion}" defer></script>${ctx.pathname.startsWith("/arcade")?`<script src="/static/arcade.js?v=${arcadeAssetVersion}" defer></script><script src="/static/arcade-cinematics.js?v=${arcadeAssetVersion}" defer></script>${ctx.pathname==='/arcade/online'?`<script src="/static/online-games.js?v=${arcadeAssetVersion}" defer></script>`:''}${ctx.pathname==='/arcade/online/blackjack'?`<script src="/static/online-blackjack.js?v=${arcadeAssetVersion}" defer></script>`:''}${ctx.pathname==='/arcade/blackjack'?`<script src="/static/solo-blackjack.js?v=${arcadeAssetVersion}" defer></script>`:''}${ctx.pathname==='/arcade/online/crash'?`<script src="/static/online-crash.js?v=${arcadeAssetVersion}" defer></script>`:''}${ctx.pathname==='/arcade/online/roulette'?`<script src="/static/online-roulette.js?v=${arcadeAssetVersion}" defer></script>`:''}${ctx.pathname==='/arcade/plinko'?`<script src="/static/plinko.js?v=${arcadeAssetVersion}" defer></script>`:''}`:""}</head>
 <body data-page="${attr(ctx.pathname)}" data-site-csrf="${attr(ctx.csrf)}" data-site-user="${attr(user?.id||'')}" data-site-member="${user&&role!=='appeal-only'?'1':'0'}"><div class="shell"><aside class="sidebar"><div class="sidebar-scroll"><a href="/" class="brand"><img class="brand-logo" src="/static/sb-logo.png?v=${assetVersion}" alt="SB logo" width="44" height="44" style="width:44px;height:44px;min-width:44px;max-width:44px;max-height:44px;object-fit:cover"><span><b>SB's & Cam's</b><small>STORE COMMUNITY</small></span></a>
 ${renderNavigation(ctx,navLink)}
 </div><div class="side-bottom">${user?`<a class="side-profile" href="${role==='appeal-only'?'/':'/profile'}">${avatar(user,'side')}<span><b>${esc(user.display_name)}</b><small>@${esc(user.username)}</small></span></a>`:`<span class="muted tiny">Discord-connected community</span>`}<span class="status-dot"></span></div></aside>
@@ -440,7 +451,7 @@ function xboxAccountCard(ctx,link,configured){
   (link?'<details><summary>Manage Xbox connection</summary><div class="actions">'+linkButton+unlink+'</div></details>':'<div class="actions">'+linkButton+'</div>')+
   '</section>';
 }
-export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],challengeHistory=[],pendingChallenges=[],xboxLink=null,xboxConfigured=false}){
+export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],challengeHistory=[],pendingChallenges=[],pvpWager={value:50,at:0},xboxLink=null,xboxConfigured=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
 const xboxBadge=canView&&xboxLink?'<span class="verified">'+icon('badge-check',{size:16})+' Xbox: '+esc(xboxLink.gamertag)+'</span>':'';
 const xboxTools=self?xboxAccountCard(ctx,xboxLink,xboxConfigured):'';
@@ -453,7 +464,7 @@ const challengeDialog=!self?`<dialog class="profile-challenge-dialog" data-profi
  <form method="post" action="/arcade/coinflip/challenges" data-profile-challenge-form>
  ${token(ctx)}<input type="hidden" name="request_id" value="${randomUUID()}">
  <input type="hidden" name="target_id" value="${attr(person.id)}">
- <label>Points to wager<input type="number" name="wager" min="10" max="1000" step="1" value="50" required></label>
+ <label>Points to wager<input type="number" name="wager" min="10" max="1000" step="1" data-pvp-wager data-last-round-at="${Number(pvpWager.at)||0}" value="${Math.max(10,Math.min(1000,Number(pvpWager.value)||50))}" required></label>
  <fieldset class="profile-coin-choices"><legend>Choose your side</legend>
  <label><input name="face" type="radio" value="heads" checked><strong>🟡 SB</strong> Heads</label>
  <label><input name="face" type="radio" value="tails"><strong>⚪ CAM</strong> Tails</label></fieldset>

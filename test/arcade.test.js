@@ -526,3 +526,198 @@ test('V1.21: Global form handlers cannot inject Saving messages into Mines or pr
  assert.match(pvpCss,/position:fixed/);
  assert.match(pvpCss,/height:100dvh/);
 });
+
+
+test('Saved wagers independently restore the last accepted bet for all four games',async()=>{
+ const views=await import('../src/arcade-views.js');
+ const ctx={user:{id:alice},pathname:'/arcade',csrf:'test',arcadeFragment:true};
+ const summary={balance:1234,played:0,wins:0,biggest_win:0};
+ const round=(game,wager,details={})=>({
+  id:999,game,wager,payout:0,status:'lost',
+  created_at:1731000000000,updated_at:1731000000000,details
+ });
+ const cases=[
+  ['coinflip',views.coinflipPage,{round:null,rounds:[round('coinflip',117,{selected:'heads',landed:'tails'})]},117],
+  ['slots',views.slotsPage,{round:null,rounds:[round('slots',228,{reels:['Cherry','Bell','Lemon'],multiplier:0,match:'none'})]},228],
+  ['mines',views.minesPage,{round:round('mines',339,{bombCount:3,bombs:[1,2,3],revealed:[],exploded:1}),rounds:[round('mines',339,{bombCount:3,bombs:[1,2,3],revealed:[],exploded:1})]},339],
+  ['crash',views.crashPage,{round:null},441]
+ ];
+ for(const [game,page,data,wager] of cases){
+  const html=game==='crash'
+   ?page(ctx,summary,data,[round('crash',wager)])
+   :page(ctx,summary,data);
+  assert.match(html,new RegExp('name="wager" data-arcade-wager="'+game+'" data-last-round-at="1731000000000" value="'+wager+'"'));
+  assert.ok(html.indexOf('href="/arcade/history"')<html.indexOf('href="/arcade/leaderboard"'),'leaderboard tab after history');
+ }
+ const defaultWager=views.coinflipPage(ctx,summary,{round:null,rounds:[]});
+ assert.match(defaultWager,/data-arcade-wager="coinflip" data-last-round-at="0" value="50"/);
+ const mixed=views.coinflipPage(ctx,summary,{round:null,rounds:[
+  round('coinflip_pvp',999,{landed:'heads'}),round('coinflip',135,{selected:'heads',landed:'tails'})
+ ]});
+ assert.match(mixed,/data-arcade-wager="coinflip" data-last-round-at="1731000000000" value="135"/,'PvP wager cannot override house wager');
+ const olderHouse=views.coinflipPage(ctx,summary,{
+  round:null,rounds:[round('coinflip_pvp',500,{landed:'heads'})],
+  houseWager:round('coinflip',326,{selected:'heads',landed:'tails'})
+ });
+ assert.match(olderHouse,/data-arcade-wager="coinflip" data-last-round-at="1731000000000" value="326"/,
+  'house wager survives many unrelated games and private PvP matches');
+ const client=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ assert.match(client,/localStorage\.setItem/);
+ assert.match(client,/data-arcade-wager/);
+ assert.match(client,/data-last-round-at|lastRoundAt/);
+ assert.match(client,/hydrateWagers\(root\)/);
+ assert.match(client,/memberId/,'draft wagers are keyed to the logged-in account');
+});
+
+test('Points leaderboard is guild-scoped, ranked by available wallet balance, and hides private profiles',async()=>{
+ const ids=['100000000000000091','100000000000000092','100000000000000093'];
+ for(const id of ids)run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  id,'example'+id.slice(-2),'Member '+id.slice(-2),Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+   guild,ids[0],8000000);
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+   guild,ids[1],7000000);
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+   '100000000000000099',ids[2],9000000);
+ run('INSERT INTO profiles(user_id,nickname,public,avatar_path) VALUES(?,?,?,?)',
+   ids[0],'Public Champion',1,'');
+ run('INSERT INTO profiles(user_id,nickname,public,avatar_path) VALUES(?,?,?,?)',
+   ids[1],'Secret Profile Nickname',0,'/uploads/private-photo.png');
+ const result=arcade.arcadePointsLeaderboard(ids[1],1);
+ assert.equal(result.leaders.length,1);
+ assert.equal(result.leaders[0].user_id,ids[0]);
+ assert.equal(result.leaders[0].position,1);
+ assert.equal(result.leaders[0].nickname,'Public Champion');
+ assert.equal(result.self.user_id,ids[1]);
+ assert.equal(result.self.position,2,'a member outside top one still sees their rank');
+ assert.equal(result.self.nickname,'','private nickname is not revealed');
+ assert.equal(result.self.avatar_path,'','private avatar path is not revealed');
+ assert.ok(result.total>=2);
+ assert.ok(!result.leaders.some(row=>row.user_id===ids[2]),'wallet from another guild cannot appear');
+ const first=arcade.arcadePointsLeaderboard(alice);
+ assert.equal(first.leaders[0].user_id,ids[0]);
+ assert.equal(first.leaders[1].user_id,ids[1]);
+ assert.ok(first.leaders.every((row,i)=>i===0||first.leaders[i-1].balance>=row.balance));
+ const views=await import('../src/arcade-views.js');
+ const html=views.arcadeLeaderboardPage({
+  arcadeFragment:true,user:{id:ids[1]},pathname:'/arcade/leaderboard'
+ },{balance:7000000},result);
+ assert.match(html,/Points Leaderboard/);
+ assert.match(html,/8000000|8,000,000/);
+ assert.match(html,/Your position/);
+ assert.match(html,/Member 92/);
+ assert.doesNotMatch(html,/Secret Profile Nickname|private-photo/);
+});
+
+test('Points leaderboard is for signed-in members and public link previews expose no wallet data',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port;
+ try{
+  const guest=await fetch(base+'/arcade/leaderboard',{redirect:'manual'});
+  assert.equal(guest.status,200,'guest sees a public promotional preview, not real balances');
+  const guestHtml=await guest.text();
+  assert.match(guestHtml,/SB Arcade Points Leaderboard/);
+  assert.doesNotMatch(guestHtml,/8000000|8,000,000|Secret Profile Nickname|arcade-leaderboard-row/);
+  const login=await fetch(base+'/__test/login/'+alice,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const response=await fetch(base+'/arcade/leaderboard',{headers:{cookie}});
+  assert.equal(response.status,200);
+  const content=await response.text();
+  assert.match(content,/class="arcade-leaderboard-row/);
+  assert.match(content,/8,000,000/);
+  assert.match(content,/Current point balances/i);
+  assert.doesNotMatch(content,/Secret Profile Nickname|private-photo\.png/);
+  const history=response.ok?await (await fetch(base+'/arcade/history',{headers:{cookie}})).text():'';
+  assert.ok(history.indexOf('href="/arcade/history"')<history.indexOf('href="/arcade/leaderboard"'));
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+
+test('Profile PvP Coin Flip remembers its own last wager independently of the house',async()=>{
+ const uid='100000000000000094';
+ run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  uid,'profile-stakes','Profile Stakes',Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+  guild,uid,2500);
+ assert.deepEqual(arcade.lastPvpWager(uid),{value:50,at:0});
+ const id=arcade.createChallenge(uid,form(375,{face:'heads',target_id:bob}));
+ const saved=arcade.lastPvpWager(uid);
+ assert.equal(saved.value,375);
+ assert.ok(saved.at>0);
+ assert.equal(arcade.challengeForUser(uid,id).wager,375);
+ const script=readFileSync(new URL('../public/arcade-challenges.js',import.meta.url),'utf8');
+ assert.match(script,/coinflip_pvp/);
+ assert.match(script,/data-pvp-wager/);
+ assert.match(script,/localStorage\.setItem\(stakeKey/);
+ const {createServer}=await import('../src/server.js');
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>({user:{id,username:'member'},roles:[],pending:false}),
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const base='http://127.0.0.1:'+server.address().port;
+  const login=await fetch(base+'/__test/login/'+uid,{redirect:'manual'});
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  const response=await fetch(base+'/u/'+bob,{headers:{cookie}});
+  assert.equal(response.status,200);
+  const html=await response.text();
+  assert.ok(html.includes('data-pvp-wager data-last-round-at="'+saved.at+'" value="375"'));
+ }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+
+test('Crash auto-collect remembers the last submitted multiplier, including turning it off',async()=>{
+ const {crashPage}=await import('../src/arcade-views.js');
+ const ctx={user:{id:alice},pathname:'/arcade/crash',csrf:'test',arcadeFragment:true,arcadePlayAgain:true};
+ const summary={balance:1500,played:0,wins:0,biggest_win:0};
+ const baseRound=(autoAt,at=1731000000000)=>({
+  id:123,game:'crash',status:'lost',wager:100,payout:0,created_at:at,
+  updated_at:at,details:{autoAt,startedAt:at,crashAt:150}
+ });
+ const html=rounds=>crashPage(ctx,summary,{round:null},rounds);
+ assert.match(html([baseRound(275)]),/name="auto_at"[^>]*data-arcade-auto-collect[^>]*value="2\.75"/);
+ assert.match(html([baseRound(110)]),/name="auto_at"[^>]*value="1\.10"/);
+ assert.match(html([baseRound(2000)]),/name="auto_at"[^>]*value="20\.00"/);
+ const blank=html([baseRound(0,1732000000000),baseRound(275,1731000000000)]);
+ assert.match(blank,/name="auto_at"[^>]*data-last-round-at="1732000000000" value=""/,
+  'the latest explicitly disabled auto-collect overrides older enabled values');
+ assert.match(html([]),/name="auto_at"[^>]*data-last-round-at="0" value=""/);
+ const client=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ assert.match(client,/sb-store:arcade:auto-collect:/);
+ assert.match(client,/localStorage\.setItem\(autoCollectKey/);
+ assert.match(client,/hydrateAutoCollect\(root\)/);
+ assert.match(client,/if\(autoCollect\)rememberAutoCollect\(autoCollect\)/);
+ assert.match(client,/lastRoundAt/,'browser drafts must be superseded by newer saved server rounds');
+});
+
+test('Crash auto-collect persists through the round ledger and restores without an extra API session',async()=>{
+ const {crashPage}=await import('../src/arcade-views.js');
+ const unique='100000000000007777';
+ run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  unique,'auto-collect-tester','Auto Collect Tester',Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',
+  guild,unique,10000);
+ const ctx={user:{id:unique},pathname:'/arcade/crash',csrf:'test',arcadeFragment:true,arcadePlayAgain:true};
+ const show=()=>crashPage(ctx,arcade.arcadeSummary(unique),{round:null},arcade.recentRounds(unique,'crash',15));
+ const first=arcade.startCrash(unique,form(100,{auto_at:'2.75'}));
+ const firstRound=arcade.getRound(unique,first,'crash');
+ assert.equal(firstRound.details.autoAt,275,'the submitted setting is persisted in the actual round');
+ assert.match(show(),/name="auto_at"[^>]*value="2\.75"/);
+ run('UPDATE arcade_rounds SET details_json=? WHERE id=?',
+  JSON.stringify({...firstRound.details,startedAt:Date.now()-10000,crashAt:100}),first);
+ assert.equal(arcade.getRound(unique,first,'crash').status,'lost');
+ const second=arcade.startCrash(unique,form(100,{auto_at:''}));
+ const secondRound=arcade.getRound(unique,second,'crash');
+ assert.equal(secondRound.details.autoAt,0,'blank disables auto-collect');
+ assert.match(show(),/name="auto_at"[^>]*value=""/,
+  'latest server round overrides an older enabled auto-collect');
+ assert.match(show(),/name="wager"[^>]*value="100"/);
+});

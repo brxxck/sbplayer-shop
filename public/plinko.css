@@ -1,0 +1,92 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* SB Arcade Plinko: responsive Canvas board, dynamic multiplier slots and animated controls. */
+.plinko-root{display:grid;gap:22px;min-width:0}
+.plinko-panel{background:linear-gradient(155deg,#0f233a,#0c1a2e);border:1px solid #305073;border-radius:20px}
+.plinko-panel .arcade-section-title h2{font-size:25px;letter-spacing:-.6px}
+.plinko-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.9fr);gap:20px;align-items:start}
+.plinko-stage{min-width:0;display:grid;gap:12px}
+.plinko-canvas-box{position:relative;border:1px solid #314e71;background:#071a2b;border-radius:19px;overflow:hidden;
+ box-shadow:0 8px 26px #010713a1,inset 0 0 26px #12386233}
+.plinko-canvas-box:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+ box-shadow:inset 0 25px 55px #020b1d82,inset 0 -16px 40px #0a23394d}
+.plinko-canvas-box canvas{display:block;width:100%;height:auto;aspect-ratio:5 / 4;user-select:none}
+.plinko-board-label{position:absolute;z-index:3;top:17px;left:20px;display:flex;align-items:center;gap:7px;pointer-events:none;
+ font-weight:900;font-size:14px;letter-spacing:1.1px;color:#e1e7f5;text-shadow:0 2px 10px #07101c}
+.plinko-board-ribbon{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:#fff1ca;color:#7f3932;
+ font-size:12px;box-shadow:0 4px 12px #0006}
+.plinko-board-label small{margin-left:9px;font-size:9px;letter-spacing:1.4px;font-weight:800;color:#9ec5e5}
+.plinko-board-notice{position:absolute;bottom:17px;z-index:3;left:50%;transform:translateX(-50%);
+ max-width:94%;width:max-content;text-align:center;color:#e4f3ff;font-size:12px;font-weight:750;line-height:1.5;
+ padding:8px 14px;border:1px solid #407994a6;border-radius:99px;background:#09233de8;box-shadow:0 7px 21px #0008}
+.plinko-board-notice.plinko-message-error{border-color:#ee5e7a;color:#ffadb8;background:#4c243ad9}
+.plinko-multiplier-list{display:grid;grid-template-columns:repeat(var(--plinko-slots,13),minmax(0,1fr));gap:3px;min-width:0}
+.plinko-slot-value{display:grid;place-items:center;text-align:center;border:1px solid #236f76;background:#0d524d;color:#a7f9dd;
+ font-size:clamp(7px,.83vw,12px);font-variant-numeric:tabular-nums;font-weight:900;padding:8px 1px;border-radius:6px;
+ min-height:35px;white-space:nowrap;overflow:hidden}
+.plinko-slot-value:first-child,.plinko-slot-value:last-child{border-color:#bf9b59;background:#655024;color:#ffe4a1}
+.plinko-slot-landed{border-color:#f9d881;background:#b18a35;color:#142f36;box-shadow:0 0 16px #f6d58286;animation:plinko-slot-win .5s ease}
+.plinko-board-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.plinko-board-actions>span{font-size:10px;color:#9db9d6;font-weight:850;letter-spacing:.55px}
+.plinko-board-actions button{font-size:12px;min-height:38px}
+.plinko-controls{border:1px solid #2e4a67;border-radius:17px;background:linear-gradient(150deg,#152e46,#0a1c2e);
+ padding:20px;display:grid;gap:15px}
+.plinko-controls-title{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.plinko-controls-title h3{font-size:19px;margin:0}
+.plinko-controls-title small{color:#a9c5e1;font-size:11px}
+.plinko-form{display:grid;gap:16px;max-width:none}
+.plinko-form .arc-label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#c5d5e7;margin:0}
+.plinko-form input[type="number"],.plinko-form select{display:block;box-sizing:border-box;min-height:48px;
+ width:100%;font-size:17px;font-weight:850;background:#081a30;border:1px solid #395c79;
+ color:#f7dc9d;padding:10px 13px;border-radius:9px}
+.plinko-quick-wagers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.plinko-quick-wagers button{border-radius:8px;min-height:35px;border:1px solid #325b80;background:#193b5b;
+ color:#d2ecff;font-size:12px;font-weight:850;cursor:pointer}
+.plinko-quick-wagers button:hover,.plinko-quick-wagers button:focus-visible{background:#286182}
+.plinko-risk,.plinko-ball-count{border:0;padding:0;margin:0;display:grid;gap:8px;min-width:0}
+.plinko-risk legend,.plinko-ball-count legend{font-weight:750;font-size:12px;color:#c5d5e7;margin-bottom:7px}
+.plinko-risk{grid-template-columns:repeat(3,minmax(0,1fr))}
+.plinko-risk label,.plinko-ball-count label{position:relative;cursor:pointer;min-width:0}
+.plinko-risk input,.plinko-ball-count input{position:absolute;opacity:0;width:100%;height:100%;inset:0;cursor:pointer}
+.plinko-risk label span{display:grid;gap:5px;text-align:center;align-content:center;padding:10px 5px;border:1px solid #335673;
+ background:#0a223a;border-radius:10px;min-height:68px;transition:background .2s,border-color .2s}
+.plinko-risk label b{font-size:13px;color:#dce7f3}
+.plinko-risk label small{font-size:10px;color:#9bb5cd;line-height:1.2}
+.plinko-risk input:checked+span{background:#1b3e56;border-color:#68dcca;box-shadow:0 0 0 1px #68dcca57}
+.plinko-risk-high input:checked+span{border-color:#f786ab;background:#472c48}
+.plinko-risk-medium input:checked+span{border-color:#f4c270;background:#493b37}
+.plinko-risk input:focus-visible+span,.plinko-ball-count input:focus-visible+span{outline:3px solid #f9e1a3;outline-offset:3px}
+.plinko-ball-count{grid-template-columns:repeat(3,minmax(0,1fr))}
+.plinko-ball-count span{display:grid;place-items:center;border-radius:9px;min-height:43px;border:1px solid #3b5878;
+ background:#0c253f;font-size:13px;font-weight:850;color:#c6dcec}
+.plinko-ball-count input:checked+span{background:#226a61;color:#e1fff4;border-color:#51cda9}
+.plinko-stake-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.plinko-stake-summary>div{padding:13px 11px;border-radius:9px;border:1px solid #2c5070;background:#0a2037;display:grid;gap:6px;min-width:0}
+.plinko-stake-summary span{font-size:9px;color:#94b6d5;letter-spacing:.45px;font-weight:850}
+.plinko-stake-summary strong{font-size:20px;color:#f1d083;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.plinko-drop-btn{min-height:53px!important;font-size:16px!important;font-weight:900;box-shadow:0 0 18px #d6ad4440}
+.plinko-drop-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.plinko-controls .muted{line-height:1.65;margin:0}
+.plinko-session{border-top:1px solid #3b536c;padding-top:14px;display:grid;gap:4px}
+.plinko-session>span{font-size:10px;color:#a8c1db;font-weight:850;letter-spacing:1px}
+.plinko-session strong{font-size:22px;color:#71eebc}
+.plinko-session strong.plinko-loss{color:#ff9fac}
+.plinko-session small{font-size:11px;color:#9eb4ce}
+.plinko-last{display:grid;gap:14px;border:1px solid #2f4e66;background:linear-gradient(150deg,#112639,#0b1a2e)}
+.plinko-last-results{display:flex;gap:8px;flex-wrap:wrap}
+.plinko-last-chip{display:grid;gap:4px;justify-items:center;border-radius:10px;padding:9px 15px;
+ border:1px solid #286e60;background:#123f36;color:#8cf7c8;font-size:16px;font-weight:900}
+.plinko-last-chip small{color:#b9ead6;font-size:10px}
+.plinko-last-chip.loss{background:#36273a;border-color:#8d5566;color:#ffb2be}
+.plinko-last-chip.loss small{color:#ffc9d1}
+.plinko-last-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.plinko-last-actions>div{display:grid;gap:5px}
+.plinko-last-actions small{font-size:10px;color:#98b4d0;font-weight:800;letter-spacing:.5px}
+.plinko-last-actions strong{font-size:26px;font-weight:950;font-variant-numeric:tabular-nums;color:#66eeb5}
+.plinko-last-actions strong.plinko-loss{color:#ff8f9f}
+.plinko-last-actions button{font-size:12px;min-height:43px}
+@keyframes plinko-slot-win{0%{transform:scale(.8);filter:brightness(2)}65%{transform:scale(1.12)}100%{transform:scale(1);filter:brightness(1)}}
+@media(max-width:1120px){.plinko-layout{grid-template-columns:minmax(0,1.4fr) minmax(270px,1fr)}.plinko-controls{padding:15px}.plinko-risk label span{padding:10px 2px}.plinko-risk label small{font-size:9px}}
+@media(max-width:940px){.plinko-layout{grid-template-columns:1fr}.plinko-controls{grid-template-columns:1fr}.plinko-risk label small{font-size:10px}.plinko-slot-value{font-size:clamp(8px,1.35vw,13px)}}
+@media(max-width:570px){.plinko-panel{padding:13px!important}.plinko-panel .arcade-section-title h2{font-size:21px}.plinko-canvas-box{border-radius:12px}.plinko-board-label{top:9px;left:10px;font-size:11px}.plinko-board-ribbon{width:23px;height:23px;font-size:10px}.plinko-board-label small{font-size:7px;margin-left:0}.plinko-board-notice{bottom:7px;font-size:10px;padding:5px 7px}.plinko-slot-value{padding:5px 0;min-height:28px;font-size:clamp(7px,1.65vw,10px);border-radius:4px}.plinko-controls{padding:13px;gap:12px}.plinko-risk label b{font-size:12px}.plinko-risk label small{font-size:9px}.plinko-board-actions span{font-size:9px}.plinko-stake-summary strong{font-size:18px}}
+@media(prefers-reduced-motion:reduce){.plinko-slot-landed{animation:none!important}}
+:root[data-arcade-motion="instant"] .plinko-slot-landed,:root[data-arcade-motion="reduced"] .plinko-slot-landed{animation:none}

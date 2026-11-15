@@ -1,0 +1,104 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Shared Crash live stadium, original presentation and responsive accessibility. */
+.gcr-root{display:grid;gap:21px;max-width:1400px;margin:0 auto}
+.gcr-hero{background:radial-gradient(circle at 70% 15%,#144c5770,#102943 70%,#071529)}
+.gcr-hero h1{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.gcr-live{display:inline-flex;align-items:center;font-size:11px;letter-spacing:1px;color:#6ff4ad;background:#123c36;border:1px solid #267b60;border-radius:100px;padding:7px 10px}
+.gcr-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.gcr-connection{color:#78dbb3;font-size:12px;font-weight:750}
+.gcr-layout{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(330px,1fr);gap:18px;align-items:start}
+.gcr-main,.gcr-sidebar{display:grid;gap:18px;min-width:0}
+.gcr-gameboard{position:relative;min-height:395px;overflow:hidden;border:1px solid #284f7a;border-radius:22px;
+ background:radial-gradient(ellipse at 58% 86%,#153f5869,#09223a 57%,#071226 90%);
+ box-shadow:inset 0 -50px 100px #051523a3,0 13px 35px #0005;isolation:isolate}
+.gcr-stars{position:absolute;inset:0;background:
+ radial-gradient(circle at 6% 14%,#c5f7ffae 0 1px,transparent 2px),
+ radial-gradient(circle at 76% 25%,#c5f7ffae 0 1px,transparent 2px),
+ radial-gradient(circle at 44% 60%,#c5f7ff70 0 1px,transparent 2px),
+ radial-gradient(circle at 86% 72%,#c5f7ff7a 0 1px,transparent 2px),
+ radial-gradient(circle at 28% 82%,#c5f7ff8a 0 1px,transparent 2px);
+ background-size:155px 130px,230px 140px,105px 100px,188px 208px,250px 200px;
+ opacity:.68;pointer-events:none}
+.gcr-gameboard:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 61px,#81b2d015 62px 63px),repeating-linear-gradient(90deg,transparent 0 89px,#7eb2c417 90px 91px);pointer-events:none}
+.gcr-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:2;filter:drop-shadow(0 0 4px #4bdbab5d)}
+.gcr-multiplier{z-index:4;position:absolute;top:43px;left:50%;transform:translateX(-50%);
+ color:#7cf4bd;font-weight:950;font-variant-numeric:tabular-nums;font-size:clamp(52px,8vw,101px);
+ letter-spacing:-2.5px;text-shadow:0 0 23px #24ce9b6f;white-space:nowrap;transition:color .15s}
+.gcr-countdown{position:absolute;top:153px;left:50%;z-index:4;transform:translateX(-50%);
+ border:1px solid #35819a6e;border-radius:999px;padding:9px 16px;background:#092038d1;
+ color:#c9eaf5;font-size:12px;font-weight:850;letter-spacing:1.1px;text-align:center;white-space:nowrap}
+.gcr-round-label{position:absolute;z-index:3;right:18px;bottom:16px;font-size:10px;letter-spacing:1.5px;color:#81b8d0;font-weight:800}
+.gcr-round-label strong{color:#fce29c;margin-left:4px;font-size:12px}
+.gcr-rocket{position:absolute;top:0;left:0;z-index:5;font-size:39px;filter:drop-shadow(0 0 10px #76f5c170);
+ transition:filter .3s;pointer-events:none;will-change:transform}
+.gcr-thrust{position:absolute;bottom:-15px;left:14px;width:8px;height:24px;background:linear-gradient(#e6fdb6,#6adcf9,transparent);
+ border-radius:100%;transform:rotate(12deg);filter:blur(3px);animation:gcr-thrust .33s ease-in-out infinite alternate}
+.gcr-gameboard[data-gcr-phase="betting"] .gcr-svg{opacity:.16}
+.gcr-gameboard[data-gcr-phase="betting"] .gcr-rocket{opacity:.18}
+.gcr-gameboard[data-gcr-phase="betting"] .gcr-multiplier{color:#d8e0eb;text-shadow:0 0 16px #6593af55}
+.gcr-gameboard[data-gcr-phase="settled"]{border-color:#ba4966;background:radial-gradient(ellipse at center,#53213d,#1a1529 67%,#091222)}
+.gcr-gameboard[data-gcr-phase="settled"] .gcr-multiplier{color:#ffa7ab;text-shadow:0 0 30px #f05d7c8c}
+.gcr-gameboard[data-gcr-phase="settled"] .gcr-svg{filter:drop-shadow(0 0 9px #f2424d5d)}
+.gcr-gameboard[data-gcr-phase="settled"] [data-gcr-path]{stroke:#f76e86}
+.gcr-gameboard[data-gcr-phase="settled"] .gcr-thrust{display:none}
+.gcr-gameboard[data-gcr-phase="settled"] .gcr-rocket{opacity:0}
+.gcr-boom{display:none;position:absolute;z-index:7;font-size:75px;top:54%;left:50%;transform:translate(-50%,-50%);filter:drop-shadow(0 0 28px #ff8c67)}
+.gcr-gameboard[data-gcr-phase="settled"] .gcr-boom{display:block;animation:gcr-crash-shock .8s cubic-bezier(.15,1.2,.25,1) both}
+.gcr-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.gcr-stats>div{border-radius:12px;border:1px solid #2c4867;background:#0b1d32;padding:15px 13px;display:grid;gap:8px;min-width:0}
+.gcr-stats span{color:#99b9d4;font-size:10px;font-weight:800;letter-spacing:.65px}
+.gcr-stats strong{color:#f1d28c;font-size:23px;font-weight:900;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.gcr-stats>div:first-child strong,.gcr-stats>div:nth-child(3) strong{color:#80dfc6}
+.gcr-controls,.gcr-participant-panel{border:1px solid #2d4c6a;border-radius:17px;background:linear-gradient(160deg,#12283f,#0b1a2e);padding:20px;min-width:0;display:grid;gap:13px}
+.gcr-control-title,.gcr-player-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gcr-control-title h2,.gcr-player-title h2{margin:0;font-size:19px}
+.gcr-control-title span{color:#f4cf82;background:#43342179;border:1px solid #82603b;border-radius:15px;padding:5px 10px;font-size:11px;text-transform:uppercase;font-weight:800}
+.gcr-player-message{margin:0;min-height:42px;color:#bbd3e7;line-height:1.6;font-size:13px}
+.gcr-bet-form{display:grid;gap:13px}
+.gcr-bet-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gcr-bet-inputs label{display:grid;gap:7px;font-size:12px;font-weight:750;color:#b6d3ea;min-width:0}
+.gcr-bet-inputs input{width:100%;min-width:0;min-height:45px;padding:10px 12px;color:#f9dc97;background:#071a2d;border:1px solid #375b78;border-radius:10px;font-size:16px;font-weight:850;outline-offset:2px}
+.gcr-quick-wagers{display:flex;flex-wrap:wrap;gap:6px}
+.gcr-quick-wagers button{background:#193b58;border:1px solid #3b6584;border-radius:8px;padding:7px 11px;min-height:34px;color:#d1eaf4;cursor:pointer;font-size:12px;font-weight:850}
+.gcr-quick-wagers button:hover{background:#286081}
+.gcr-submit,.gcr-cashout,.gcr-join-form button{width:100%;min-height:50px;font-weight:900;font-size:16px}
+.gcr-cashout{background:linear-gradient(130deg,#e8b546,#f9dc81);color:#192332!important;border:1px solid #e9c06c!important;box-shadow:0 0 20px #dcb64e45;animation:gcr-cash-pulse 1.6s ease-in-out infinite alternate}
+.gcr-bet-receipt{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gcr-bet-receipt>div,.gcr-wallet{background:#091c2f;border:1px solid #2a4868;border-radius:10px;padding:12px;display:grid;gap:8px}
+.gcr-bet-receipt span,.gcr-wallet span{color:#9cbed6;font-size:10px;font-weight:800;letter-spacing:.6px}
+.gcr-bet-receipt strong,.gcr-wallet strong{font-size:21px;font-weight:900;color:#f7d47d;font-variant-numeric:tabular-nums}
+.gcr-bet-receipt strong.gcr-profit{color:#60eab5}
+.gcr-bet-receipt strong.gcr-loss{color:#f67e96}
+.gcr-wallet{grid-template-columns:1fr auto;align-items:center}
+.gcr-wallet strong{font-size:18px}
+.gcr-player-title span{font-size:12px;font-weight:700;color:#80c9a9}
+.gcr-players{display:grid;gap:4px;max-height:445px;overflow:auto;scrollbar-width:thin}
+.gcr-player-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;
+ padding:11px 9px;border-bottom:1px solid #24445c;font-size:12px}
+.gcr-player-row strong{font-size:12px;color:#dce8ef;white-space:nowrap}
+.gcr-player-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#bdcfe2}
+.gcr-player-status{display:block;padding:4px 7px;font-size:10px;font-weight:850;background:#25486a;border-radius:8px;color:#acd8f1;white-space:nowrap;text-align:center;min-width:51px}
+.gcr-player-status.collected{background:#125a45;color:#8df5c2}
+.gcr-player-status.lost{background:#5a2c3b;color:#feb0b7}
+.gcr-empty{text-align:center;color:#97b6d2;font-size:13px;padding:15px 0;margin:0}
+.gcr-history-panel{display:grid;gap:12px}
+.gcr-history-panel .arcade-section-title{margin-bottom:0}
+.gcr-history{display:flex;flex-wrap:wrap;gap:9px}
+.gcr-history-chip{padding:8px 13px;border-radius:9px;border:1px solid #309b77;background:#10372d;color:#6ef0b9;font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}
+.gcr-history-low{color:#f4979b;background:#4c2437;border-color:#b95464}
+.gcr-history-high{color:#eacb7b;background:#42381d;border-color:#a78b41}
+.gcr-fairness{display:grid;gap:7px;border:1px solid #28445e;border-radius:12px;background:#071a2d;padding:12px 14px}
+.gcr-fairness span{font-size:10px;font-weight:850;letter-spacing:.8px;color:#8aaccc}
+.gcr-fairness code{display:block;overflow-wrap:anywhere;word-break:break-all;color:#deb972;font-size:11px;line-height:1.4}
+.gcr-fairness p{color:#9db8ca;font-size:11px;margin:0;line-height:1.5}
+.gcr-rules h2{margin:0 0 10px}
+.gcr-rules p{margin:0 0 10px;color:#a8c4d9;line-height:1.65}
+@keyframes gcr-thrust{from{opacity:.6;transform:scaleY(.8) rotate(10deg)}to{opacity:1;transform:scaleY(1.3) rotate(12deg)}}
+@keyframes gcr-crash-shock{0%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(-25deg)}40%{opacity:1;transform:translate(-50%,-50%) scale(1.35) rotate(15deg)}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
+@keyframes gcr-cash-pulse{from{box-shadow:0 0 8px #e4c35522}to{box-shadow:0 0 25px #e3c56777}}
+@media(max-width:1190px){.gcr-layout{grid-template-columns:minmax(0,1.5fr) minmax(290px,1fr)}.gcr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.gcr-gameboard{min-height:350px}}
+@media(max-width:960px){.gcr-layout{grid-template-columns:1fr}.gcr-gameboard{min-height:370px}.gcr-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.gcr-participant-panel{max-height:480px}}
+@media(max-width:610px){.gcr-hero h1{font-size:30px}.gcr-live{font-size:9px}.gcr-gameboard{min-height:280px}.gcr-multiplier{top:36px;font-size:clamp(40px,12vw,65px)}.gcr-countdown{top:109px;max-width:94%;white-space:normal;font-size:10px;padding:7px 10px}.gcr-rocket{font-size:28px}.gcr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.gcr-stats>div{padding:11px}.gcr-stats strong{font-size:20px}.gcr-stats span{font-size:9px}.gcr-controls,.gcr-participant-panel{padding:14px}.gcr-bet-inputs{grid-template-columns:1fr}.gcr-player-row{grid-template-columns:minmax(0,1fr) auto auto}.gcr-player-status{font-size:9px;padding:4px}.gcr-wallet strong{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.gcr-thrust,.gcr-boom,.gcr-cashout{animation:none!important}}
+:root[data-arcade-motion="instant"] .gcr-thrust,:root[data-arcade-motion="instant"] .gcr-boom,:root[data-arcade-motion="instant"] .gcr-cashout{animation:none}
+:root[data-arcade-motion="reduced"] .gcr-thrust,:root[data-arcade-motion="reduced"] .gcr-cashout{animation:none}

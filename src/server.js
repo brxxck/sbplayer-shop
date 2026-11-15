@@ -2,10 +2,26 @@
 import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
+import {preparePointGrant,confirmPointGrant,pointGrantPreview,pointGrantRecent,pointGrantMembers} from './owner-point-grants.js';
+import {pointAllPage} from './owner-point-grants-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
- createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,
- openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,transfersFor,sweepArcade} from './arcade.js';
+ createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
+ openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
+import {dropPlinko} from './plinko.js';
+import {plinkoPage} from './plinko-views.js';
+import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby} from './online-games.js';
+import {onlineGamesPage} from './online-games-views.js';
+import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
+import {blackjackPage} from './online-blackjack-views.js';
+import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction} from './solo-blackjack.js';
+import {soloBlackjackPage,soloTableMarkup,soloControlsMarkup} from './solo-blackjack-views.js';
+import {globalCrashTick,globalCrashSnapshot,globalCrashBet,globalCrashCashout} from './online-crash.js';
+import {globalCrashPage} from './online-crash-views.js';
+import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
+import {onlineRoulettePage} from './online-roulette-views.js';
+import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
+import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
 import {voteOnSuggestion,setSuggestionStatus,suggestionHistory,filteredSuggestions,decorateCases,markCaseRead,unifiedTransactions} from './upgrade-data.js';
@@ -38,7 +54,7 @@ import * as homeView from './home-views.js';
 import * as socialView from './social-views.js';
 import * as communityView from './community-views.js';
 import {dmInbox,dmUnreadCount,dmHistory,dmSettings,updateDmSettings,startDm,requireDm,dmSend,dmMarkRead,dmEdit,dmDelete,dmAttachment,dmReport,dmReports,dmResolveReport,setBlock,dmError} from './community-data.js';
-import {subscribe,notifyUser,notifyEveryone,ping,onlineStatus,presencePreferenceChanged,setSessionValidator,revokeSession} from './community-live.js';
+import {subscribe,notifyUser,notifyEveryone,ping,onlineStatus,onlineWebsiteUserIds,presencePreferenceChanged,setSessionValidator,revokeSession} from './community-live.js';
 import {MEGA_TEAM_ID,activeMegaSeason,TEAM_REFRESH_MS,validGamertag,upsertMegaMember,setMegaMemberStatus,addMegaTransaction,recordMegaBank,createMegaSeason} from './mega-team.js';
 import {megaDashboard,importMegaSnapshot} from './mega-team-data.js';
 import {megaTeamPanel} from './mega-team-views.js';
@@ -156,7 +172,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-crash.js','/static/online-crash.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -353,10 +369,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           const round=roundId?getRound(user,roundId,'coinflip'):null;
           markup=arcadeView.coinflipPage(context,summary(),{
             round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),
-            challenges:openChallenges(user)});
+            houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)});
         }else if(target.pathname==='/arcade/slots'){
           const round=roundId?getRound(user,roundId,'slots'):null;
           markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
+        }else if(target.pathname==='/arcade/plinko'){
+          const round=roundId?getRound(user,roundId,'plinko'):null;
+          markup=plinkoPage(context,summary(),{round,rounds:recentRounds(user,'plinko',15)});
         }else if(target.pathname==='/arcade/mines'){
           const round=roundId?getRound(user,roundId,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
           markup=arcadeView.minesPage(context,summary(),{round,rounds:recentRounds(user,'mines',15),currentPayout:previewMinesPayout(round)});
@@ -366,17 +385,175 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return respond(res,200,JSON.stringify({ok:true,html:markup,url:destination,notice}),
           'application/json; charset=utf-8');
       };
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Shared preview lobbies: no endpoint here moves points or settles rounds.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // One server-authoritative shared Blackjack table per Discord guild.
+      // Every point movement is transactional; viewing never places a bet.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // All Global Crash wagers and cash-outs are authenticated, CSRF checked,
+      // and settled transactionally against the existing Level Points wallet.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Global Roulette: thirty FULL seconds to place bets, eight to spin,
+      // four to display the server-verified result. Every debit and payout
+      // happens transactionally against the Level Points wallet.
+      if(req.method==='GET'&&pathname==='/arcade/online/roulette'){
+        rate(ctx,'arcade.roulette.page',55,60000);
+        return html(onlineRoulettePage(ctx,summary(),rouletteWatch(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/roulette/state'){
+        rate(ctx,'arcade.roulette.state',90,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(rouletteSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/roulette/heartbeat'){
+        await form();rate(ctx,'arcade.roulette.heartbeat',8,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(rouletteWatch(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/roulette/bet'){
+        const {fields}=await form();rate(ctx,'arcade.roulette.bet',40,60000);
+        const state=roulettePlace(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/roulette','Roulette chips confirmed for the current round.');
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/crash'){
+        rate(ctx,'arcade.global-crash.page',55,60000);
+        return html(globalCrashPage(ctx,summary(),globalCrashSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/crash/state'){
+        rate(ctx,'arcade.global-crash.state',110,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(globalCrashSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/crash/bet'){
+        const {fields}=await form();rate(ctx,'arcade.global-crash.bet',18,60000);
+        const state=globalCrashBet(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/crash','Wager placed in Global Crash.');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/crash/collect'){
+        const {fields}=await form();rate(ctx,'arcade.global-crash.collect',50,60000);
+        const state=globalCrashCashout(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/crash','Global Crash cash-out confirmed.');
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/blackjack'){
+        rate(ctx,'arcade.blackjack.page',55,60000);
+        return html(blackjackPage(ctx,summary(),blackjackSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/blackjack/state'){
+        rate(ctx,'arcade.blackjack.state',110,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(blackjackSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/blackjack/bet'){
+        const {fields}=await form();rate(ctx,'arcade.blackjack.bet',15,60000);
+        const state=blackjackBet(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          success('/arcade/online/blackjack','Wager accepted for the current Blackjack round.');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/blackjack/action'){
+        const {fields}=await form();rate(ctx,'arcade.blackjack.action',90,60000);
+        const state=blackjackAction(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(state),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/online/blackjack');
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online'){
+        rate(ctx,'arcade.online.page',60,60000);
+        return html(onlineGamesPage(ctx,summary(),onlineGamesSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/state'){
+        rate(ctx,'arcade.online.state',60,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(onlineGamesSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/heartbeat'){
+        await form();rate(ctx,'arcade.online.heartbeat',8,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(heartbeatOnlineLobby(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&(pathname==='/arcade/online/join'||pathname==='/arcade/online/leave')){
+        const {fields}=await form();rate(ctx,'arcade.online.queue',18,60000);
+        if(pathname.endsWith('/join'))joinOnlineLobby(user,fields.game);
+        else leaveOnlineLobby(user,fields.game);
+        // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+        // Joining Blackjack from the lobby/table takes the player straight
+        // to the real table instead of leaving them on a preview-only queue.
+        const destination=pathname.endsWith('/join')&&fields.game==='blackjack'&&fields.next==='blackjack'?
+          '/arcade/online/blackjack':
+          fields.game==='crash'&&fields.next==='crash'?'/arcade/online/crash':'/arcade/online';
+        return success(destination,pathname.endsWith('/join')?
+          (fields.game==='crash'?'You joined the Global Crash lobby.':'You joined the Blackjack queue.'):'You left the lobby.');
+      }
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
       if(req.method==='GET'&&pathname==='/arcade/history')
         return html(arcadeView.arcadeHistoryPage(ctx,summary(),recentRounds(user,null,80),transfersFor(user)));
+      if(req.method==='GET'&&pathname==='/arcade/leaderboard'){
+        rate(ctx,'arcade.leaderboard',60,60000);
+        return html(arcadeView.arcadeLeaderboardPage(ctx,summary(),arcadePointsLeaderboard(user)));
+      }
       if(req.method==='GET'&&pathname==='/arcade/coinflip'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'coinflip'):null;
-        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),challenges:openChallenges(user)}));
+        return html(arcadeView.coinflipPage(ctx,summary(),{round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/slots'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
         return html(arcadeView.slotsPage(ctx,summary(),{round,rounds:recentRounds(user,'slots',15)}));
+      }
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Plinko is a solo Arcade game. The server saves all ball paths and
+      // settles every multi-ball batch atomically before animation.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Private, restart-safe Blackjack against the dealer.
+      // The first game and every subsequent action debit and settle atomically.
+      const soloBlackjackResult=(roundId=null)=>{
+        const state=soloBlackjackSnapshot(user,roundId);
+        return {ok:true,state,table:soloTableMarkup(state),controls:soloControlsMarkup(ctx,state)};
+      };
+      if(req.method==='GET'&&pathname==='/arcade/blackjack'){
+        rate(ctx,'arcade.solo.blackjack.page',55,60000);
+        const state=soloBlackjackSnapshot(user,url.searchParams.get('round'));
+        return html(soloBlackjackPage(ctx,summary(),state,recentRounds(user,'blackjack_solo',15)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/blackjack/state'){
+        rate(ctx,'arcade.solo.blackjack.state',100,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(soloBlackjackResult(url.searchParams.get('round'))),
+          'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/blackjack/start'){
+        const {fields}=await form();rate(ctx,'arcade.solo.blackjack.start',40,60000);
+        const id=soloBlackjackStart(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(soloBlackjackResult(id)),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/blackjack?round='+id);
+      }
+      if(req.method==='POST'&&pathname==='/arcade/blackjack/action'){
+        const {fields}=await form();rate(ctx,'arcade.solo.blackjack.action',110,60000);
+        const id=soloBlackjackAction(user,fields);
+        res.setHeader('Cache-Control','no-store');
+        return String(req.headers.accept||'').includes('application/json')?
+          respond(res,200,JSON.stringify(soloBlackjackResult(id)),'application/json; charset=utf-8'):
+          redirect(res,'/arcade/blackjack?round='+id);
+      }
+      if(req.method==='GET'&&pathname==='/arcade/plinko'){
+        rate(ctx,'arcade.plinko.page',55,60000);
+        const roundId=idFrom(url.searchParams.get('round'));
+        const round=roundId?getRound(user,roundId,'plinko'):null;
+        return html(plinkoPage(ctx,summary(),{round,rounds:recentRounds(user,'plinko',15)}));
       }
       if(req.method==='GET'&&pathname==='/arcade/mines'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
@@ -447,6 +624,17 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
         return arcadeResult('/arcade/slots?round='+spinSlots(user,fields));
       }
+      if(req.method==='POST'&&pathname==='/arcade/plinko/drop'){
+        const {fields}=await form();rate(ctx,'arcade.plinko.drop',18,60000);
+        const id=dropPlinko(user,fields);
+        const destination='/arcade/plinko?round='+id;
+        if(!fastArcade)return redirect(res,destination);
+        const round=getRound(user,id,'plinko');
+        const markup=plinkoPage({...ctx,pathname:'/arcade/plinko',arcadeFragment:true},summary(),
+          {round,rounds:recentRounds(user,'plinko',15)});
+        return respond(res,200,JSON.stringify({ok:true,round,html:markup,url:destination}),
+          'application/json; charset=utf-8');
+      }
       if(req.method==='POST'&&pathname==='/arcade/mines/start'){
         const {fields}=await form();rate(ctx,'arcade.mines.start',30,60000);
         return arcadeResult('/arcade/mines?round='+createMines(user,fields));
@@ -468,6 +656,25 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       missing();
     }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // Daily community activity rewards are separate from game wagers, and
+    // require real website actions plus one-time, server-side claims.
+    if(pathname==='/points/daily'&&req.method==='GET'){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
+      rate(ctx,'points.daily.page',75,60000);
+      const user=ctx.user.id;
+      return html(dailyRewardsPage(ctx,dailyRewardsStatus(user),
+        {balance:levelWallet(user).balance,history:dailyRewardHistory(user)}));
+    }
+    if(pathname==='/points/daily/claim'&&req.method==='POST'){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
+      const {fields}=await form();rate(ctx,'points.daily.claim',12,60000);
+      const result=claimDailyReward(ctx.user.id,String(fields.challenge||''));
+      return success('/points/daily',result.amount.toLocaleString('en-GB')+
+        ' daily reward points claimed!');
+    }
     if(pathname==='/points'&&req.method==='GET'){
       await member();return html(levelPointsPage(ctx,levelWallet(ctx.user.id),levelConnection()));
     }
@@ -477,6 +684,42 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/owner/level-points'&&req.method==='GET'){
       await authorize('owner');return html(levelConnectionPage(ctx,levelConnection()));
+    }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // All Point All routes enforce live, verified owner access; previews are
+    // bound to the owner account and confirmed only with CSRF + typed approval.
+    if(pathname==='/owner/point-all'&&req.method==='GET'){
+      await authorize('owner');
+      const grantId=url.searchParams.get('grant')||'';
+      const find=String(url.searchParams.get('find')||'').slice(0,65);
+      const selected=String(url.searchParams.get('user_id')||'').slice(0,22);
+      const preview=grantId?pointGrantPreview(ctx.user.id,grantId):null;
+      return html(pointAllPage(ctx,{
+        preview,search:find,matches:find?pointGrantMembers(find):[],
+        recent:pointGrantRecent(),onlineCount:onlineWebsiteUserIds().length,
+        userId:/^[0-9]{15,22}$/.test(selected)?selected:''
+      }));
+    }
+    if(pathname==='/owner/point-all/preview'&&req.method==='POST'){
+      await authorize('owner');const {fields}=await form();
+      rate(ctx,'owner.point_all.preview',16,600000);
+      const preview=await preparePointGrant({
+        actorId:ctx.user.id,scope:fields.scope,amount:fields.amount,
+        recipientId:fields.user_id,reason:fields.reason,
+        discord,onlineIds:onlineWebsiteUserIds()
+      });
+      return redirect(res,'/owner/point-all?grant='+encodeURIComponent(preview.id));
+    }
+    if(pathname==='/owner/point-all/confirm'&&req.method==='POST'){
+      await authorize('owner');const {fields}=await form();
+      rate(ctx,'owner.point_all.confirm',20,3600000);
+      const result=confirmPointGrant({
+        actorId:ctx.user.id,id:fields.grant_id,confirmation:fields.confirmation,ip:ctx.ip
+      });
+      return success('/owner/point-all?grant='+encodeURIComponent(result.id),
+        result.alreadyApplied?'This grant was already completed. No points were added twice.':
+        result.total.toLocaleString('en-GB')+' points granted to '+
+        result.count.toLocaleString('en-GB')+' members.');
     }
     if(pathname==='/owner/level-points/key'&&req.method==='POST'){
       await authorize('owner');await form();rate(ctx,'level_points.key',5,3600000);
@@ -2050,7 +2293,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
       return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
-        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
+        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],pvpWager:lastPvpWager(ctx.user.id),xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){
@@ -2363,7 +2606,39 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   megaBrowser.start();
   const arcadeTicker=setInterval(()=>{try{sweepArcade();}catch(error){console.error('[Arcade maintenance]',String(error.message));}},5000);
   arcadeTicker.unref();
-  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);megaSync.stop();megaBrowser.stop();});
+  // Advance shared Blackjack even while every player's browser is disconnected.
+  const blackjackTicker=setInterval(()=>{try{blackjackTick();}catch(error){console.error('[Online Blackjack]',String(error.message));}},1000);
+  blackjackTicker.unref();
+  // The global round continues even with zero viewers. Coalesce frequent
+  // wager events so thousands of members don't create a poll storm.
+  let globalSignal='',globalSignalAt=0,globalPhase='';
+  const advanceGlobalCrash=()=>{
+   const state=globalCrashTick();
+   const signal=state.roundId+':'+state.phase+':'+state.seq;
+   const stamp=Date.now();
+   if(signal!==globalSignal&&(state.phase!==globalPhase||stamp-globalSignalAt>=950)){
+    globalSignal=signal;globalSignalAt=stamp;globalPhase=state.phase;
+    notifyEveryone('global-crash',{roundId:state.roundId,phase:state.phase,seq:state.seq});
+   }
+  };
+  const globalCrashTicker=setInterval(()=>{try{advanceGlobalCrash();}catch(error){console.error('[Global Crash]',String(error.message));}},500);
+  globalCrashTicker.unref();
+  try{advanceGlobalCrash();}catch(error){console.error('[Global Crash startup]',String(error.message));}
+  // Coalesced website-wide SSE refresh for Roulette. A single timer advances
+  // the game even when every browser has disconnected.
+  let rouletteLastSignal='',rouletteLastBroadcast=0,rouletteLastPhase='';
+  const advanceRoulette=()=>{
+    const result=rouletteTick(),signal=result.roundId+':'+result.phase+':'+result.version;
+    const stamp=Date.now();
+    if(signal!==rouletteLastSignal&&(result.phase!==rouletteLastPhase||stamp-rouletteLastBroadcast>=850)){
+      rouletteLastSignal=signal;rouletteLastBroadcast=stamp;rouletteLastPhase=result.phase;
+      notifyEveryone('roulette',{roundId:result.roundId,phase:result.phase,version:result.version});
+    }
+  };
+  const rouletteTicker=setInterval(()=>{try{advanceRoulette();}catch(error){console.error('[Live Roulette]',String(error.message));}},500);
+  rouletteTicker.unref();
+  try{advanceRoulette();}catch(error){console.error('[Live Roulette startup]',String(error.message));}
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(globalCrashTicker);clearInterval(rouletteTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){

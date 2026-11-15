@@ -214,3 +214,47 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 .arcade-rocket-exhaust{opacity:0}
 .arcade-crash-display.inflight .arcade-rocket-exhaust{opacity:1}
 @media(prefers-reduced-motion:reduce){.arcade-reel-track{animation:none!important}.arcade-crash-display.inflight .arcade-rocket-exhaust{opacity:0}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Current points leaderboard: a single accessible list, ranked by live wallet
+   balances. Styles are isolated from the existing desktop Arcade games. */
+.arcade-leaderboard{display:grid;gap:20px;min-width:0}
+.arcade-leaderboard>p{margin:0;color:#b3c8df;line-height:1.65}
+.arcade-leaderboard-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.arcade-leaderboard-summary>div{min-width:0;padding:17px 18px;border:1px solid #2e4f76;background:#102742;border-radius:12px;display:grid;gap:7px}
+.arcade-leaderboard-summary small{font-weight:800;letter-spacing:.045em;font-size:11px;color:#94b0d0}
+.arcade-leaderboard-summary strong{font-size:clamp(19px,3vw,27px);color:#e9f5ff;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.arcade-leaderboard-list{display:grid;gap:8px;min-width:0}
+.arcade-leaderboard-row{display:flex;align-items:center;gap:14px;border:1px solid #284364;background:#0f2138;padding:12px 16px;border-radius:12px;min-width:0}
+.arcade-leaderboard-row .avatar{flex:none}
+.arcade-leaderboard-top-1{background:linear-gradient(90deg,#4e3a1e,#142941 43%);border-color:#987943}
+.arcade-leaderboard-top-2{background:linear-gradient(90deg,#323e53,#122941 42%);border-color:#657c9f}
+.arcade-leaderboard-top-3{background:linear-gradient(90deg,#4d302a,#122941 43%);border-color:#805b4c}
+.arcade-leaderboard-me{outline:1px solid #6aa7f4;outline-offset:-1px}
+.arcade-leaderboard-rank{width:47px;flex:none;text-align:center;color:#b6cce5;font-size:15px;font-weight:850;font-variant-numeric:tabular-nums}
+.arcade-leaderboard-top-1 .arcade-leaderboard-rank,.arcade-leaderboard-top-2 .arcade-leaderboard-rank,.arcade-leaderboard-top-3 .arcade-leaderboard-rank{font-size:23px}
+.arcade-leaderboard-person{display:grid;gap:3px;min-width:0;flex:1}
+.arcade-leaderboard-person>a,.arcade-leaderboard-person>strong{font-weight:750;color:#e6f3ff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.arcade-leaderboard-person>a:hover{text-decoration:underline;color:#a8d2ff}
+.arcade-leaderboard-person small{font-size:11px;color:#96afcb}
+.arcade-leaderboard-balance{font-size:17px;white-space:nowrap;color:#efd082;font-variant-numeric:tabular-nums}
+.arcade-leaderboard-balance span{color:#adc2da;font-size:11px;font-weight:650}
+.arcade-leaderboard-own{display:grid;gap:11px;padding-top:8px;border-top:1px solid #2b4a6c}
+.arcade-leaderboard-own h3{margin:0;font-size:16px}
+.arcade-leaderboard-empty{padding:24px;text-align:center;border:1px dashed #3d5d7f;border-radius:12px}
+@media(max-width:600px){
+ .arcade-leaderboard-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .arcade-leaderboard-summary>div:last-child{grid-column:1/-1}
+ .arcade-leaderboard-summary>div{padding:12px}
+ .arcade-leaderboard-row{gap:9px;padding:10px 9px}
+ .arcade-leaderboard-rank{width:35px}
+ .arcade-leaderboard-balance{font-size:14px}
+ .arcade-leaderboard-balance span{font-size:10px}
+}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Automatically crowns the avatar of whoever is ranked #1 today. */
+.arcade-leaderboard-avatar-wrap{display:inline-flex;position:relative;align-items:center;justify-content:center;flex:none;width:32px;height:32px;overflow:visible}
+.arcade-leaderboard-crown{position:absolute;z-index:2;top:-23px;left:50%;transform:translateX(-50%) rotate(-12deg);font-size:25px;line-height:1;filter:drop-shadow(0 2px 3px #000a) drop-shadow(0 0 5px #ffe17588);pointer-events:none;white-space:nowrap}
+.arcade-leaderboard-top-1 .arcade-leaderboard-avatar-wrap .avatar{outline:2px solid #f2c65d;outline-offset:1px;box-shadow:0 0 12px #f3be5155}
+.arcade-leaderboard-top-1{padding-top:19px}

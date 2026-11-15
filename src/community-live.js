@@ -25,6 +25,11 @@ function stateOf(userId){
   return Date.now()-info.active>AWAY_MS?'away':'online';
 }
 export function onlineStatus(userId){return stateOf(userId);}
+export function onlineWebsiteUserIds(){
+ // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+ // Only active, visible website sessions count as online; not Discord status.
+ return [...presence.keys()].filter(userId=>stateOf(userId)==='online');
+}
 export function ping(userId,active=true){
   const old=stateOf(userId);
   const stamp=Date.now(),record=presence.get(userId)||{seen:stamp,active:stamp};

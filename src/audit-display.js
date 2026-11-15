@@ -12,7 +12,7 @@ const changingActions=new Set([
   'admin.decision','application.consensus.reached','reviewer.vote',
   'application.owner_review','application.role.assigned','application.role.failed',
   'support_ticket.create','support_ticket.reply','support_ticket.status','staff_chat.message',
-  'owner.access.granted','owner.access.revoked',
+  'owner.access.granted','owner.access.revoked','level_points.owner.grant',
   'owner.microsoft.start','owner.microsoft.connect','owner.microsoft.cancel',
   'owner.microsoft.reveal','owner.microsoft.forget',
   'mega.session.pair_code','mega.session.paired','mega.session.deleted',

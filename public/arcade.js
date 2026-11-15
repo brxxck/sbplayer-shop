@@ -3,6 +3,65 @@
 (() => {
   if(!document.querySelector('.arcade-root'))return;
 
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // The server remembers completed wagers across devices. A more recent,
+  // unsubmitted change is saved in this signed-in browser only.
+  const memberId=document.body.dataset.siteUser||'';
+  const wagerGames=new Set(['coinflip','slots','mines','crash','blackjack','crash_online','plinko','blackjack_solo']);
+  const wagerKey=field=>memberId&&wagerGames.has(field?.dataset.arcadeWager)
+    ?'sb-store:arcade:wager:'+memberId+':'+field.dataset.arcadeWager:null;
+  function rememberWager(field){
+    const key=wagerKey(field);
+    if(!key||!/^\d+$/.test(field.value))return;
+    const wager=Number(field.value);
+    if(!Number.isSafeInteger(wager)||wager<10||wager>1000)return;
+    try{localStorage.setItem(key,JSON.stringify({wager,at:Date.now()}));}catch{}
+  }
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // Keep Crash auto-collect separate from wagers and sync the last submitted
+  // value from the server's persisted round. Blank explicitly means disabled.
+  const autoCollectKey=memberId?'sb-store:arcade:auto-collect:'+memberId:null;
+  function validAutoCollect(value){
+    return value===''||(/^\d{1,2}(?:\.\d{1,2})?$/.test(value)&&Number(value)>=1.10&&Number(value)<=20);
+  }
+  function rememberAutoCollect(field){
+    if(!autoCollectKey||!field||!validAutoCollect(field.value))return;
+    try{localStorage.setItem(autoCollectKey,JSON.stringify({value:field.value,at:Date.now()}));}catch{}
+  }
+  function hydrateAutoCollect(root){
+    if(!autoCollectKey)return;
+    const field=root.querySelector('input[data-arcade-auto-collect]');
+    if(!field)return;
+    try{
+      const cached=JSON.parse(localStorage.getItem(autoCollectKey)||'null');
+      const lastRoundAt=Number(field.dataset.lastRoundAt||0);
+      if(!cached||!Number.isFinite(cached.at)||cached.at<lastRoundAt||!validAutoCollect(cached.value))return;
+      field.value=cached.value;
+    }catch{}
+  }
+  function hydrateWagers(root){
+    if(!memberId)return;
+    for(const field of root.querySelectorAll('input[data-arcade-wager]')){
+      const key=wagerKey(field);
+      if(!key)continue;
+      try{
+        const cached=JSON.parse(localStorage.getItem(key)||'null');
+        const roundAt=Number(field.dataset.lastRoundAt||0);
+        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<10||cached.wager>1000||
+           !Number.isFinite(cached.at)||cached.at<roundAt)continue;
+        field.value=String(cached.wager);
+      }catch{}
+    }
+  }
+  for(const type of ['input','change']){
+    document.addEventListener(type,event=>{
+      const field=event.target;
+      if(!(field instanceof HTMLInputElement))return;
+      if(field.matches('.arcade-root input[data-arcade-wager]'))rememberWager(field);
+      if(field.matches('.arcade-root input[data-arcade-auto-collect]'))rememberAutoCollect(field);
+    });
+  }
+
   const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const csrf=()=>document.body.dataset.siteCsrf||'';
   const ajaxHeaders={'accept':'application/json','x-arcade-async':'1'};
@@ -230,15 +289,21 @@
   // Only Arcade actions are intercepted. Other website forms keep their normal behavior.
   document.addEventListener('submit',event=>{
     const form=event.target;
-    if(!(form instanceof HTMLFormElement)||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
+    if(!(form instanceof HTMLFormElement)||(form.matches('[data-blackjack-form],[data-plinko-form],[data-roulette-form],[data-sbj-form],[data-online-join-direct]')||form.closest('[data-global-crash-root]'))||!form.closest('.arcade-root')||form.method.toLowerCase()!=='post')return;
     event.preventDefault();
     if(!form.reportValidity())return;
+    const wager=form.querySelector('input[data-arcade-wager]');
+    if(wager)rememberWager(wager);
+    const autoCollect=form.querySelector('input[data-arcade-auto-collect]');
+    if(autoCollect)rememberAutoCollect(autoCollect);
     const button=event.submitter||form.querySelector('button[type=submit]');
     if(busy){if(tileReveal(form))queueTile(form);return;}
     void submitGame(form,button);
   });
 
   function mount(root){
+    hydrateWagers(root);
+    hydrateAutoCollect(root);
     if(!reducedMotion){
       const stage=root.querySelector('[data-coin-stage][data-coin-result]:not([data-coin-result=""])');
       stage?.querySelector('.arcade-coin-disc')?.classList.add('animated');

@@ -1,0 +1,36 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Website-wide Arcade lobbies; no gambling or fake game state in this foundation. */
+.online-games-root{max-width:1380px;margin:0 auto;display:grid;gap:23px}
+.online-hero{min-height:165px}
+.online-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.online-section-heading h2{font-size:22px;letter-spacing:-.5px;margin:0 0 6px}
+.online-section-heading p{color:#a9bfd7;margin:0}
+.online-live-indicator{display:inline-flex;align-items:center;gap:8px;color:#9ec5ec;background:#10253c;border:1px solid #28486b;border-radius:30px;padding:8px 13px;font-size:12px;font-weight:750;white-space:nowrap}
+.online-live-indicator:before{content:"";width:7px;height:7px;display:inline-block;background:#56dfbd;box-shadow:0 0 10px #50dbad;border-radius:100%}
+.online-room-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.online-room{background:radial-gradient(circle at top right,#2142624d,transparent 52%),linear-gradient(160deg,#132941,#0c192b 85%);border:1px solid #2d4b70;border-radius:18px;padding:23px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.online-room[data-online-game="crash"]{background:radial-gradient(circle at top right,#14685445,transparent 55%),linear-gradient(160deg,#132941,#0c192b 85%)}
+.online-room-head{display:flex;align-items:center;gap:13px;min-width:0}
+.online-room-graphic{flex:0 0 58px;width:58px;height:58px;border-radius:14px;display:grid;place-items:center;font-size:34px;color:#f6c76f;background:#142d49;box-shadow:inset 0 0 0 1px #406082}
+.online-room-kicker{font-size:10px;letter-spacing:1.2px;font-weight:800;color:#91bee8;margin-bottom:4px}
+.online-room-head h2{font-size:23px;margin:0;line-height:1.2}
+.online-room-badge{margin-left:auto;color:#ffd98f;background:#55442344;border:1px solid #8f7447;border-radius:20px;padding:6px 9px;font-size:10px;font-weight:800;white-space:nowrap}
+.online-room>p{color:#b6c9e0;line-height:1.55;margin:0}
+.online-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.online-counter{display:grid;gap:5px;min-width:0;background:#091d31;border:1px solid #26435d;border-radius:12px;padding:14px}
+.online-counter span{font-size:10px;letter-spacing:.45px;font-weight:800;color:#91b4d0}
+.online-counter strong{font-size:24px;font-weight:850;color:#f1f6ff;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.online-counter:has([data-online-stat$="roundWager"]) strong{color:#ffd47e}
+.online-own-status{background:#102f40;border:1px solid #22566d;border-radius:9px;padding:11px 13px;font-size:13px}
+.online-join-form{display:flex;gap:10px}
+.online-join-form button{min-height:45px;flex:1}
+.online-room .online-warning{font-size:12px;line-height:1.4;color:#a8bdd2}
+.online-foundation-notes h2{margin-top:0}
+.online-foundation-notes p{color:#b2c5dc;line-height:1.55}
+@media(max-width:960px){.online-room-grid{grid-template-columns:1fr}.online-room-badge{margin-left:auto}}
+@media(max-width:620px){.online-room{padding:17px}.online-room-head h2{font-size:19px}.online-room-graphic{flex-basis:48px;width:48px;height:48px;font-size:29px}.online-room-badge{font-size:9px;padding:5px 7px}.online-counter strong{font-size:20px}.online-section-heading{align-items:flex-start;flex-direction:column}.online-live-indicator{align-self:flex-start}}
+@media(prefers-reduced-motion:reduce){.online-live-indicator:before{box-shadow:none}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.roulette-lobby-phase{font-size:15px!important;text-transform:uppercase;color:#80e3bd!important}
+@media(min-width:1260px){.online-room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.online-room{padding:18px}.online-room-head h2{font-size:20px}}

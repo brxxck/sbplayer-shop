@@ -1,0 +1,69 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Owner-only Point All tools. Scoped so normal desktop/mobile screens do not change. */
+.pointall-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:12px 0 22px}
+.pointall-summary>div{background:linear-gradient(155deg,#122d46,#0b1b2f);border:1px solid #2b4e70;border-radius:13px;padding:18px;display:grid;gap:8px;min-width:0}
+.pointall-summary small{font-size:11px;letter-spacing:.06em;color:#a1bbd7;font-weight:800}
+.pointall-summary strong{font-size:clamp(21px,3vw,30px);color:#eaf5ff;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.pointall-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:20px;align-items:start}
+.pointall-layout>.panel,.pointall-preview,.pointall-history{min-width:0}
+.pointall-layout>section>h2{margin:0 0 12px;font-size:22px}
+.pointall-layout>section>p{line-height:1.6}
+.pointall-form{display:grid;gap:18px;margin-top:20px}
+.pointall-form>label,.pointall-confirm-form>label{display:grid;gap:8px;font-weight:750;font-size:14px}
+.pointall-form label input:not([type=radio]),.pointall-confirm-form input,.pointall-search-form input{width:100%;max-width:100%;box-sizing:border-box;min-height:47px;border-radius:9px;border:1px solid #3a5d80;padding:10px 13px;background:#091b2d;color:#f1f7ff;font-size:15px}
+.pointall-form label input:focus,.pointall-confirm-form input:focus,.pointall-search-form input:focus{outline:2px solid #68b1ef;outline-offset:2px}
+.pointall-scopes{margin:0;padding:0;border:0;display:grid;gap:10px}
+.pointall-scopes legend{font-weight:800;margin-bottom:12px}
+.pointall-scopes>label{border:1px solid #355370;background:#102841;border-radius:11px;padding:13px;display:flex;gap:13px;align-items:center;cursor:pointer}
+.pointall-scopes>label:has(input:checked){border-color:#81beff;background:#193d60}
+.pointall-scopes input[type=radio]{width:18px;height:18px;flex:none;accent-color:#4a9aef}
+.pointall-scopes span{display:grid;gap:3px;min-width:0}
+.pointall-scopes small{color:#a6c1db;font-size:12px;line-height:1.5}
+.pointall-form .btn{min-height:49px;font-weight:800}
+.pointall-search-form{display:flex;align-items:stretch;gap:8px;margin:15px 0}
+.pointall-search-form input{flex:1;min-width:0}
+.pointall-search-form button{min-height:47px}
+.pointall-search-results{display:grid;gap:7px}
+.pointall-search-result{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#10243b;border:1px solid #2c4f74;border-radius:10px;color:#dfecfd;text-decoration:none;min-width:0}
+.pointall-search-result:hover{background:#1d3d5e;border-color:#82b9f9}
+.pointall-search-result>span:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}
+.pointall-search-result strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pointall-search-result small{font-size:11px;color:#abc1d7;overflow:hidden;text-overflow:ellipsis}
+.pointall-search-result>span:last-child{white-space:nowrap;font-size:11px;color:#a5d5ff}
+.pointall-help{margin-top:26px;border-top:1px solid #355375;padding-top:16px}
+.pointall-help h3{font-size:16px}
+.pointall-help p{line-height:1.62;font-size:13px;color:#b3c8dd}
+.pointall-review-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}
+.pointall-review-stats>div{display:grid;gap:8px;padding:16px;border:1px solid #355779;border-radius:10px;background:#102940}
+.pointall-review-stats small{color:#aac3dd;font-size:11px;font-weight:800}
+.pointall-review-stats strong{font-size:clamp(18px,3vw,27px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pointall-review-stats>div:last-child strong{color:#f3d28a}
+.pointall-preview{margin-bottom:22px;border-color:#59799d}
+.pointall-preview>p{line-height:1.6}
+.pointall-sample{border:1px solid #2c4e6a;background:#0c2235;border-radius:11px;padding:14px}
+.pointall-sample h3{font-size:14px;margin:0 0 10px}
+.pointall-sample ul{display:grid;gap:7px;margin:0;padding-left:19px;font-size:13px}
+.pointall-confirm-form{display:grid;gap:15px;margin-top:17px}
+.pointall-confirm-form input{max-width:350px;font-weight:850;letter-spacing:.08em}
+.pointall-confirm-form .actions{display:flex;gap:10px;flex-wrap:wrap}
+.pointall-confirm-form .btn{min-height:45px}
+.pointall-history{margin-top:22px}
+.pointall-history table{width:100%;min-width:640px}
+.pointall-history th,.pointall-history td{white-space:nowrap}
+.pointall-history td:last-child{white-space:normal;overflow-wrap:anywhere;min-width:130px}
+.pointall-history .section-heading{display:flex;justify-content:space-between;gap:8px;align-items:center}
+@media(max-width:860px){
+ .pointall-layout{grid-template-columns:1fr}
+ .pointall-search-form{max-width:none}
+ .pointall-summary{gap:9px}
+ .pointall-summary>div{padding:12px}
+}
+@media(max-width:550px){
+ .pointall-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .pointall-summary>div:last-child{grid-column:1/-1}
+ .pointall-review-stats{grid-template-columns:1fr}
+ .pointall-review-stats>div{padding:12px}
+ .pointall-search-form{flex-wrap:wrap}
+ .pointall-search-form button{width:100%}
+ .pointall-confirm-form .actions{display:grid}
+}
