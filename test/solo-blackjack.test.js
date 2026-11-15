@@ -262,14 +262,14 @@ test('Existing Online Blackjack uses a separate game and private solo history ne
 
 test('A finished historical hand never permits a second start while another hand is active',()=>{
  reset();
- const first=start(alice,100,order(card('A'),card('9'),card('K'),card('7')));
+ const first=start(alice,100,order(card('A'),card('10'),card('K'),card('7')));
  assert.equal(state(alice,first).phase,'settled');
  const second=start(alice,150,order(card('10'),card('9'),card('6'),card('8')));
  const historical=state(alice,first);
  assert.equal(historical.activeRoundId,second);
  assert.equal(historical.canBet,false);
  assert.equal(state(alice).roundId,second,'the default view always resumes the active hand');
- assert.throws(()=>start(alice,100,order(card('A'),card('9'),card('K'),card('7'))),
+ assert.throws(()=>start(alice,100,order(card('A'),card('10'),card('K'),card('7'))),
   e=>e.status===409);
 });
 test('Card-deck failure rolls back the attempted move, action record and round revision',()=>{
