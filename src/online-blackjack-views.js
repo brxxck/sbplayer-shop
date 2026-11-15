@@ -51,7 +51,7 @@ function tableMarkup(state,selfId){
   '</div>';
 }
 function playerStatus(state){
- if(!state.joined)return 'You are watching as a spectator. Join the Blackjack lobby from Online Games to receive a seat.';
+ if(!state.joined)return 'You are spectating. Click Join & Play to enter the queue and reserve the next available seat.';
  if(!state.reserved&&['betting','playing'].includes(state.phase))return 'You are queued for the next round. This table has already reserved its seats.';
  if(state.phase==='betting')return state.canBet?'Your seat is ready. Place your wager before the timer expires.':
   state.placedBet?'Wager placed. Waiting for the dealer to deal.':'Betting open. Your wager is already locked.';
@@ -62,6 +62,10 @@ function playerStatus(state){
 }
 function controls(ctx,state){
  const roundId=state.roundId||'';
+ const join='<form method="post" action="/arcade/online/join" data-online-join-direct class="bj-join-direct">'+
+  token(ctx)+'<input type="hidden" name="game" value="blackjack">'+
+  '<input type="hidden" name="next" value="blackjack">'+
+  '<button type="submit" class="btn btn-primary">♠ Join & Play Blackjack</button></form>';
  const wager=Number.isSafeInteger(state.lastWager)?Math.min(1000,Math.max(10,state.lastWager)):50;
  const bet='<form method="post" data-blackjack-form data-bj-bet action="/arcade/online/blackjack/bet" class="bj-bet-form">'+
   token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
@@ -86,7 +90,8 @@ function controls(ctx,state){
   '<div><small>PLAYERS BETTING</small><strong>'+n(state.roundPlayers)+'</strong></div></div>'+
   '<div class="bj-timer"><small>ROUND STATUS</small><strong data-bj-countdown>—</strong></div>'+
   '<p data-bj-message class="bj-message">'+esc(playerStatus(state))+'</p>'+
-  (state.canBet?bet:'')+
+  (!state.joined?join:'')+
+ (state.canBet?bet:'')+
   (state.actions.length?'<div class="bj-actions">'+actionButtons+'</div>':'')+
   (state.myResult?'<div class="bj-round-result '+(state.myResult.profit>0?'bj-result-win':'bj-result-loss')+'">'+
    '<div><small>LAST HAND RESULT</small><strong>'+(state.myResult.profit>0?'+':'')+n(state.myResult.profit)+' pts</strong></div>'+
