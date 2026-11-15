@@ -251,3 +251,10 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
  .arcade-leaderboard-balance{font-size:14px}
  .arcade-leaderboard-balance span{font-size:10px}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Automatically crowns the avatar of whoever is ranked #1 today. */
+.arcade-leaderboard-avatar-wrap{display:inline-flex;position:relative;align-items:center;justify-content:center;flex:none;width:32px;height:32px;overflow:visible}
+.arcade-leaderboard-crown{position:absolute;z-index:2;top:-23px;left:50%;transform:translateX(-50%) rotate(-12deg);font-size:25px;line-height:1;filter:drop-shadow(0 2px 3px #000a) drop-shadow(0 0 5px #ffe17588);pointer-events:none;white-space:nowrap}
+.arcade-leaderboard-top-1 .arcade-leaderboard-avatar-wrap .avatar{outline:2px solid #f2c65d;outline-offset:1px;box-shadow:0 0 12px #f3be5155}
+.arcade-leaderboard-top-1{padding-top:19px}
