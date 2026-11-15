@@ -2,7 +2,7 @@
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-arcade-'));
@@ -298,4 +298,18 @@ test('Fast Arcade settles house, slots and Crash without a page navigation or le
   assert.equal(status.status,200);
   assert.match((await status.json()).html,/data-crash-active="1"/);
  }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('Arcade no longer triggers the global Saving form message or page reload on every tile',()=>{
+ const globalFormJs=readFileSync(new URL('../public/upgrade.js',import.meta.url),'utf8');
+ const arcadeJs=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ const arcadeCss=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ assert.match(globalFormJs,/form\.closest\('\.arcade-root'\)/);
+ assert.match(arcadeJs,/root\.replaceWith\(updated\)/);
+ assert.match(arcadeJs,/function queueTile\(/);
+ assert.match(arcadeJs,/aria-busy/);
+ assert.match(arcadeJs,/x-arcade-async/);
+ assert.doesNotMatch(arcadeJs,/location\.assign|location\.reload|window\.location\.href=/);
+ assert.match(arcadeCss,/\.arcade-mine-grid form\{/);
+ assert.match(arcadeCss,/\.arcade-tile-pending/);
 });
