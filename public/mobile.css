@@ -64,7 +64,7 @@
   pre { max-width:100%; overflow-x:auto; white-space:pre-wrap; }
   .table-wrap,[class$="-table-wrap"],[class*="table-scroll"],.mega-history-table,.mega-table-wrap,.transaction-table-wrap { max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; }
   .table-wrap:focus-visible { outline:2px solid #8dc5ff; outline-offset:3px; }
-  table { min-width:max-content; max-width:none; font-variant-numeric:tabular-nums; }
+  .table-wrap table,[class$="-table-wrap"] table,[class*="table-scroll"] table { min-width:max-content; max-width:none; font-variant-numeric:tabular-nums; }
   td,th { padding:12px 11px; }
   .table-wrap td,.table-wrap th { max-width:280px; overflow-wrap:anywhere; }
   .table-wrap th { position:sticky; top:0; }
