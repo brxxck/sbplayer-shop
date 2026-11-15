@@ -27,7 +27,7 @@ test('blackjack HTML retains the actual table before betting and action controls
 });
 
 test('Solo Blackjack options and full history collapse on phones, not desktop',()=>{
- assert.match(chrome,/class="arcade-solo'/);
+ assert.match(chrome,/arcade-root\$\{solo\?' arcade-solo'/);
  assert.match(chrome,/class="sbj-utilities" data-sbj-mobile-disclosure open/);
  assert.match(view,/sbj-rules-disclosure" data-sbj-mobile-disclosure open/);
  assert.match(view,/sbj-history-disclosure" data-sbj-mobile-disclosure open/);
