@@ -156,7 +156,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -318,7 +318,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(privateOwner && privateOwner.user_id!==ctx.user.id)forbidden('This profile image is private.');
     }
     if(req.method==='GET'&&await serveStatic(res,pathname,url.searchParams.get('v')||''))return;
-    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.20.2',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
+    if(pathname==='/health'&&req.method==='GET'){return respond(res,200,JSON.stringify({ok:true,version:'1.21.0',browserCaptureConfigured:megaBrowser.enabled}),'application/json; charset=utf-8');}
     if(pathname==='/api/integrations/botghost/levels'&&req.method==='POST'){
       rate(ctx,'level_points.sync',120,60000);
       try{
@@ -2360,5 +2360,5 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   validateConfig();const server=createServer();
-  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.20.2 running at ${config.baseUrl}`));
+  server.listen(config.port,()=>console.log(`SB's & Cam's Store Community V1.21.0 running at ${config.baseUrl}`));
 }
