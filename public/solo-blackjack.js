@@ -64,9 +64,12 @@
    }
   });
   table.querySelectorAll('.sbj-hand').forEach((panel,index)=>{
-   const was=old?.hands?.[index]?.cards?.length||0;
+   const previous=old?.hands?.[index]?.cards||[];
+   const nextCards=next.hands?.[index]?.cards||[];
    panel.querySelectorAll('.sbj-player-cards .bj-card').forEach((card,j)=>{
-    if(!reduce&&j>=was)card.classList.add('sbj-card-deal');
+    const before=previous[j],after=nextCards[j];
+    if(!reduce&&(!before||before.rank!==after?.rank||before.suit!==after?.suit))
+     card.classList.add('sbj-card-deal');
    });
   });
  }
