@@ -460,6 +460,9 @@ test('V1.21: Crash rocket result screen persists payout until Play Again',async(
   assert.doesNotMatch(html,/action="\/arcade\/crash\/start"/,'no new game form before Play Again');
   const replay=(await (await fetch(base+'/arcade/crash?again=1',{headers:{cookie}})).text());
   assert.match(replay,/action="\/arcade\/crash\/start"/);
+  assert.match(replay,/Ready to launch/);
+  assert.match(replay,/data-crash-replay="1"/);
+  assert.doesNotMatch(replay,/Successfully Cashed Out!/);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
 
