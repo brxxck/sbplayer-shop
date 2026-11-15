@@ -25,7 +25,7 @@ function seatMarkup(player,selfId,turnUser,turnHand){
  if(!player)return '<div class="bj-seat bj-seat-empty" role="group" aria-label="Empty seat"><div class="bj-seat-top"><b>Available seat</b></div><p>Waiting for a player</p></div>';
  const mine=player.userId===selfId,active=player.userId===turnUser,betting=!player.hands?.length;
  const hands=(player.hands||[]).map((h,index)=>
-  '<div class="bj-hand '+(active&&index===turnHand?'bj-hand-current':'')+'">'+
+  '<div class="bj-hand '+(active&&index===turnHand?'bj-hand-current ':'')+(['won','blackjack'].includes(h.outcome)?'bj-hand-win':h.outcome==='lost'||h.outcome==='bust'?'bj-hand-lose':'')+'">'+
   '<div class="bj-cards">'+h.cards.map(card).join('')+'</div>'+
   '<div class="bj-hand-status"><strong>'+n(h.value?.total||0)+'</strong><span>'+esc(labelOf(h))+'</span>'+
   '<small>'+n(h.wager)+' pts</small></div></div>').join('');
