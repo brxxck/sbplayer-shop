@@ -39,7 +39,7 @@
    const button=form?.querySelector('button');
    if(!form||!button)continue;
    form.action='/arcade/online/'+(state.joined?'leave':'join');
-   button.textContent=state.joined?'Leave lobby':'Join preview lobby';
+   button.textContent=state.joined?'Leave lobby':game==='blackjack'?'Join Blackjack queue':'Join preview lobby';
    button.className='btn '+(state.joined?'btn-outline':'btn-primary');
   }
   if(notice)notice.textContent='Live lobby counts';
