@@ -163,7 +163,8 @@
  function hydrateSettings(){
   if(!form)return;
   const stamp=Number(form.querySelector('[data-plinko-wager]')?.dataset.lastRoundAt||0);
-  const selection=parseJSON(localStorage.getItem(selectionKey),null);
+  let selection=null;
+  try{selection=parseJSON(localStorage.getItem(selectionKey),null);}catch{}
   if(selection&&Number(selection.at)>stamp){
    if([8,12,16].includes(selection.rows))form.elements.namedItem('rows').value=String(selection.rows);
    if(['low','medium','high'].includes(selection.risk)){
@@ -175,7 +176,8 @@
     if(count)count.checked=true;
    }
   }
-  const saved=parseJSON(localStorage.getItem(wagerKey),null);
+  let saved=null;
+  try{saved=parseJSON(localStorage.getItem(wagerKey),null);}catch{}
   if(saved&&Number(saved.at)>stamp&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=1000)
    form.querySelector('[data-plinko-wager]').value=String(saved.wager);
  }
@@ -380,9 +382,23 @@
    runner?.skip?.();return;
   }
   if(event.target.closest?.('[data-plinko-replay]')&&root?.contains(event.target)&&!busy&&last){
-   const details=last;
+   // A previous round may have used a different board size or risk.
+   // Recreate that exact payout board before replaying its saved peg path.
+   const previous=settings(),details=last;
+   if([8,12,16].includes(details.rows))form.elements.namedItem('rows').value=String(details.rows);
+   if(['low','medium','high'].includes(details.risk)){
+    const radio=form.querySelector('input[name="risk"][value="'+details.risk+'"]');
+    if(radio)radio.checked=true;
+   }
    const replay={details:{rows:details.rows,risk:details.risk,count:details.count,balls:details.balls}};
-   animate(replay,()=>{busy=false;renderSlots();message('Replay finished · no points wagered');});
+   highlightSlot=-1;renderSlots();paint();
+   animate(replay,()=>{
+    form.elements.namedItem('rows').value=String(previous.rows);
+    const originalRisk=form.querySelector('input[name="risk"][value="'+previous.risk+'"]');
+    if(originalRisk)originalRisk.checked=true;
+    busy=false;renderSlots();paint();
+    message('Replay finished · no points wagered');
+   });
   }
  });
  window.addEventListener('resize',()=>{if(!root)return;setCanvasDpr();paint();},{passive:true});
