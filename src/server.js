@@ -8,6 +8,8 @@ import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,star
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
  openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
+import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby} from './online-games.js';
+import {onlineGamesPage} from './online-games-views.js';
 import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
 import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
@@ -160,7 +162,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/online-games.js','/static/online-games.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -370,6 +372,29 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return respond(res,200,JSON.stringify({ok:true,html:markup,url:destination,notice}),
           'application/json; charset=utf-8');
       };
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Shared preview lobbies: no endpoint here moves points or settles rounds.
+      if(req.method==='GET'&&pathname==='/arcade/online'){
+        rate(ctx,'arcade.online.page',60,60000);
+        return html(onlineGamesPage(ctx,summary(),onlineGamesSnapshot(user)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/online/state'){
+        rate(ctx,'arcade.online.state',60,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(onlineGamesSnapshot(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&pathname==='/arcade/online/heartbeat'){
+        await form();rate(ctx,'arcade.online.heartbeat',8,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify(heartbeatOnlineLobby(user)),'application/json; charset=utf-8');
+      }
+      if(req.method==='POST'&&(pathname==='/arcade/online/join'||pathname==='/arcade/online/leave')){
+        const {fields}=await form();rate(ctx,'arcade.online.queue',18,60000);
+        if(pathname.endsWith('/join'))joinOnlineLobby(user,fields.game);
+        else leaveOnlineLobby(user,fields.game);
+        return success('/arcade/online',pathname.endsWith('/join')?
+          'You joined the preview lobby. No points were wagered.':'You left the preview lobby.');
+      }
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
       if(req.method==='GET'&&pathname==='/arcade/history')
