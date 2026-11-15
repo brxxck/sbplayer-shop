@@ -179,6 +179,10 @@ setInterval(()=>{const t=now();for(const [k,v] of rateBuckets)if(t-v.at>3600000)
 
 export function createServer({discord=liveDiscord,testLogin=false}={}){
   let teamCache=null;
+  // Short-lived, session-bound proof for arcade routes only. Other website
+  // permission checks continue to verify Discord normally.
+  const arcadeMembers=new Map();
+  const ARCADE_MEMBER_TTL_MS=20000;
   setSessionValidator((hash,userId)=>!!one('SELECT 1 FROM sessions WHERE token_hash=? AND user_id=? AND expires_at>?',hash,userId,now()));
   const megaSync=createMegaTeamSync();
   const megaBrowser=createMegaBrowserRunner();
@@ -234,6 +238,16 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     async function member(){
       if(ctx.member)return;
       if(!ctx.user)throw new Redirect('/auth/login');
+      const arcadeRoute=pathname==='/arcade'||pathname.startsWith('/arcade/');
+      const arcadeKey=arcadeRoute?ctx.session?.token_hash:null;
+      const cached=arcadeKey?arcadeMembers.get(arcadeKey):null;
+      if(cached&&cached.expires>now()&&cached.userId===ctx.user.id){
+        Object.assign(ctx,cached.context);
+        ctx.notificationCount=notificationCount(ctx.user.id);
+        ctx.xboxConfigured=xboxLinkAuth.configured;
+        ctx.xboxLink=xboxLinkForUser(ctx.user.id);
+        return;
+      }
       const [guild,actual]=await Promise.all([discord.getGuild(),discord.getGuildMember(ctx.user.id)]);
       if(!guild)throw new HttpError(503,'Discord server verification is currently unavailable.');
       ctx.guild=guild;
@@ -274,6 +288,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Xbox menu status is available on every authenticated page, including Home.
       ctx.xboxConfigured=xboxLinkAuth.configured;
       ctx.xboxLink=xboxLinkForUser(ctx.user.id);
+      if(arcadeKey&&ctx.member&&ctx.role!=='appeal-only'){
+        if(arcadeMembers.size>900){
+          const stamp=now();
+          for(const [key,entry] of arcadeMembers)if(entry.expires<=stamp)arcadeMembers.delete(key);
+          if(arcadeMembers.size>900)arcadeMembers.delete(arcadeMembers.keys().next().value);
+        }
+        arcadeMembers.set(arcadeKey,{userId:ctx.user.id,expires:now()+ARCADE_MEMBER_TTL_MS,context:{
+          guild:ctx.guild,member:ctx.member,role:ctx.role,guildRoles:ctx.guildRoles,
+          promotionEligible:ctx.promotionEligible,staffNavigation:ctx.staffNavigation,
+          teamApplicationEligible:ctx.teamApplicationEligible,teamRecruiter:ctx.teamRecruiter
+        }});
+      }
       // Routine browsing, session refreshes and page loads must not fill the audit.
       // Successful reads of individual private tickets are recorded at their routes.
     }
@@ -305,6 +331,32 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await member();
       if(ctx.role==='appeal-only')forbidden('Arcade games require server membership.');
       const user=ctx.user.id,summary=()=>arcadeSummary(user);
+      const fastArcade=req.headers['x-arcade-async']==='1'&&String(req.headers.accept||'').includes('application/json');
+      // Asynchronous submissions get only the next game screen. Native forms
+      // continue to redirect as before when scripts are disabled.
+      const arcadeResult=(destination,notice='')=>{
+        if(!fastArcade)return notice?success(destination,notice):redirect(res,destination);
+        const target=new URL(destination,'http://localhost');
+        const roundId=idFrom(target.searchParams.get('round'));
+        const context={...ctx,pathname:target.pathname,arcadeFragment:true};
+        let markup;
+        if(target.pathname==='/arcade/coinflip'){
+          const round=roundId?getRound(user,roundId,'coinflip'):null;
+          markup=arcadeView.coinflipPage(context,summary(),{
+            round,rounds:recentRounds(user,null,12).filter(r=>['coinflip','coinflip_pvp'].includes(r.game)),
+            challenges:openChallenges(user)});
+        }else if(target.pathname==='/arcade/slots'){
+          const round=roundId?getRound(user,roundId,'slots'):null;
+          markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
+        }else if(target.pathname==='/arcade/mines'){
+          const round=roundId?getRound(user,roundId,'mines'):currentRound(user,'mines')||recentRounds(user,'mines',1)[0]||null;
+          markup=arcadeView.minesPage(context,summary(),{round,rounds:recentRounds(user,'mines',15)});
+        }else if(target.pathname==='/arcade/crash'){
+          markup=arcadeView.crashPage(context,summary(),crashStatus(user),recentRounds(user,'crash',15));
+        }else missing();
+        return respond(res,200,JSON.stringify({ok:true,html:markup,url:destination,notice}),
+          'application/json; charset=utf-8');
+      };
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
       if(req.method==='GET'&&pathname==='/arcade/history')
@@ -327,42 +379,46 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         rate(ctx,'arcade.crash.state',120,60000);
         return respond(res,200,JSON.stringify(crashStatus(user)),'application/json; charset=utf-8');
       }
+      if(req.method==='GET'&&pathname==='/arcade/api/crash/fragment'&&fastArcade){
+        rate(ctx,'arcade.crash.fragment',40,60000);
+        return arcadeResult('/arcade/crash');
+      }
       if(req.method==='POST'&&pathname==='/arcade/coinflip/house'){
         const {fields}=await form();rate(ctx,'arcade.house.flip',35,60000);
-        const id=houseCoin(user,fields);return redirect(res,'/arcade/coinflip?round='+id);
+        const id=houseCoin(user,fields);return arcadeResult('/arcade/coinflip?round='+id);
       }
       if(req.method==='POST'&&pathname==='/arcade/coinflip/challenges'){
         const {fields}=await form();rate(ctx,'arcade.challenge.create',20,60000);
-        const id=createChallenge(user,fields);return success('/arcade/coinflip','Challenge #'+id+' created. Points are reserved until matched or cancelled.');
+        const id=createChallenge(user,fields);return arcadeResult('/arcade/coinflip','Challenge #'+id+' created. Points are reserved until matched or cancelled.');
       }
       const pvp=/^\/arcade\/coinflip\/challenges\/(\d+)\/(join|cancel)$/.exec(pathname);
       if(req.method==='POST'&&pvp){
         await form();rate(ctx,'arcade.challenge.action',35,60000);
-        if(pvp[2]==='join'){joinChallenge(user,pvp[1]);return success('/arcade/coinflip','Coin flip complete. Check your result below.');}
-        cancelChallenge(user,pvp[1]);return success('/arcade/coinflip','Challenge cancelled and points returned.');
+        if(pvp[2]==='join'){joinChallenge(user,pvp[1]);return arcadeResult('/arcade/coinflip','Coin flip complete.');}
+        cancelChallenge(user,pvp[1]);return arcadeResult('/arcade/coinflip','Challenge cancelled and points returned.');
       }
       if(req.method==='POST'&&pathname==='/arcade/slots/spin'){
         const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
-        return redirect(res,'/arcade/slots?round='+spinSlots(user,fields));
+        return arcadeResult('/arcade/slots?round='+spinSlots(user,fields));
       }
       if(req.method==='POST'&&pathname==='/arcade/mines/start'){
         const {fields}=await form();rate(ctx,'arcade.mines.start',30,60000);
-        return redirect(res,'/arcade/mines?round='+createMines(user,fields));
+        return arcadeResult('/arcade/mines?round='+createMines(user,fields));
       }
       const mineAction=/^\/arcade\/mines\/(\d+)\/(reveal|collect)$/.exec(pathname);
       if(req.method==='POST'&&mineAction){
         const {fields}=await form();rate(ctx,'arcade.mines.action',70,60000);
         const id=mineAction[2]==='reveal'?revealMines(user,mineAction[1],fields.tile):cashMines(user,mineAction[1]);
-        return redirect(res,'/arcade/mines?round='+id);
+        return arcadeResult('/arcade/mines?round='+id);
       }
       if(req.method==='POST'&&pathname==='/arcade/crash/start'){
         const {fields}=await form();rate(ctx,'arcade.crash.start',30,60000);
-        const id=startCrash(user,fields);return redirect(res,'/arcade/crash?round='+id);
+        const id=startCrash(user,fields);return arcadeResult('/arcade/crash?round='+id);
       }
       const crashCollect=/^\/arcade\/crash\/(\d+)\/collect$/.exec(pathname);
       if(req.method==='POST'&&crashCollect){
         await form();rate(ctx,'arcade.crash.collect',45,60000);
-        const id=cashCrash(user,crashCollect[1]);return redirect(res,'/arcade/crash?round='+id);
+        const id=cashCrash(user,crashCollect[1]);return arcadeResult('/arcade/crash?round='+id);
       }
       missing();
     }
@@ -2267,7 +2323,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   megaBrowser.start();
   const arcadeTicker=setInterval(()=>{try{sweepArcade();}catch(error){console.error('[Arcade maintenance]',String(error.message));}},5000);
   arcadeTicker.unref();
-  website.on('close',()=>{clearInterval(arcadeTicker);megaSync.stop();megaBrowser.stop();});
+  website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)){
