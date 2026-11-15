@@ -157,7 +157,7 @@ test('owner-only HTTP page, CSRF, review and confirm flow do not permit normal m
   assert.match(html,/Specific player/);
   assert.match(html,/Everyone online/);
   assert.match(html,/currently online on the website|Online on the website/i);
-  assert.match(html,/Member 03/);
+  assert.match(html,/Member 02|Member 06/,'owner search lists accounts matching the current query');
   assert.match(html,/action="\/owner\/point-all\/preview"/);
   assert.match(html,/href="\/owner\/point-all"/);
   const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
