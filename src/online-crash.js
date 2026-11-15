@@ -81,9 +81,10 @@ db.exec(
  "user_id TEXT NOT NULL REFERENCES users(id),"+
  "auto_at INTEGER NOT NULL DEFAULT 0 CHECK(auto_at=0 OR auto_at BETWEEN 110 AND 2000),"+
  "status TEXT NOT NULL CHECK(status IN ('active','cashed_out','lost')),"+
- "cash_at INTEGER,cashed_at INTEGER,PRIMARY KEY(round_id,user_id));"+
+ "cash_at INTEGER,cashed_at INTEGER,placed_at INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(round_id,user_id));"+
  "CREATE INDEX IF NOT EXISTS idx_online_crash_positions_round ON online_crash_positions(round_id,status);"+
  "CREATE INDEX IF NOT EXISTS idx_online_crash_positions_user ON online_crash_positions(user_id,round_id DESC);"+
+ "CREATE INDEX IF NOT EXISTS idx_online_crash_positions_auto ON online_crash_positions(round_id,status,auto_at);"+
  "CREATE TABLE IF NOT EXISTS online_crash_requests ("+
  "request_key TEXT PRIMARY KEY,round_id INTEGER NOT NULL REFERENCES online_game_rounds(id),"+
  "user_id TEXT NOT NULL REFERENCES users(id),"+
@@ -175,9 +176,10 @@ function tickInside(now){
   return latest();
  }
  if(round.status!=='playing')return round;
+ const dueCents=Math.min(globalCrashCentsAt(now-state.flightStartedAt),state.crashCents-1);
  const auto=all("SELECT e.user_id,e.wager,p.auto_at FROM online_game_entries e "+
   "JOIN online_crash_positions p ON p.round_id=e.round_id AND p.user_id=e.user_id "+
-  "WHERE e.round_id=? AND p.status='active' AND p.auto_at>0 ORDER BY e.user_id",round.id);
+  "WHERE e.round_id=? AND p.status='active' AND p.auto_at>0 AND p.auto_at<=? ORDER BY e.user_id",round.id,dueCents);
  let paid=0;
  for(const row of auto){
   const due=state.flightStartedAt+globalCrashReachTime(row.auto_at);
@@ -209,13 +211,13 @@ function project(round,userId,now){
   "WHERE guild_id=? AND game='crash' AND status='settled' ORDER BY id DESC LIMIT 8",
   config.guildId).map(row=>({roundId:row.id,crashAt:decode(row)?.crashCents,
    endedAt:row.ends_at})).filter(row=>Number.isInteger(row.crashAt));
- const previous=one("SELECT e.wager,p.auto_at,r.created_at FROM online_crash_positions p "+
+ const previous=one("SELECT e.wager,p.auto_at,p.placed_at FROM online_crash_positions p "+
   "JOIN online_game_entries e ON e.round_id=p.round_id AND e.user_id=p.user_id "+
   "JOIN online_game_rounds r ON r.id=p.round_id WHERE p.user_id=? AND r.guild_id=? "+
   "AND r.game='crash' ORDER BY p.round_id DESC LIMIT 1",userId,config.guildId);
  if(!round)return {serverTime:now,phase:'waiting',roundId:null,joined:!!member,lobbyPlayers,balance,
   roundPlayers:0,roundWager:0,activePlayers:0,collectedPlayers:0,canBet:false,canCashout:false,
-  recent,lastWager:previous?.wager||50,lastAutoAt:previous?.auto_at||0,lastBetAt:previous?.created_at||0,
+  recent,lastWager:previous?.wager||50,lastAutoAt:previous?.auto_at||0,lastBetAt:previous?.placed_at||0,
   me:null,players:[]};
  const state=decode(round),stats=aggregate(round.id);
  const bet=one("SELECT e.wager,e.payout,p.auto_at,p.status,p.cash_at,p.cashed_at "+
@@ -251,7 +253,7 @@ function project(round,userId,now){
    userId:row.user_id,name:row.display_name||row.username||'Player',wager:row.wager,
    payout:row.payout,status:row.status,cashAt:row.cash_at
   })),recent,
-  lastWager:previous?.wager||50,lastAutoAt:previous?.auto_at||0,lastBetAt:previous?.created_at||0,
+  lastWager:previous?.wager||50,lastAutoAt:previous?.auto_at||0,lastBetAt:previous?.placed_at||0,
   lastEvent:state.lastEvent
  };
 }
@@ -278,8 +280,8 @@ export function globalCrashBet(userId,fields,now=Date.now()){
    fail('You already placed a wager in this round.');
   walletChange(user,-wager,'crash.global.wager','global-crash:wager:'+round.id+':'+user);
   run("INSERT INTO online_game_entries(round_id,user_id,entry_no,wager,payout) VALUES(?,?,0,?,0)",round.id,user,wager);
-  run("INSERT INTO online_crash_positions(round_id,user_id,auto_at,status) VALUES(?,?,?,'active')",
-   round.id,user,autoAt);
+  run("INSERT INTO online_crash_positions(round_id,user_id,auto_at,status,placed_at) VALUES(?,?,?,'active',?)",
+   round.id,user,autoAt,at);
   rememberRequest(key,round.id,user,'bet',at);
   const state=decode(round);
   state.seq++;state.lastEvent={type:'bet',at,userId:user};
