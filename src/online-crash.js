@@ -263,7 +263,7 @@ export function globalCrashSnapshot(userId,now=Date.now()){
 }
 export function globalCrashTick(now=Date.now()){
  const at=validTime(now);
- return transaction(()=>{const round=tickInside(at);return {roundId:round?.id||null,phase:round?.status||'waiting'};});
+ return transaction(()=>{const round=tickInside(at);return {roundId:round?.id||null,phase:round?.status||'waiting',seq:round?decode(round).seq:0};});
 }
 export function globalCrashBet(userId,fields,now=Date.now()){
  const user=validUser(userId),at=validTime(now),
