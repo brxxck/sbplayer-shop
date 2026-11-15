@@ -33,9 +33,19 @@
    dialog.querySelector('input[type=search]')?.focus();
   }
  });
- // Prevent horizontal table scrolling from grabbing a vertical page swipe.
- for(const table of document.querySelectorAll('.table-wrap')){
-  if(!table.hasAttribute('tabindex'))table.tabIndex=0;
-  if(!table.hasAttribute('aria-label'))table.setAttribute('aria-label','Scrollable data table');
+ // Keep all wide tables within their own horizontal scroll region on phones.
+ // Wrap only tables that do not already have a scrolling parent.
+ if(media.matches){
+  for(const table of document.querySelectorAll('.content table')){
+   if(table.closest('.table-wrap,[class*="table-scroll"],[class$="-table-wrap"]'))continue;
+   const wrap=document.createElement('div');
+   wrap.className='table-wrap mobile-table-wrap';
+   table.parentElement?.insertBefore(wrap,table);
+   wrap.append(table);
+  }
+  for(const table of document.querySelectorAll('.table-wrap')){
+   if(!table.hasAttribute('tabindex'))table.tabIndex=0;
+   if(!table.hasAttribute('aria-label'))table.setAttribute('aria-label','Scrollable data table');
+  }
  }
 })();
