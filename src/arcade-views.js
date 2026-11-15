@@ -132,6 +132,14 @@ export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  <p class="muted tiny">Only one Mines game can be active at a time. Your board is saved if you leave the page.</p></section>
  ${current&&terminal?resultBox(current):''}${historyList(rounds)}`);
 }
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Crash records an explicit auto-collect preference in each round: 0 means off.
+const lastAutoCollect=rounds=>{
+ const latest=rounds.find(r=>r.game==='crash');
+ const cents=Number(latest?.details?.autoAt||0);
+ const value=Number.isInteger(cents)&&cents>=110&&cents<=2000?(cents/100).toFixed(2):'';
+ return {value,at:latest?.created_at||0};
+};
 export function crashPage(ctx,summary,status,rounds){
  const round=status.round;
  const active=round?.status==='active';
@@ -166,7 +174,7 @@ export function crashPage(ctx,summary,status,rounds){
  <a class="btn btn-primary arcade-play-again" href="/arcade/crash?again=1">🚀 Play Again</a>
  </div>`:''}
  ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
- ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00"></label>
+ ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00" data-arcade-auto-collect data-last-round-at="${Number(lastAutoCollect(rounds).at)||0}" value="${lastAutoCollect(rounds).value}"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
  <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
  </section>${historyList(rounds)}`);
