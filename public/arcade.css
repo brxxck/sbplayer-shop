@@ -202,3 +202,9 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
  .arcade-reel-track{transition:none!important}
  .arcade-rocket{will-change:auto}
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+@keyframes arcade-reel-running{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-500%,0)}}
+.arcade-rocket-exhaust{opacity:0}
+.arcade-crash-display.inflight .arcade-rocket-exhaust{opacity:1}
+@media(prefers-reduced-motion:reduce){.arcade-reel-track{animation:none!important}.arcade-crash-display.inflight .arcade-rocket-exhaust{opacity:0}}
