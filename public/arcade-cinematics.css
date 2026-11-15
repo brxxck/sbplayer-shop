@@ -1,0 +1,21 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.arcade-experience-options{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap}
+.arcade-experience-sound,.arcade-experience-options select{background:#11263d;color:#d7e8f9;border:1px solid #365578;border-radius:10px;min-height:35px;padding:6px 11px;font-size:12px;font-weight:700}
+.arcade-experience-options label{display:inline-flex;align-items:center;gap:8px;color:#a9c6df;font-size:12px}
+.arcade-cinematic{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;overflow:hidden;isolation:isolate;pointer-events:none}
+.arcade-cinematic-backdrop{position:absolute;inset:0;background:radial-gradient(circle at center,#a8782a38 0%,#051225e8 57%,#020812ef);animation:arcade-cinema-fade .35s ease-out both}
+.arcade-cinematic-stage{z-index:1;text-align:center;display:grid;justify-items:center;gap:10px;max-width:480px;padding:35px 25px;position:relative}
+.arcade-cinematic-eyebrow{font-size:11px;letter-spacing:5px;color:#d3bd7e;font-weight:850}
+.arcade-cinematic-symbol{font-size:52px;color:#f7d27e;filter:drop-shadow(0 0 17px #ffce7e)}
+.arcade-cinematic-stage h2{margin:0;font-size:clamp(48px,11vw,90px);line-height:1;font-weight:950;letter-spacing:-2px;background:linear-gradient(180deg,#fff3cd,#e8b23c 75%,#a96e1b);background-clip:text;-webkit-background-clip:text;color:transparent;text-shadow:0 8px 30px #f9bb423c;animation:arcade-cinema-pop .65s cubic-bezier(.2,1.5,.4,1) both}
+.arcade-cinematic-profit{font-variant-numeric:tabular-nums;color:#55edb4;font-weight:900;font-size:clamp(26px,6vw,49px)}
+.arcade-cinematic-stage p{color:#c5d3e3;margin:0 0 5px}
+.arcade-cinematic-skip{pointer-events:auto;cursor:pointer;background:#ffcf76;color:#17202f;border:0;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:850;min-height:45px}
+.arcade-cinematic-skip:focus-visible{outline:3px solid #fff;outline-offset:4px}
+.arcade-cinematic-spark{position:absolute;bottom:-35px;width:7px;height:13px;opacity:0;z-index:1;background:#ffcf70;box-shadow:0 0 7px #eec35c;border-radius:6px;animation:arcade-cinema-spark linear both}
+.arcade-cinematic-reduced .arcade-cinematic-stage h2{animation:none}
+@keyframes arcade-cinema-pop{0%{transform:scale(.5);opacity:0}75%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes arcade-cinema-fade{from{opacity:0}to{opacity:1}}
+@keyframes arcade-cinema-spark{0%{opacity:0;transform:translateY(0) rotate(0)}12%{opacity:.9}90%{opacity:.7}100%{opacity:0;transform:translateY(-90vh) rotate(480deg)}}
+@media(prefers-reduced-motion:reduce){.arcade-cinematic-stage h2,.arcade-cinematic-backdrop,.arcade-cinematic-spark{animation:none!important}.arcade-cinematic-spark{display:none}}
+@media(max-width:690px){.arcade-experience-options{justify-content:flex-start}.arcade-cinematic-stage{padding:20px 14px}}
