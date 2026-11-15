@@ -132,6 +132,6 @@ test('Native form redirects, last per-ball wager returns across devices and hist
  const other=await login(bob);
  const denied=await fetch(base+'/arcade/plinko?round='+first,{headers:{cookie:other.cookie}});
  assert.equal(denied.status,404);
- const blocked=await post('/arcade/plinko/drop',other,{...form,request_id:randomUUID(),wager:'1000',count:'10'});
+ const blocked=await post('/arcade/plinko/drop',other,input(1000,12,'medium',10));
  assert.equal(blocked.status,409,'cannot stake more than the wallet');
 });
