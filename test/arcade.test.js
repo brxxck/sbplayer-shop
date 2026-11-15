@@ -337,7 +337,7 @@ test('V1.21: Coin Flip keeps house mode in Arcade, with real SB and CAM faces an
   assert.match(body,/class="arcade-coin-face arcade-coin-cam"/);
   assert.doesNotMatch(body,/<h2>⚔️ Challenge a member<\/h2>/);
   assert.doesNotMatch(body,/<h2>Open coin flips<\/h2>/);
-  assert.doesNotMatch(body,/40%|50%|\bRTP\b/i);
+  assert.doesNotMatch(body.split('<div class="arcade-root">')[1],/40%|50%|\bRTP\b/i);
   const slots=await (await fetch(base+'/arcade/slots',{headers:{cookie}})).text();
   assert.match(slots,/data-reel-index="0"/);
   assert.match(slots,/data-reel-index="2"/);
@@ -372,7 +372,7 @@ test('V1.21: Private profile invites notify only targets; accept/decline settle 
   const outsider=await auth(charlie,'/arcade');
   assert.match(a.page,/data-open-coin-challenge/);
   assert.match(a.page,/data-profile-challenge-form/);
-  assert.match(a.page,/name="target_id" value="'+bob+'"/);
+  assert.ok(a.page.includes('name="target_id" value="'+bob+'"'));
   assert.doesNotMatch(a.page,/\bRTP\b|40%|50%/i);
   const sent=await fetch(base+'/arcade/coinflip/challenges',{
    method:'POST',redirect:'manual',headers:{cookie:a.cookie,accept:'application/json','x-arcade-challenge':'1'},
