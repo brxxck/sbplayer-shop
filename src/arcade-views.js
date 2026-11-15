@@ -121,22 +121,23 @@ export function crashPage(ctx,summary,status,rounds){
  const active=round?.status==='active';
  const terminal=!!round&&!active;
  const replay=ctx.arcadePlayAgain===true;
+ const displayFinished=terminal&&!replay;
  const showForm=!active&&(!terminal||replay);
  const cashAt=round?.cashAt||100,crashAt=round?.crashAt||100;
  const cashout=round?.status==='cashed_out';
  const finishedAt=(cashout?cashAt:crashAt)/100;
  const profit=(round?.payout||0)-(round?.wager||0);
- return chrome(ctx,'Crash',summary,`<section class="panel padded arcade-feature-game arcade-crash-page" data-crash-game data-crash-active="${active?'1':'0'}" data-crash-final="${terminal?finishedAt.toFixed(2):''}" data-crash-outcome="${terminal?round.status:''}">
+ return chrome(ctx,'Crash',summary,`<section class="panel padded arcade-feature-game arcade-crash-page" data-crash-game data-crash-active="${active?'1':'0'}" data-crash-replay="${replay?'1':'0'}" data-crash-final="${displayFinished?finishedAt.toFixed(2):''}" data-crash-outcome="${displayFinished?round.status:''}">
  <div class="arcade-section-title"><h2>🚀 SB Crash</h2><span>Collect before the rocket crashes</span></div>
- <div class="arcade-crash-display ${terminal?(cashout?'collected':'crashed'):''}">
+ <div class="arcade-crash-display ${displayFinished?(cashout?'collected':'crashed'):''}">
    <div class="arcade-crash-stars" aria-hidden="true"></div>
    <svg viewBox="0 0 700 260" class="arcade-crash-chart" aria-hidden="true" preserveAspectRatio="none">
     <defs><linearGradient id="arcadeRocketLine" x1="0" x2="1"><stop offset="0%" stop-color="#126d82"/><stop offset="100%" stop-color="#4bf4b2"/></linearGradient></defs>
     <path data-crash-chart-line d="M 28 232 L 28 232" fill="none" stroke="url(#arcadeRocketLine)" stroke-width="4" stroke-linecap="round"/>
    </svg>
    <div class="arcade-rocket" data-crash-rocket aria-hidden="true"><span class="arcade-rocket-body">🚀</span><span class="arcade-rocket-exhaust"></span></div>
-   <div class="arcade-crash-hud"><div class="arcade-crash-number" data-crash-multiplier>${terminal?finishedAt.toFixed(2):'1.00'}×</div>
-   <small data-crash-message>${active?'Launching…':terminal?(cashout?'Successfully collected!':'Rocket crashed!'):'Ready to launch'}</small></div>
+   <div class="arcade-crash-hud"><div class="arcade-crash-number" data-crash-multiplier>${displayFinished?finishedAt.toFixed(2):'1.00'}×</div>
+   <small data-crash-message>${active?'Launching…':displayFinished?(cashout?'Successfully collected!':'Rocket crashed!'):'Ready to launch'}</small></div>
    <div class="arcade-crash-flash" aria-hidden="true"></div>
  </div>
  ${active?`<div class="arcade-round-panel"><p>Your wager: <strong>${number(round.wager)} points</strong>${round.autoAt?' · Auto-collect: '+(round.autoAt/100).toFixed(2)+'×':''}</p>
