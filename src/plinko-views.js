@@ -7,7 +7,6 @@ import {PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES,plinkoRtp} from './
 
 const n=value=>Number(value||0).toLocaleString('en-GB');
 const mult=cents=>(cents/100).toFixed(2)+'×';
-const good=(test,backup)=>test?test:backup;
 const payoutSlots=table=>'<div class="plinko-multiplier-list" data-plinko-slots aria-label="Slot payouts">'+
  table.map((cents,slot)=>'<span class="plinko-slot-value" data-plinko-slot="'+slot+
  '" title="Slot '+(slot+1)+' payout '+mult(cents)+'">'+mult(cents)+'</span>').join('')+'</div>';
@@ -23,7 +22,7 @@ const countControls=count=>'<fieldset class="plinko-ball-count"><legend>Balls pe
 export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
  const latest=round||rounds[0]||null;
  const saved=latest?.details||{};
- const rows=good(PLINKO_ROWS.includes(saved.rows),false)?saved.rows:12;
+ const rows=PLINKO_ROWS.includes(saved.rows)?saved.rows:12;
  const risk=PLINKO_RISKS.includes(saved.risk)?saved.risk:'medium';
  const count=PLINKO_COUNTS.includes(saved.count)?saved.count:1;
  const wager=Number.isSafeInteger(saved.perBall)&&saved.perBall>=10&&saved.perBall<=1000?saved.perBall:50;
