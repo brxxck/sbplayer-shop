@@ -268,7 +268,7 @@ export function sweepArcade(){
  });
 }
 export function openChallenges(userId){
- return all("SELECT c.*,u.display_name creator_name FROM arcade_challenges c JOIN users u ON u.id=c.creator_id WHERE c.guild_id=? AND c.status='open' AND c.expires_at>? AND (c.target_id IS NULL OR c.target_id=? OR c.creator_id=?) ORDER BY c.id DESC LIMIT 50",config.guildId,Date.now(),userId,userId);
+ return all("SELECT c.*,u.display_name creator_name,t.display_name target_name FROM arcade_challenges c JOIN users u ON u.id=c.creator_id LEFT JOIN users t ON t.id=c.target_id WHERE c.guild_id=? AND c.status='open' AND c.expires_at>? AND (c.target_id IS NULL OR c.target_id=? OR c.creator_id=?) ORDER BY c.id DESC LIMIT 50",config.guildId,Date.now(),userId,userId);
 }
 export function createChallenge(userId,fields){
  const wager=wagerOf(fields),face=faceOf(fields),key=keyOf(fields),target=String(fields.target_id||'').trim();
