@@ -16,7 +16,7 @@ const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 export const assetVersion = '1.21.2';
  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
  // Cache-bust the Arcade-specific assets independently of other website work.
- const arcadeAssetVersion = 'online-blackjack-form-hotfix-v3';
+ const arcadeAssetVersion = 'global-crash-disabled-v1';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -45,8 +45,7 @@ const navLink=(link,label,unused,ctx)=>{const active=ctx.pathname===link||(link=
 const publicLinkPages=Object.freeze({
  '/':["SB's & Cam's Store","Official SB's & Cam's Store community website. Connect with Discord, share posts, open tickets and discover our team."],
  '/arcade':["SB Arcade | SB's & Cam's Store","Play Coin Flip, Slots, Mines and Crash with points earned from Discord levels."],
- '/arcade/online':["Online Games | SB's & Cam's Store","Play four-seat Blackjack or Global Crash together using Discord Level Points."],
- '/arcade/online/crash':["Global Crash | SB's & Cam's Store","Join live website-wide Crash rounds with synchronized wagers and cash-outs."],
+ '/arcade/online':["Online Games | SB's & Cam's Store","Play four-seat Blackjack and Live Roulette using Discord Level Points."],
  '/arcade/online/roulette':["Live Roulette | SB's & Cam's Store","Join global European Roulette rounds with 30 seconds of betting and synchronized wheel animations."],
  '/arcade/blackjack':["Solo Blackjack | SB's & Cam's Store","Play private Blackjack against the dealer with saved wagers, cards and Level Points."],
  '/arcade/online/blackjack':["Live Blackjack | SB's & Cam's Store","Play synchronized four-player Blackjack against one dealer using community points."],
