@@ -129,3 +129,250 @@
 @media (max-width:840px) and (prefers-reduced-motion:reduce) {
   .mobile-nav,.mobile-more>nav { scroll-behavior:auto; animation:none; transition:none; }
 }
+
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* SB MOBILE-FIRST OVERHAUL - 2026-11-15 */
+/* This section is intentionally scoped to phones and tablets. Desktop is unchanged. */
+@media (max-width:840px) {
+  html,body,.shell,.main { width:100%; max-width:100%; min-width:0; }
+  .main { overflow-x:clip; }
+  .content { width:100%; min-width:0; padding:12px max(12px,env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+  .content > *, .content section, .content article, .content form, .content fieldset { min-width:0; max-width:100%; }
+  .content img,.content video,.content canvas { max-width:100%; }
+  .content h1,.content h2,.content h3 { overflow-wrap:break-word; }
+  .page-heading { margin-bottom:14px; }
+  .page-heading h1 { font-size:clamp(23px,6.5vw,30px); line-height:1.16; margin:3px 0 7px; }
+  .page-heading p { font-size:13px; line-height:1.5; }
+  .topbar { min-height:60px; height:60px; max-height:60px; padding-inline:max(10px,env(safe-area-inset-left)) max(10px,env(safe-area-inset-right)); }
+  .topbar .mobile-brand { flex:0 0 auto; }
+  .topbar .mobile-brand img { width:32px!important; height:32px!important; min-width:32px; max-width:32px; max-height:32px; }
+  .top-account { max-width:calc(100% - 54px); }
+  .mobile-nav { box-shadow:0 -6px 22px #0007; }
+  .mobile-nav-tab { min-height:52px; }
+  .panel.padded,.padded,.feed-card,.compose { padding:14px; }
+  .panel,.card,.tile,.feed-card,.compose,.ticket-message { border-radius:12px; }
+  .stack,.feed-layout,.profile-columns,.staff-dashboard-columns,.ticket-detail-layout { gap:12px; }
+  .feature-grid,.stats-three,.dash-summary-row,.mega-top-kpis,.mega-stats { gap:9px; }
+  .content :is(.field-grid,.choice-row,.profile-edit-grid,.review-grid,.admin-grid,.ticket-detail-layout,.social-layout,.staff-dashboard-columns) { grid-template-columns:minmax(0,1fr); }
+  .content :is(.form-actions,.compose-footer,.post-actions,.profile-actions,.ticket-compose-actions,.dm-compose-actions,.ticket-detail-head,.section-heading,.panel-heading) { flex-wrap:wrap; gap:9px; min-width:0; }
+  .content :is(.form-actions,.ticket-compose-actions,.dm-compose-actions) > .btn { flex:1 1 135px; }
+  .content :is(.btn,.action-btn,.upload-label,button[type="submit"],button[type="button"]) { touch-action:manipulation; }
+  .content :is(.btn,.action-btn,button[type="submit"],button[type="button"],select) { min-height:44px; }
+  .content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select) { font-size:16px; min-width:0; }
+  .content :is(input,textarea,select) { max-width:100%; }
+  .table-wrap,.mobile-table-wrap { min-width:0; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .feed-card .post-body,.ticket-message-main,.profile-identity,.member-card,.team-card,.dm-thread,.social-person,.social-notification { min-width:0; overflow-wrap:anywhere; }
+  .post-actions > * { max-width:100%; }
+  .post-actions :is(a,button) { padding-inline:9px; }
+  .compose textarea { min-height:78px; }
+  .ticket-chat-log { max-height:55dvh; padding:10px 7px; }
+  .ticket-chat-composer textarea,.dm-compose textarea { min-height:80px; }
+  .ticket-compose-actions .btn { min-height:46px; }
+  .profile-page .profile-banner { height:140px; min-height:0; }
+  .profile-page .profile-top { flex-wrap:wrap; align-items:center; gap:10px; }
+  .profile-page .profile-top .avatar { width:80px; height:80px; max-width:80px; max-height:80px; margin-top:-38px; }
+  .profile-actions { gap:7px; }
+  .sticky-save { bottom:calc(79px + env(safe-area-inset-bottom)); }
+  .page-finder,.profile-challenge-dialog,.arcade-challenge-overlay { max-width:100vw; }
+  .page-finder { max-height:calc(100dvh - 36px); }
+  /* Arcade: controls and game content first. Wallet becomes a compact badge. */
+  .arcade-root,.sbj-root,.bj-root,.roulette-root,.plinko-root,.online-games-root { gap:11px; width:100%; max-width:100%; min-width:0; }
+  .arcade-header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; padding:12px; border-radius:13px; }
+  .arcade-header > div { min-width:0; }
+  .arcade-header .arcade-eyebrow { font-size:9px; line-height:1.2; letter-spacing:.7px; }
+  .arcade-header h1 { font-size:clamp(19px,5vw,26px); line-height:1.15; letter-spacing:-.4px; margin:3px 0; }
+  .arcade-header p { display:none; }
+  .arcade-wallet { display:grid; gap:1px; justify-items:end; min-width:0; padding:8px 10px; border-radius:10px; text-align:right; }
+  .arcade-wallet small { display:none; }
+  .arcade-wallet strong { color:#f5d27e; font-size:clamp(17px,4.1vw,22px); line-height:1.25; white-space:nowrap; }
+  .arcade-wallet strong span { font-size:12px; }
+  .arcade-game-menu { display:block; min-width:0; max-width:100%; background:#0d223c; border:1px solid #38608a; border-radius:11px; }
+  .arcade-game-menu > summary { display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; list-style:none; min-height:48px; padding:9px 12px; color:#c4d9f0; font-size:13px; }
+  .arcade-game-menu > summary::-webkit-details-marker { display:none; }
+  .arcade-game-menu > summary strong { font-size:13px; color:#fff; text-align:right; }
+  .arcade-game-menu > summary::after { content:"⌄"; color:#9dc9fa; font-size:20px; font-weight:700; }
+  .arcade-game-menu[open] > summary::after { content:"⌃"; }
+  .arcade-game-menu > nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:10px; border-top:1px solid #294a71; max-height:56dvh; overflow-y:auto; overscroll-behavior:contain; }
+  .arcade-game-menu > nav a { display:flex; align-items:center; justify-content:center; min-height:45px; min-width:0; padding:8px; border-radius:8px; background:#153453; border:1px solid #335779; color:#e1eeff; text-align:center; font-size:12px; font-weight:750; }
+  .arcade-game-menu > nav a[aria-current="page"] { background:#20588a; border-color:#68aff4; color:#fff; }
+  .arcade-game-menu > nav a:focus-visible { outline:2px solid #93ceff; outline-offset:2px; }
+  .arcade-tabs { display:none!important; }
+  .arcade-experience-options { display:flex; justify-content:flex-start; align-items:center; gap:8px; margin:0; flex-wrap:wrap; }
+  .arcade-experience-options label { display:inline-flex; flex-direction:row; align-items:center; gap:7px; margin:0; font-size:12px; }
+  .arcade-experience-options :is(button,select) { min-height:40px; padding:6px 9px; font-size:12px; }
+  .arcade-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .arcade-metrics > div { padding:11px; gap:5px; }
+  .arcade-metrics strong { font-size:21px; }
+  .arcade-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+  .arcade-game-card { min-height:145px; padding:12px; gap:7px; }
+  .arcade-game-art { font-size:38px; padding:2px; }
+  .arcade-game-info strong { font-size:16px; }
+  .arcade-game-info small { font-size:11px; line-height:1.4; }
+  .arcade-game-arrow { margin-top:2px; }
+  .arcade-section-title { gap:7px; }
+  .arcade-section-title h2 { font-size:17px; margin-bottom:4px; }
+  .arcade-result { padding:12px; gap:10px; }
+  .arcade-result-value strong { font-size:21px; }
+  .arcade-history-panel { padding:12px; }
+  .arcade-history-panel table { min-width:540px; }
+  .arcade-history-panel .table-wrap { overscroll-behavior-x:contain; }
+  .arcade-reel { width:clamp(65px,22vw,95px); height:clamp(86px,28vw,115px); }
+  .arcade-slot-reels { gap:7px; margin:5px 0; }
+  .arcade-game-panel { gap:11px; }
+  .arcade-crash-display { height:210px; min-height:210px; }
+  .arcade-leaderboard-summary { gap:7px; }
+  .arcade-leaderboard-row { gap:8px; }
+  .online-room-grid { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .online-room { padding:14px; gap:10px; }
+  .online-room-head { flex-wrap:wrap; }
+  .online-room-badge { margin-left:0; }
+  /* Solo Blackjack: discard decorative empty vertical space, not the actual cards. */
+  .sbj-intro { display:none; }
+  .sbj-root { display:flex; flex-direction:column; }
+  .sbj-root > .sbj-connection { order:1; min-height:17px; font-size:11px; }
+  .sbj-root > [data-sbj-controls] { order:2; }
+  .sbj-root > [data-sbj-table] { order:3; min-width:0; }
+  .sbj-root:has(.sbj-felt[data-sbj-phase="playing"]) > [data-sbj-table] { order:2; }
+  .sbj-root:has(.sbj-felt[data-sbj-phase="playing"]) > [data-sbj-controls] { order:3; }
+  .sbj-root > .sbj-rules { order:5; }
+  .sbj-root > .arcade-history-panel { order:6; }
+  .sbj-felt { display:flex; flex-direction:column; gap:9px; min-height:0; padding:12px 10px; border:5px solid #70502f; border-bottom-width:7px; border-radius:24px; background:radial-gradient(ellipse at 50% 40%,#205e49,#0c322d 90%); box-shadow:inset 0 0 0 2px #ae874d,0 7px 17px #0005; }
+  .sbj-felt:before,.sbj-table-shimmer,.sbj-table-logo { display:none; }
+  .sbj-dealer { gap:5px; }
+  .sbj-dealer-tag { gap:6px; font-size:11px; }
+  .sbj-dealer-tag span { padding:5px 8px; font-size:11px; }
+  .sbj-dealer-tag b { font-size:11px; }
+  .sbj-dealer-cards { min-height:68px; padding:3px; }
+  .sbj-dealer-cards .bj-card { width:46px; height:68px; flex-basis:46px; }
+  .sbj-dealer-cards .bj-card-symbol { font-size:25px; }
+  .sbj-dealer-cards .bj-card-corner { font-size:10px; }
+  .sbj-dealer-cards .bj-card-corner small { font-size:8px; }
+  .sbj-table-hands { min-height:0; gap:6px; }
+  .sbj-hand { min-width:0; flex:1 1 135px; padding:9px 7px; border-radius:10px; gap:6px; }
+  .sbj-hand-title { gap:3px; font-size:11px; }
+  .sbj-hand-title span { font-size:10px; }
+  .sbj-player-cards { min-height:65px; padding:2px; }
+  .sbj-player-cards .bj-card { width:44px; height:64px; flex-basis:44px; }
+  .sbj-player-cards .bj-card-symbol { font-size:23px; }
+  .sbj-player-cards .bj-card-corner { font-size:10px; }
+  .sbj-player-cards .bj-card-corner small { font-size:8px; }
+  .sbj-hand-bottom strong { font-size:19px; }
+  .sbj-hand-bottom { font-size:11px; }
+  .sbj-controls { padding:12px; border-radius:13px; }
+  .sbj-controls-inner { gap:9px; }
+  .sbj-stats { gap:6px; }
+  .sbj-stats > div { padding:8px 6px; gap:4px; }
+  .sbj-stats small { font-size:9px; line-height:1.25; }
+  .sbj-stats strong { font-size:17px; }
+  .sbj-message { font-size:12px; }
+  .sbj-wager-form { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
+  .sbj-wager-form label { margin:0; }
+  .sbj-wager-form input { min-height:46px; font-size:17px; }
+  .sbj-chip-values { grid-row:auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+  .sbj-chip-values button { min-width:0; min-height:43px; padding:7px 4px; font-size:12px; }
+  .sbj-deal { grid-row:auto; min-height:49px; font-size:15px; }
+  .sbj-action-buttons { gap:7px; }
+  .sbj-action-buttons button { min-height:49px; font-size:14px; }
+  .sbj-result { padding:12px; gap:8px; }
+  .sbj-result-label > strong { font-size:23px; }
+  .sbj-rules { padding:13px; }
+  .sbj-rules p { font-size:12px; line-height:1.6; }
+  /* Live Blackjack: controls appear before the table until an action is available. */
+  .bj-root { display:flex; flex-direction:column; }
+  .bj-root > .arcade-header { order:0; }
+  .bj-root > .arcade-game-menu { order:1; }
+  .bj-root > .bj-toolbar { order:2; }
+  .bj-root > [data-bj-action-panel] { order:3; }
+  .bj-root > [data-bj-table] { order:4; }
+  .bj-root:has(.bj-actions) > [data-bj-table] { order:3; }
+  .bj-root:has(.bj-actions) > [data-bj-action-panel] { order:4; }
+  .bj-root > .bj-rules { order:5; }
+  .bj-toolbar,.roulette-toolbar { gap:7px; }
+  .bj-toolbar > .btn,.roulette-toolbar > .btn { font-size:12px; min-height:40px; }
+  .bj-live,.roulette-live { margin-left:0; margin-top:0; font-size:9px; padding:4px 7px; vertical-align:middle; }
+  .bj-table-surface { display:flex; flex-direction:column; gap:8px; min-height:0; border:5px solid #70502f; border-bottom-width:8px; border-radius:22px; padding:12px 9px; }
+  .bj-table-surface:before,.bj-table-halo,.bj-felt-logo { display:none; }
+  .bj-dealer-area { gap:5px; }
+  .bj-dealer-cards { min-height:69px; padding:3px; }
+  .bj-dealer-cards .bj-card { width:46px; height:67px; flex-basis:46px; }
+  .bj-dealer-cards .bj-card-symbol { font-size:25px; }
+  .bj-seats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+  .bj-seat { min-width:0; min-height:110px; gap:5px; padding:8px; }
+  .bj-seat-top { flex-wrap:wrap; gap:4px; }
+  .bj-seat-top b { font-size:11px; overflow-wrap:anywhere; }
+  .bj-action-zone { padding:12px; border-radius:13px; }
+  .bj-wager-head { gap:6px; }
+  .bj-wager-head > div { min-width:0; padding:8px 5px; }
+  .bj-wager-head strong { font-size:15px; overflow-wrap:anywhere; }
+  .bj-wager-head small { font-size:9px; }
+  .bj-bet-form { grid-template-columns:1fr; gap:7px; }
+  .bj-quick-bets { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; }
+  .bj-quick-bets button { min-width:0; min-height:44px; padding:5px 3px; }
+  .bj-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  .bj-actions form { width:100%; min-width:0; }
+  .bj-actions button { width:100%; min-height:49px; }
+  .bj-rules p { font-size:12px; }
+  /* Roulette: wheel is readable and the number grid scrolls internally. */
+  .roulette-root { display:grid; gap:11px; }
+  .roulette-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  .roulette-stats > div { padding:9px; gap:4px; }
+  .roulette-stats strong { font-size:18px; }
+  .roulette-stats small { font-size:10px; }
+  .roulette-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:11px; }
+  .roulette-left,.roulette-right,.roulette-betting-panel,.roulette-wheel-panel,.roulette-betting-table { min-width:0; max-width:100%; }
+  .roulette-wheel-panel,.roulette-betting-panel,.roulette-my-results { padding:12px; }
+  .roulette-wheel-box { width:min(100%,315px); margin:2px auto; }
+  .roulette-wheel-header h2 { font-size:17px; }
+  .roulette-time { min-width:90px; padding:6px; }
+  .roulette-time strong { font-size:20px; }
+  .roulette-chip-palette { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+  .roulette-chip-option { width:100%; aspect-ratio:auto; min-height:45px; min-width:0; border-radius:10px; font-size:12px; }
+  .roulette-number-layout { grid-template-columns:37px minmax(0,1fr); max-width:100%; min-width:0; }
+  .roulette-number-grid { min-width:0; max-width:100%; overflow-x:auto; grid-template-columns:repeat(12,minmax(42px,1fr)); -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
+  .roulette-number-row .roulette-choice { min-height:42px; font-size:12px; }
+  .roulette-zero { min-height:135px; }
+  .roulette-outside .roulette-choice,.roulette-dozens .roulette-choice,.roulette-columns .roulette-choice { min-height:44px; font-size:11px; }
+  .roulette-special-choices { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .roulette-confirm { min-height:49px; }
+  .roulette-hint { font-size:12px; line-height:1.5; }
+  /* Smaller game canvases and lower content remain contained. */
+  .plinko-layout { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .plinko-panel { padding:12px; }
+  .plinko-canvas-box { min-width:0; max-width:100%; }
+  .plinko-controls { min-width:0; }
+  .plinko-quick-wagers button { min-height:44px; }
+  .plinko-slot-value { font-size:clamp(8px,1.7vw,11px); }
+}
+@media (max-width:480px) {
+  .topbar { padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right)); gap:6px; }
+  .content { padding-inline:10px; }
+  .arcade-header { padding:10px; }
+  .arcade-header .arcade-eyebrow { display:none; }
+  .arcade-wallet { padding:7px; }
+  .arcade-header h1 { font-size:clamp(18px,5.1vw,23px); }
+  .arcade-game-menu > nav { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .arcade-game-card { min-height:138px; padding:10px; }
+  .arcade-game-info strong { font-size:15px; }
+  .arcade-game-art { font-size:35px; }
+  .arcade-metrics strong { font-size:19px; }
+  .arcade-leaderboard-row { gap:6px; padding:9px 7px; }
+  .arcade-leaderboard-person { min-width:0; }
+  .roulette-wheel-box { width:min(100%,285px); }
+  .roulette-chip-palette { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .sbj-felt { padding:10px 7px; }
+  .sbj-hand { flex-basis:125px; }
+  .sbj-result { gap:6px; }
+  .bj-seat { padding:7px 5px; }
+  .online-room-head h2 { font-size:17px; }
+}
+@media (max-width:350px) {
+  .arcade-header { grid-template-columns:minmax(0,1fr) auto; }
+  .arcade-header h1 { font-size:17px; }
+  .arcade-wallet strong { font-size:16px; }
+  .arcade-game-menu > nav { grid-template-columns:1fr 1fr; }
+  .sbj-stats strong { font-size:15px; }
+}
+@media (max-width:840px) and (prefers-reduced-motion:reduce) {
+  .arcade-game-menu,.arcade-game-menu * { scroll-behavior:auto; transition:none!important; }
+}
