@@ -9,6 +9,7 @@ const dir=mkdtempSync(join(tmpdir(),'sb-online-games-'));
 const guild='100000000000000001';
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(dir,'online.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,run,one}=await import('../src/db.js');
+await import('../src/level-points.js'); // Creates the durable wallet schema.
 const {ONLINE_LOBBY_STALE_MS,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby,onlineGamesSnapshot}=await import('../src/online-games.js');
 const {isCinematicWin}=await import('../src/arcade-cinematic-rules.js');
 const users=Array.from({length:12},(_,i)=>String(100000000000000100n+BigInt(i)));
