@@ -26,7 +26,7 @@
   set('crash.lobbyPlayers',number(crash.lobbyPlayers));
   set('crash.roundPlayers',number(crash.roundPlayers));
   set('crash.roundWager',number(crash.roundWager)+' pts');
-  status('blackjack',bj.joined?(bj.atTable?'You have a preview seat (#'+number(bj.position)+').':
+  status('blackjack',bj.joined?(bj.atTable?'You have a seat (#'+number(bj.position)+').':
     'You are #'+number(bj.position)+' in the waiting queue.'):'You have not joined the preview lobby.');
   status('crash',crash.joined?'You are in the shared Crash preview lobby.':
     'You have not joined the shared Crash preview lobby.');
@@ -39,7 +39,7 @@
    const button=form?.querySelector('button');
    if(!form||!button)continue;
    form.action='/arcade/online/'+(state.joined?'leave':'join');
-   button.textContent=state.joined?'Leave lobby':game==='blackjack'?'Join Blackjack queue':'Join preview lobby';
+   button.textContent=state.joined?'Leave lobby':game==='blackjack'?'Join Blackjack queue':'Join Global Crash';
    button.className='btn '+(state.joined?'btn-outline':'btn-primary');
   }
   if(notice)notice.textContent='Live lobby counts';

@@ -40,9 +40,22 @@
    [523.25,659.25,783.99,1046.5].forEach((tone,i)=>note(tone,now+i*.11,.28,.11,'triangle'));
    return;
   }
+  // Synthesized cues reused by the shared, continuously running Crash game.
+  if(cue==='launch'){
+   [196,246.94,329.63,440].forEach((tone,i)=>note(tone,now+i*.095,.24,.085,'sawtooth'));
+   return;
+  }
+  if(cue==='crash'){
+   [310,220,146,98].forEach((tone,i)=>note(tone,now+i*.09,.25,.075,'sawtooth'));
+   return;
+  }
+  if(cue==='cashout'){
+   [523,784,1047].forEach((tone,i)=>note(tone,now+i*.10,.26,.085,'triangle'));
+   return;
+  }
   const sounds={click:[360,.06,.04,'triangle'],chip:[630,.09,.07,'sine'],
    card:[240,.08,.025,'triangle'],peg:[880,.035,.02,'sine'],
-   win:[720,.16,.07,'sine'],loss:[180,.15,.045,'triangle']};
+   win:[720,.16,.07,'sine'],loss:[180,.15,.045,'triangle'],countdown:[580,.075,.042,'triangle']};
   const spec=sounds[cue]||sounds.click;
   note(spec[0],now,spec[1],spec[2],spec[3]);
  }

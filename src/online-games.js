@@ -121,6 +121,6 @@ export function onlineGamesSnapshot(userId,now=Date.now()){
   blackjack:{...roundMetrics('blackjack'),lobbyPlayers:bj,seated:seatsFilled,
     waiting:queued,seats:BLACKJACK_SEATS,joined:position!==null,
     position,atTable:reserved?reserved.has(user):position!==null&&position<=BLACKJACK_SEATS,enabled:true},
-  crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:false}
+  crash:{...roundMetrics('crash'),lobbyPlayers:crash,joined:inCrash,enabled:true}
  };
 }
