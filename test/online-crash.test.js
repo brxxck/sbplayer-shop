@@ -11,7 +11,6 @@ const guild='100000000000000001',alice='100000000000000101',bob='100000000000000
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(dir,'global-crash.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,one,all,run}=await import('../src/db.js');
 await import('../src/level-points.js');
-const {joinOnlineLobby,leaveOnlineLobby}=await import('../src/online-games.js');
 const {globalCrashSnapshot,globalCrashTick,globalCrashBet,globalCrashCashout,globalCrashPoint,
  globalCrashCommitment,globalCrashPayout,globalCrashReachTime,globalCrashCentsAt,
  GLOBAL_CRASH_BET_MS,GLOBAL_CRASH_BREAK_MS}=await import('../src/online-crash.js');
@@ -46,7 +45,7 @@ function fixSeed(roundId,minCrash=200,maxCrash=10001){
 }
 function begin(users,t){
  reset();
- for(let i=0;i<users.length;i++)joinOnlineLobby(users[i],'crash',t+i);
+ for(let i=0;i<users.length;i++)run("INSERT INTO online_game_waiting(guild_id,game,user_id,joined_at,last_seen_at) VALUES(?,'crash',?,?,?)",guild,users[i],t+i,t+i);
  const state=globalCrashSnapshot(users[0]||alice,t+users.length+1);
  assert.equal(state.phase,'betting');
  assert.ok(state.roundId>0);
@@ -179,7 +178,7 @@ test('Betting closes atomically at launch; queue departures do not erase existin
  const t=7000000,state=begin([alice],t);
  fixSeed(state.roundId,200);
  globalCrashBet(alice,request(state.roundId,100),t+100);
- leaveOnlineLobby(alice,'crash',t+120);
+ run("DELETE FROM online_game_waiting WHERE guild_id=? AND game='crash' AND user_id=?",guild,alice);
  const inFlight=globalCrashSnapshot(alice,t+GLOBAL_CRASH_BET_MS+3);
  assert.equal(inFlight.phase,'playing');
  assert.equal(inFlight.joined,false);
