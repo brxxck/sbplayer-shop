@@ -319,6 +319,9 @@
     stream.addEventListener('global-crash',event=>{
       try{window.dispatchEvent(new CustomEvent('sb:global-crash',{detail:JSON.parse(event.data)}));}catch{}
     });
+    stream.addEventListener('roulette',event=>{
+      try{window.dispatchEvent(new CustomEvent('sb:roulette',{detail:JSON.parse(event.data)}));}catch{}
+    });
     stream.addEventListener('notifications-update',refreshCounts);
     stream.addEventListener('staff-chat-update',()=>{if(document.querySelector('#staff-chat-messages'))window.dispatchEvent(new Event('sb:staff-chat-update'));});
     stream.onerror=()=>showConnection('Reconnecting');
