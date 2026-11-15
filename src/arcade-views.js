@@ -41,7 +41,7 @@ const historyList=rounds=>`<section class="panel padded arcade-history-panel"><d
 
 export function arcadeHome(ctx,summary,rounds){
  return chrome(ctx,'SB Arcade',summary,`
- <section class="arcade-metrics"><div><small>AVAILABLE POINTS</small><strong>${number(summary.balance)}</strong></div>
+ <section class="arcade-metrics"><div class="arcade-points-stat"><small>AVAILABLE POINTS</small><strong>${number(summary.balance)}</strong><a class="arcade-get-more" href="/points" aria-label="Get more points from Discord levels">Get more from levels <span aria-hidden="true">→</span></a></div>
  <div><small>GAMES COMPLETED</small><strong>${number(summary.played)}</strong></div>
  <div><small>GAMES WON</small><strong>${number(summary.wins)}</strong></div>
  <div><small>BIGGEST PROFIT</small><strong>${number(summary.biggest_win)}</strong></div></section>
