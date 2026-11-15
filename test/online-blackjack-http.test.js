@@ -53,7 +53,9 @@ test('Blackjack route renders table, phase assets and lobby link with CSRF-prote
  let response=await fetch(base+'/arcade/online',{headers:{cookie:member.cookie}});
  let text=await response.text();
  assert.equal(response.status,200);
- assert.match(text,/Open Blackjack table/);
+ assert.match(text,/Join &amp; Play Blackjack|Join & Play Blackjack/);
+ assert.match(text,/name="next" value="blackjack"/);
+ assert.match(text,/View live table/);
  assert.match(text,/Online Games/);
  response=await request('/arcade/online/join',member,{game:'blackjack'},'invalid');
  assert.equal(response.status,403);
@@ -103,4 +105,25 @@ test('Blackjack API requires membership, valid CSRF and server-chosen seat',asyn
  });
  assert.equal(response.status,409,'Actions are not allowed before the deal');
  assert.equal(one('SELECT balance FROM level_point_wallets WHERE user_id=?',alice).balance,4850);
+});
+
+test('A spectator joins the real Blackjack queue from the table and redirects to the live game',async()=>{
+ const member=await login(bob);
+ const table=await (await fetch(base+'/arcade/online/blackjack',{headers:{cookie:member.cookie}})).text();
+ assert.match(table,/data-online-join-direct/);
+ assert.match(table,/name="game" value="blackjack"/);
+ assert.match(table,/name="next" value="blackjack"/);
+ const joined=await request('/arcade/online/join',member,{game:'blackjack',next:'blackjack'});
+ assert.equal(joined.status,303);
+ assert.match(joined.headers.get('location')||'',/\/arcade\/online\/blackjack/);
+ const state=blackjackSnapshot(bob);
+ assert.equal(state.joined,true);
+ const destination=await fetch(base+'/arcade/online/blackjack',{headers:{cookie:member.cookie}});
+ assert.equal(destination.status,200);
+ const result=await destination.text();
+ assert.match(result,/SB BLACKJACK/);
+ assert.match(result,/data-blackjack-root/);
+ assert.doesNotMatch(result,/data-online-join-direct/);
+ assert.equal(one('SELECT balance FROM level_point_wallets WHERE user_id=?',bob).balance,5000,
+  'Joining a live Blackjack table cannot wager points automatically');
 });
