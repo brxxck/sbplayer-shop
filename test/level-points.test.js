@@ -89,7 +89,6 @@ test('HTTP routes require owner access and CSRF; only authenticated bot payloads
   assert.match(memberHtml,/Claim 1,900 points/);
   assert.doesNotMatch(memberHtml,/No synced level received yet/);
   const memberCsrf=/name="_csrf" value="([^"]+)"/.exec(memberHtml)[1];
-  const memberCsrf=/name="_csrf" value="([^"]+)"/.exec(memberHtml)[1];
   const claim=()=>fetch(base+'/points/claim',{method:'POST',redirect:'manual',headers:{cookie:memberCookie,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({_csrf:memberCsrf,user_id:other,level:'999999'})});
   assert.equal((await claim()).status,303);assert.equal(levelWallet(user).balance,3000);
   assert.equal(levelWallet(other).balance,0);assert.equal((await claim()).status,409);
