@@ -19,8 +19,8 @@
  const players=root.querySelector('[data-gcr-players]'),recent=root.querySelector('[data-gcr-history]');
  const fair=root.querySelector('[data-gcr-commitment]'),fairNote=root.querySelector('[data-gcr-fairness-note]');
  const stat=(name,value)=>{const e=root.querySelector('[data-gcr-stat="'+name+'"]');if(e)e.textContent=value;};
- const power=cents=>{
-  const d=Math.max(100,Number(cents||100));
+ const power=elapsedMs=>{
+  const d=Math.max(0,Number(elapsedMs)||0);
   return Math.min(10000,Math.floor(100*Math.exp(.12*Math.max(0,d)/1000)+1e-9)));
  };
  let model=null,clockOffset=0,active=true,busy=false,polling=false,heartbeatBusy=false;
