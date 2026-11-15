@@ -81,6 +81,13 @@
 @keyframes arcade-spin{0%{transform:translateY(-15px) rotateX(-50deg);filter:blur(3px)}60%{transform:translateY(10px) rotateX(35deg)}100%{transform:translateY(0) rotateX(0);filter:blur(0)}}
 .arcade-mine-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:22px;color:#a8c2db}
 .arcade-mine-summary strong{color:#fff;padding-left:5px}
+.arcade-mines-earnings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:min(100%,425px);margin:-2px 0 0}
+.arcade-mines-earnings>div{min-width:0;display:grid;gap:5px;padding:11px 14px;background:#102b43;border:1px solid #2f5573;border-radius:11px}
+.arcade-mines-earnings small{color:#a8c6de;font-weight:750;font-size:11px;letter-spacing:.02em}
+.arcade-mines-earnings strong{color:#ebf7ff;font-size:clamp(13px,3.6vw,18px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.arcade-mines-earnings .arcade-mines-profit{color:#56edb5}
+@media(max-width:410px){.arcade-mines-earnings{gap:7px}.arcade-mines-earnings>div{padding:10px 9px}}
+
 .arcade-mine-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;width:min(100%,425px)}
 .arcade-mine-grid form{width:100%;aspect-ratio:1;min-width:0}
 .arcade-mine-tile{display:grid;place-items:center;width:100%;aspect-ratio:1;border:1px solid #2c5684;background:linear-gradient(135deg,#173e68,#0d2743);border-radius:9px;color:#b1d2fc;font-size:clamp(17px,3vw,32px);font-weight:800;box-shadow:inset 0 -4px 0 #0a1f38}
