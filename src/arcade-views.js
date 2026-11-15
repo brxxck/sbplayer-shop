@@ -15,7 +15,7 @@ const chrome=(ctx,page,summary,content)=>{
 <div class="arcade-root">
  <div class="arcade-header">
   <div><div class="arcade-eyebrow">SB'S & CAM'S STORE · LEVEL POINTS</div><h1>${esc(page)}</h1>
-   <p>Play with points earned from Discord levels. No real money or redeemable prizes.</p></div>
+   <p>Play with points earned from Discord levels. No real money.</p></div>
   <a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>${number(summary.balance)} <span>✦</span></strong><small>Claim more from levels →</small></a>
  </div>
  <nav class="arcade-tabs" aria-label="Arcade games">
