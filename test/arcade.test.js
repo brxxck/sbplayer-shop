@@ -39,8 +39,39 @@ test('slots spin uses saved reels with only one debit and one payout',()=>{
  assert.equal(round.details.reels.length,3);
  assert.ok(round.details.reels.every(s=>['Cherry','Lemon','Bell','Diamond','Seven'].includes(s)));
  assert.equal(levelWallet(alice).balance,starting-125+round.payout);
+ assert.ok(['none','pair','triple'].includes(round.details.match));
+ assert.ok([0,10,5,7,16,28].includes(round.details.multiplier));
+ if(round.details.match==='pair'){
+  assert.equal(round.details.multiplier,10);
+  assert.equal(round.payout,1250);
+  assert.equal(round.status,'won');
+ }
+ if(round.details.match==='none')assert.equal(round.payout,0);
  assert.equal(arcade.spinSlots(alice,fields),id);
  assert.equal(levelWallet(alice).balance,starting-125+round.payout);
+});
+
+test('Slots rare two-symbol match pays 10x, while all-three and no-match payouts remain distinct',()=>{
+ const draws=values=>{
+  const sequence=[...values];return (max)=>{
+   assert.ok(sequence.length>0,'draw count exceeded scripted values');
+   const value=sequence.shift();
+   assert.ok(Number.isInteger(value)&&value>=0&&value<max);
+   return value;
+  };
+ };
+ const pair=arcade.slotOutcome(draws([0,2,1,2]));
+ assert.equal(pair.match,'pair');
+ assert.equal(pair.multiplier,10);
+ assert.deepEqual(pair.reels,['Bell','Bell','Lemon']);
+ const triple=arcade.slotOutcome(draws([50,4]));
+ assert.equal(triple.match,'triple');
+ assert.equal(triple.multiplier,28);
+ assert.deepEqual(triple.reels,['Seven','Seven','Seven']);
+ const nothing=arcade.slotOutcome(draws([450,0,0,0]));
+ assert.equal(nothing.match,'none');
+ assert.equal(nothing.multiplier,0);
+ assert.equal(new Set(nothing.reels).size,3);
 });
 
 test('Mines supports saved board, safe reveal, cashout and duplicate payout protection',()=>{
@@ -222,6 +253,9 @@ test('Fast Arcade returns a stable Mines grid and never inserts Saving into a ti
   const started=await start.json();
   assert.equal(started.ok,true);
   assert.match(started.html,/class="arcade-mine-grid"/);
+ assert.match(started.html,/Current profit/);
+ assert.match(started.html,/Reveal a safe tile/);
+ assert.match(started.html,/class="arcade-mines-profit">0 pts/);
   assert.doesNotMatch(started.html,/action="\/arcade\/mines\/start"/,'the disabled wager form must not crowd an active grid');
   assert.doesNotMatch(started.html,/Saving/);
   assert.doesNotMatch(started.html,/<html|<head|<body/);
@@ -235,6 +269,14 @@ test('Fast Arcade returns a stable Mines grid and never inserts Saving into a ti
   const rendered=await opened.json();
   assert.equal(rendered.ok,true);
   assert.match(rendered.html,/Safe picks <strong>1<\/strong>/);
+ const current=arcade.getRound(alice,roundId,'mines');
+ const collectNow=arcade.previewMinesPayout(current);
+ assert.ok(collectNow>=current.wager,'only nonnegative possible cashout profit is displayed');
+ assert.ok(rendered.html.includes('Current profit'));
+ assert.ok(rendered.html.includes('class="arcade-mines-profit">'+(collectNow>current.wager?'+':'')+(collectNow-current.wager)+' pts'));
+ assert.ok(rendered.html.includes('Collect '+collectNow+' Points'));
+ assert.ok(rendered.html.includes('Collect now'));
+ 
   assert.match(rendered.html,/class="arcade-mine-tile revealed(?: |")/);
   assert.doesNotMatch(rendered.html,/Saving/);
   assert.equal(calls.member,verified.member,'rapid arcade actions should reuse a verified session');

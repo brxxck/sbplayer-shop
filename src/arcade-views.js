@@ -41,7 +41,10 @@ const resultBox=round=>{
  let extra='';
  if(game==='coinflip')extra=`You chose ${coinName(details.selected)} · Coin landed on ${coinName(details.landed)}.`;
  if(game==='coinflip_pvp')extra=`Coin landed on ${coinName(details.landed)}.`;
- if(game==='slots')extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
+ if(game==='slots'){
+  extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
+  if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
+ }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
  return `<section class="arcade-result panel padded" role="status"><div><small>LAST RESULT</small><h2>${esc(label)}</h2><p>${extra}</p></div>
  <div class="arcade-result-value ${payout>=wager?'positive':'negative'}"><strong>${payout>=wager?'+':''}${number(payout-wager)} pts</strong><small>${number(payout)} returned from ${number(wager)} wagered</small></div></section>`;
@@ -91,8 +94,11 @@ export function slotsPage(ctx,summary,{round,rounds}){
  <button type="submit" class="btn btn-primary">Spin Reels</button></form></section>
  ${resultBox(newest)}${historyList(rounds)}`);
 }
-export function minesPage(ctx,summary,{round,rounds}){
+export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  const active=round?.status==='active'?round:null;
+ const canCollect=Boolean(active?.details?.revealed?.length);
+ const collectTotal=canCollect?Math.max(active.wager,currentPayout):0;
+ const currentProfit=canCollect?Math.max(0,collectTotal-active.wager):0;
  const current=round||rounds[0];
  const shown=new Set(current?.details?.revealed||[]);
  const terminal=current&&current.status!=='active';
@@ -101,12 +107,16 @@ export function minesPage(ctx,summary,{round,rounds}){
  <div class="arcade-section-title"><h2>💎 Mines</h2><span>Find gems · avoid mines</span></div>
  ${current?`<div class="arcade-mine-summary"><div>Wager <strong>${number(current.wager)}</strong></div><div>Bombs <strong>${number(current.details.bombCount)}</strong></div>
  <div>Safe picks <strong>${number(current.details.revealed.length)}</strong></div></div>
+ ${active?`<div class="arcade-mines-earnings" aria-live="polite" role="status">
+ <div><small>Current profit</small><strong class="arcade-mines-profit">${currentProfit>0?'+':''}${number(currentProfit)} pts</strong></div>
+ <div><small>Collect now</small><strong>${canCollect?number(collectTotal)+' pts':'Reveal a safe tile'}</strong></div>
+ </div>`:''}
  <div class="arcade-mine-grid" role="group" aria-label="Mine tiles">${Array.from({length:25},(_,i)=>{
   const opened=shown.has(i),bomb=bombs.has(i),symbol=opened?'💎':terminal?(bomb?'💣':'·'):'?';
   return active&&!opened?`<form action="/arcade/mines/${active.id}/reveal" method="post">${token(ctx)}<input type="hidden" name="tile" value="${i}"><button class="arcade-mine-tile" type="submit" aria-label="Reveal tile ${i+1}">${symbol}</button></form>`:
   `<div class="arcade-mine-tile ${opened?'revealed':''} ${bomb?'exploded':''}" aria-label="Tile ${i+1}">${symbol}</div>`;
  }).join('')}</div>
- ${active?`<form class="arcade-mine-collect" action="/arcade/mines/${active.id}/collect" method="post">${token(ctx)}<button type="submit" class="btn btn-primary" ${!active.details.revealed.length?'disabled':''}>Collect Points</button></form>`:''}
+ ${active?`<form class="arcade-mine-collect" action="/arcade/mines/${active.id}/collect" method="post">${token(ctx)}<button type="submit" class="btn btn-primary" ${!active.details.revealed.length?'disabled':''}>${canCollect?'Collect '+number(collectTotal)+' Points':'Collect Points'}</button></form>`:''}
  ${terminal?'<a class="btn btn-outline" href="/arcade/mines">Start another game</a>':''}
  `:'<div class="arcade-empty-grid"><span>💎</span><p>Start a game to reveal the grid.</p></div>'}
  ${!active?`<form action="/arcade/mines/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
