@@ -21,7 +21,7 @@ import {soloBlackjackPage,soloTableMarkup,soloControlsMarkup} from './solo-black
 import {suspendGlobalCrash} from './online-crash.js';
 import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
 import {onlineRoulettePage} from './online-roulette-views.js';
-import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory} from './daily-rewards.js';
+import {dailyRewardsStatus,claimDailyReward,dailyRewardHistory,claimDailyFreeSpins,spinDailyFreeSlots,freeSpinCredits} from './daily-rewards.js';
 import {dailyRewardsPage} from './daily-rewards-views.js';
 import {applicationHub,transactionsPage} from './upgrade-views.js';
 import {literalLikePattern,isoDayMillis} from './search-utils.js';
@@ -387,7 +387,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
             houseWager:recentRounds(user,'coinflip',1)[0]||null,challenges:openChallenges(user)});
         }else if(target.pathname==='/arcade/slots'){
           const round=roundId?getRound(user,roundId,'slots'):null;
-          markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15)});
+          markup=arcadeView.slotsPage(context,summary(),{round,rounds:recentRounds(user,'slots',15),freeSpins:freeSpinCredits(user)});
         }else if(target.pathname==='/arcade/plinko'){
           const round=roundId?getRound(user,roundId,'plinko'):null;
           markup=plinkoPage(context,summary(),{round,rounds:recentRounds(user,'plinko',15)});
@@ -539,7 +539,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='GET'&&pathname==='/arcade/slots'){
         const id=idFrom(url.searchParams.get('round')),round=id?getRound(user,id,'slots'):null;
-        return html(arcadeView.slotsPage(ctx,summary(),{round,rounds:recentRounds(user,'slots',15)}));
+        return html(arcadeView.slotsPage(ctx,summary(),{round,rounds:recentRounds(user,'slots',15),freeSpins:freeSpinCredits(user)}));
       }
       // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
       // Plinko is a solo Arcade game. The server saves all ball paths and
@@ -659,6 +659,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const {fields}=await form();rate(ctx,'arcade.slots.spin',35,60000);
         return arcadeResult('/arcade/slots?round='+spinSlots(user,fields));
       }
+      if(req.method==='POST'&&pathname==='/arcade/slots/free-spin'){
+        const {fields}=await form();rate(ctx,'arcade.slots.daily.free',80,60000);
+        const id=spinDailyFreeSlots(user,fields);
+        return arcadeResult('/arcade/slots?round='+id);
+      }
       if(req.method==='POST'&&pathname==='/arcade/plinko/drop'){
         const {fields}=await form();rate(ctx,'arcade.plinko.drop',18,60000);
         const id=dropPlinko(user,fields);
@@ -692,8 +697,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       missing();
     }
     // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-    // Daily community activity rewards are separate from game wagers, and
-    // require real website actions plus one-time, server-side claims.
+    // Three paid-game daily tasks and one independent free-spin daily reward.
+    // Claims and awarded spins are idempotent and settle server-side.
     if(pathname==='/points/daily'&&req.method==='GET'){
       await member();
       if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
@@ -709,6 +714,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const result=claimDailyReward(ctx.user.id,String(fields.challenge||''));
       return success('/points/daily',result.amount.toLocaleString('en-GB')+
         ' daily reward points claimed!');
+    }
+    if(pathname==='/points/daily/free-spins/claim'&&req.method==='POST'){
+      await member();
+      if(ctx.role==='appeal-only')forbidden('Daily rewards require Discord server membership.');
+      await form();rate(ctx,'points.daily.free-spins.claim',4,60000);
+      const claim=claimDailyFreeSpins(ctx.user.id);
+      return success('/points/daily',claim.quantity+' free Slots spins added to your rewards!');
     }
     if(pathname==='/points'&&req.method==='GET'){
       await member();return html(levelPointsPage(ctx,levelWallet(ctx.user.id),levelConnection()));
