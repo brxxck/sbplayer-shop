@@ -126,7 +126,7 @@ export function coinflipPage(ctx,summary,{round,rounds,houseWager=null}){
  ${historyList(rounds)}`);
 }
 // Every wager is one settled 5x3 spin. BONUS and free spins are intentionally absent.
-const slotSymbolFace=s=>`<span class="arcade-slot-symbol arcade-slot-${esc(s.toLowerCase())}" aria-label="${esc(s)}">${symbolIcons[s]||'❔'}</span>`;
+const slotSymbolFace=s=>`<span class="arcade-slot-symbol arcade-slot-${esc(s.toLowerCase())}" aria-label="${esc(s==='Crown'?'SB Crown':s)}">${s==='Wild'?'<strong>WILD</strong>':s==='Crown'?'<span class="arcade-slot-crown-art">👑<b>SB</b></span>':symbolIcons[s]||'❔'}</span>`;
 const slotPaytable=()=>`<details class="arcade-slot-paytable"><summary>View symbol payouts and paylines</summary>
  <div class="arcade-slot-paytable-scroll"><table><thead><tr><th>Symbol</th><th>3 match</th><th>4 match</th><th>5 match</th></tr></thead><tbody>
  ${SLOT_SYMBOLS.map(s=>`<tr><th>${slotSymbolFace(s)} <span>${s==='Crown'?'SB Crown':s==='Seven'?'Lucky Seven':s==='Star'?'Golden Star':s==='Bell'?'Golden Bell':s}</span></th>${SLOT_PAYTABLE[s].map(p=>`<td>${(p/100).toLocaleString('en-GB',{maximumFractionDigits:2})}×</td>`).join('')}</tr>`).join('')}
