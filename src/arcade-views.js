@@ -27,7 +27,7 @@ const lastWager=(rounds,game)=>{
 };
 export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="10000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(10000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
-const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
+const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-tier="${round.game==='slots'?esc(round.details?.tier||'none'):'big'}" data-arcade-multiplier="${round.game==='slots'?Number(round.details?.multiplier)||0:0}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
 export const arcadeMobileMenu=(ctx,page)=>{
  // Mobile uses an accessible, compact game menu instead of clipped horizontal tabs.
  const mobileGames=[
