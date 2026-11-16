@@ -113,7 +113,7 @@ test('Plinko wager POST requires valid CSRF; fast Arcade mode settles and return
  assert.equal(one('SELECT balance FROM level_point_wallets WHERE user_id=?',alice).balance,balance);
  response=await post('/arcade/plinko/drop',member,{...fields,wager:'90'});
  assert.equal(response.status,409);
- response=await post('/arcade/plinko/drop',member,{...fields,request_id:randomUUID(),wager:'2000'});
+ response=await post('/arcade/plinko/drop',member,{...fields,request_id:randomUUID(),wager:'10001'});
  assert.equal(response.status,400);
 });
 test('Native form redirects, last per-ball wager returns across devices and history includes Plinko',async()=>{
