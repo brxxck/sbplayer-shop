@@ -81,15 +81,39 @@
     for(const reel of reels){
       const cells=[...reel.querySelectorAll('.arcade-reel-face')];
       if(cells.length!==3)continue;
+      // Clear the old winning tiles as the next spin starts. If a request
+      // fails, restore both the old symbols and their highlighted positions.
+      const previous=cells.map(cell=>({
+        markup:cell.innerHTML,symbol:cell.dataset.symbol,
+        winning:cell.dataset.slotWinning==='true'||cell.classList.contains('arcade-reel-winning'),
+        label:cell.getAttribute('aria-label')
+      }));
+      for(const cell of cells){
+        cell.classList.remove('arcade-reel-winning');
+        cell.dataset.slotWinning='false';
+      }
       const tick=()=>{
         for(const cell of cells){cell.replaceChildren(slotFace(reelFaces[Math.floor(Math.random()*reelFaces.length)]));}
       };
       const timer=setInterval(tick,settings?.motion==='reduced'?130:75);
+      reel.classList.remove('stopped');
       reel.classList.add('spinning');
-      tracks.push({reel,timer});
+      tracks.push({reel,timer,cells,previous});
     }
-    return {tracks,stop(){
-      for(const {reel,timer} of tracks){clearInterval(timer);reel.classList.remove('spinning');}
+    return {tracks,stop(restore=true){
+      for(const {reel,timer,cells,previous} of tracks){
+        clearInterval(timer);
+        reel.classList.remove('spinning');
+        if(restore&&reel.isConnected)cells.forEach((cell,index)=>{
+          const original=previous[index];
+          cell.innerHTML=original.markup;
+          cell.dataset.symbol=original.symbol;
+          cell.dataset.slotWinning=original.winning?'true':'false';
+          cell.classList.toggle('arcade-reel-winning',original.winning);
+          if(original.label!==null)cell.setAttribute('aria-label',original.label);
+          else cell.removeAttribute('aria-label');
+        });
+      }
     }};
   }
   async function finishSlotSpin(spin,payload){
@@ -106,12 +130,18 @@
       const cells=[...reel.querySelectorAll('.arcade-reel-face')];
       if(finalCells.length!==3||cells.length!==3)throw Error('Invalid reel symbols.');
       cells.forEach((cell,row)=>{
-        cell.dataset.symbol=finalCells[row].dataset.symbol;
-        cell.replaceChildren(finalCells[row].firstElementChild?.cloneNode(true)||slotFace('❔'));
+        const target=finalCells[row];
+        // Server-confirmed winning cells stay highlighted until another spin.
+        const winning=target.dataset.slotWinning==='true';
+        cell.dataset.symbol=target.dataset.symbol;
+        cell.dataset.slotWinning=winning?'true':'false';
+        cell.classList.toggle('arcade-reel-winning',winning);
+        cell.setAttribute('aria-label',target.getAttribute('aria-label')||target.dataset.symbol);
+        cell.replaceChildren(target.firstElementChild?.cloneNode(true)||slotFace('❔'));
       });
       reel.classList.remove('spinning');reel.classList.add('stopped');
     });
-    try{await Promise.all(stops);}finally{spin.stop();}
+    try{await Promise.all(stops);}finally{spin.stop(false);}
     await sleep(100);
   }
 
