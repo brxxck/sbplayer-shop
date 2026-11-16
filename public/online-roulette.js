@@ -47,7 +47,7 @@
   x:Math.cos(pocketAngle(index))*radius,
   y:Math.sin(pocketAngle(index))*radius
  });
- try{const value=Number(localStorage.getItem(chipKey));if([10,25,50,100,250,500,1000].includes(value))chip=value;}catch{}
+ try{const value=Number(localStorage.getItem(chipKey));if(Number.isSafeInteger(value)&&value>=10&&value<=10000)chip=value;}catch{}
  function announce(text,ms=4000){
   notice={text,until:Date.now()+ms};
   caption.textContent=text;
@@ -104,7 +104,7 @@
    else delete button.dataset.chipTotal;
    button.disabled=!model?.canBet||busy;
   });
-  root.querySelectorAll('[data-roulette-chip]').forEach(button=>{
+  root.querySelectorAll('[data-roulette-chip],[data-roulette-apply-chip],[data-roulette-custom-chip]').forEach(button=>{
    button.disabled=!model?.canBet||busy;
   });
   root.querySelector('[data-roulette-repeat]').disabled=!model?.canBet||busy||!model?.repeatBets?.length;
@@ -422,6 +422,21 @@
   }finally{busy=false;renderSlip();void poll();}
  }
  document.addEventListener('click',event=>{
+  const manual=event.target.closest?.('[data-roulette-apply-chip]');
+  if(manual&&root.contains(manual)){
+   const input=root.querySelector('[data-roulette-custom-chip]');
+   if(!input?.reportValidity()||!/^\d+$/.test(input.value)){
+    announce('Enter a whole chip amount between 10 and 10,000 points.',5000);return;
+   }
+   const amount=Number(input.value);
+   if(!Number.isSafeInteger(amount)||amount<10||amount>10000){
+    announce('Chip amount must be between 10 and 10,000 points.',5000);return;
+   }
+   chip=amount;
+   try{localStorage.setItem(chipKey,String(chip));}catch{}
+   chosenChip();announce('Custom chip set: '+number(chip)+' points.',2500);
+   experience()?.play('click');return;
+  }
   const clicked=event.target.closest?.('[data-roulette-chip]');
   if(clicked&&root.contains(clicked)){
    chip=Number(clicked.dataset.rouletteChip);
@@ -447,12 +462,12 @@
    }
    const repeated=last.flatMap(b=>{
     // The database aggregates chips on identical selections. Reconstruct a
-    // valid new slip with each individual chip still between 10 and 1000.
+    // valid new slip with each individual chip between 10 and 10000.
     const items=[];let amount=b.stake;
     while(amount>0&&items.length<30){
-     let stake=Math.min(1000,amount);
-     if(amount>1000&&amount-1000<10)stake=amount-10;
-     if(stake<10||stake>1000)break;
+     let stake=Math.min(10000,amount);
+     if(amount>10000&&amount-10000<10)stake=amount-10;
+     if(stake<10||stake>10000)break;
      items.push({key:b.key,stake});amount-=stake;
     }
     return amount===0?items:[];
