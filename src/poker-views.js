@@ -60,7 +60,13 @@ export function pokerTablePage(ctx,state,code=''){
   '</div></div><div class="poker-player-own" data-poker-my-cards></div>'+
   '<div class="poker-action-panel" data-poker-actions><div class="poker-action-status" data-poker-status>Loading table…</div>'+
   '<div class="poker-action-buttons" data-poker-buttons></div>'+
-  '<div class="poker-raise-control" data-poker-raise></div></div>'+
+  '<div class="poker-raise-control" data-poker-raise></div>'+
+  '<section class="poker-suggestion" data-poker-suggestion aria-label="Suggested play">'+
+  '<div class="poker-suggestion-head"><strong>💡 SUGGESTED PLAY</strong><small>Optional hand guidance</small></div>'+
+  '<strong class="poker-suggestion-action" data-poker-suggestion-action>Available on your turn</strong>'+
+  '<p data-poker-suggestion-reason>Suggestions use your cards, the public board and visible bet amounts.</p>'+
+  '<small>Not guaranteed. You decide what to play; no action is taken automatically.</small>'+
+  '</section></div>'+
   '<div class="poker-action-feedback" data-poker-feedback role="status" aria-live="polite"></div>'+
   '<div class="poker-table-options"><label>🔊 Sound <input type="checkbox" data-poker-sound checked></label>'+
   '<label>✨ Animations <input type="checkbox" data-poker-motion checked></label>'+sit+leaving+'</div>'+
