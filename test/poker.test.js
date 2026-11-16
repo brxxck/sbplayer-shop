@@ -6,13 +6,13 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-poker-'));
-const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404';
+const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404',eve='100000000000000405';
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'poker.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,one,run}=await import('../src/db.js');
 await import('../src/level-points.js');
 const poker=await import('../src/poker.js');
 const {pokerRank,pokerPots,pokerDeck,compareRanks}=await import('../src/poker-rules.js');
-for(const id of [alice,bob,outsider,dave]){
+for(const id of [alice,bob,outsider,dave,eve]){
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',id,'user-'+id,id,Date.now());
  run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,10000,0)',guild,id);
 }
@@ -74,11 +74,11 @@ test('Private rooms require code, bound seats, configurable blinds and do not ex
  // The current solo hand remains protected; use another member as private host instead.
  const creator=bob;
  assert.throws(()=>poker.pokerCreate(creator,{mode:'private',seats:'4'}),e=>e.status===409);
- const room=poker.pokerCreate(outsider,{mode:'private',seats:'4',small_blind:'25',big_blind:'50'});
+ const room=poker.pokerCreate(eve,{mode:'private',seats:'4',small_blind:'25',big_blind:'50'});
  assert.ok(room.code.length===8);
  assert.throws(()=>poker.pokerState(bob,room.tableId),e=>e.status===403);
  assert.throws(()=>poker.pokerJoin(bob,room.tableId,'BADCODE'),e=>e.status===403);
- assert.equal(poker.pokerState(outsider,room.tableId).inviteCode,room.code);
+ assert.equal(poker.pokerState(eve,room.tableId).inviteCode,room.code);
  assert.equal(poker.pokerState(dave,room.tableId,room.code).joined,false);
  assert.equal(poker.pokerJoin(dave,room.tableId,room.code).mode,'private');
  const state=poker.pokerState(dave,room.tableId);
