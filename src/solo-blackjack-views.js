@@ -65,7 +65,7 @@ function wagerForm(ctx,state){
   '<label>YOUR WAGER <input type="number" name="wager" min="10" max="1000" step="1" required'+
    ' data-sbj-wager data-arcade-wager="blackjack_solo" data-last-round-at="'+String(Number(state.lastWagerAt)||0)+'" value="'+wager+'"></label>'+
   '<div class="sbj-chip-values" role="group" aria-label="Quick wager amounts">'+
-  [10,25,50,100,250,500,1000].map(v=>'<button type="button" data-sbj-quick="'+v+'">'+fmt(v)+'</button>').join('')+
+  [50,100,250,500,1000].map(v=>'<button type="button" data-sbj-quick="'+v+'">'+fmt(v)+'</button>').join('')+
   '</div><button class="btn btn-primary sbj-deal" type="submit" '+(state.balance<10?'disabled':'')+
   '>♠ Deal Cards</button></form>';
 }
