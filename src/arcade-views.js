@@ -8,7 +8,7 @@ const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette',poker_solo:'Solo Poker',poker_live:'Live Poker',poker_private:'Private Poker'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Grapes:'🍇',Bell:'🔔',Star:'⭐',Diamond:'💎',Seven:'7️⃣',Crown:'👑',Wild:'🃏'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
