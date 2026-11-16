@@ -25,7 +25,7 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
  const rows=PLINKO_ROWS.includes(saved.rows)?saved.rows:12;
  const risk=PLINKO_RISKS.includes(saved.risk)?saved.risk:'medium';
  const count=PLINKO_COUNTS.includes(saved.count)?saved.count:1;
- const wager=Number.isSafeInteger(saved.perBall)&&saved.perBall>=10&&saved.perBall<=1000?saved.perBall:50;
+ const wager=Number.isSafeInteger(saved.perBall)&&saved.perBall>=10&&saved.perBall<=10000?saved.perBall:50;
  const table=PLINKO_TABLES[rows][risk];
  const result=latest?{
   id:latest.id,rows:saved.rows,risk:saved.risk,count:saved.count,
@@ -66,7 +66,7 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
   '<div class="plinko-controls-title"><h3>Place your wager</h3><small>Level Points only</small></div>'+
   '<form action="/arcade/plinko/drop" method="post" class="plinko-form arcade-form" data-plinko-form>'+
   token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
-  '<label class="arc-label">Wager per ball <input type="number" min="10" max="1000" step="1" name="wager"'+
+  '<label class="arc-label">Wager per ball <input type="number" min="10" max="10000" step="1" name="wager"'+
   ' inputmode="numeric" data-plinko-wager data-arcade-wager="plinko" data-last-round-at="'+
   (latest?.created_at||0)+'" value="'+wager+'" required></label>'+
   '<div class="plinko-quick-wagers">'+[10,50,100,250,500,1000].map(value=>

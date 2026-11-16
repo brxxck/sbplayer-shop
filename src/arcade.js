@@ -4,7 +4,7 @@ import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 
 export const ARCADE_MIN_BET=10;
-export const ARCADE_MAX_BET=1000;
+export const ARCADE_MAX_BET=10000;
 export const ARCADE_GAMES=['coinflip','coinflip_pvp','slots','mines','crash','plinko','roulette_online','blackjack_solo'];
 const MAX_BALANCE=Number.MAX_SAFE_INTEGER-1000000;
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};

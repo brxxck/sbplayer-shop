@@ -171,7 +171,7 @@ test('point claims remain compatible with wagers and cumulative wallet balance',
  assert.equal(levelWallet(charlie).balance,before+500);
  assert.equal(levelWallet(charlie).claimedLevel,5);
  assert.equal(levelWallet(charlie).claimable,0);
- assert.throws(()=>arcade.houseCoin(charlie,form(2000,{face:'tails'})),e=>e.status===400);
+ assert.throws(()=>arcade.houseCoin(charlie,form(10001,{face:'tails'})),e=>e.status===400);
  assert.throws(()=>arcade.houseCoin(charlie,form(0,{face:'tails'})),e=>e.status===400);
  const poor='100000000000000006';run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',poor,'poor','Poor',Date.now());
  assert.throws(()=>arcade.houseCoin(poor,form(100,{face:'heads'})),e=>e.status===409);

@@ -67,11 +67,11 @@ function controls(ctx,state){
   token(ctx)+'<input type="hidden" name="game" value="blackjack">'+
   '<input type="hidden" name="next" value="blackjack">'+
   '<button type="submit" class="btn btn-primary">♠ Join & Play Blackjack</button></form>';
- const wager=Number.isSafeInteger(state.lastWager)?Math.min(1000,Math.max(10,state.lastWager)):50;
+ const wager=Number.isSafeInteger(state.lastWager)?Math.min(10000,Math.max(10,state.lastWager)):50;
  const bet='<form method="post" data-blackjack-form data-bj-bet action="/arcade/online/blackjack/bet" class="bj-bet-form">'+
   token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
   '<input type="hidden" name="round_id" value="'+esc(roundId)+'">'+
-  '<label>Wager <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="10" max="1000" step="1" value="'+wager+'" required></label>'+
+  '<label>Wager <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="10" max="10000" step="1" value="'+wager+'" required></label>'+
   '<div class="bj-quick-bets"><button type="button" data-bj-wager="10">10</button>'+
   '<button type="button" data-bj-wager="50">50</button><button type="button" data-bj-wager="100">100</button>'+
   '<button type="button" data-bj-wager="500">500</button><button type="button" data-bj-wager="1000">1K</button></div>'+
@@ -115,6 +115,6 @@ export function blackjackPage(ctx,summary,state){
   '<div data-bj-table>'+tableMarkup(state,userId)+'</div>'+
   '<div data-bj-action-panel>'+controls(ctx,state)+'</div>'+
   '<section class="panel padded bj-rules"><h2>How this table works</h2>'+
-  '<p>Seats are reserved when a betting window opens. Each player can wager 10–1,000 points. The dealer draws to 17 and stands on soft 17. Natural Blackjack pays 3:2 (rounded down to whole points); a normal win pays 1:1 and a tie returns your stake. Split matching ranks once; split aces receive one card each. Doubling and splitting charge an additional equal wager. If a turn times out, the server automatically stands that hand. All payouts are settled server-side even if you disconnect.</p>'+
+  '<p>Seats are reserved when a betting window opens. Each player can wager 10–10,000 points. The dealer draws to 17 and stands on soft 17. Natural Blackjack pays 3:2 (rounded down to whole points); a normal win pays 1:1 and a tie returns your stake. Split matching ranks once; split aces receive one card each. Doubling and splitting charge an additional equal wager. If a turn times out, the server automatically stands that hand. All payouts are settled server-side even if you disconnect.</p>'+
   '<p class="muted tiny">This game uses entertainment points only. It does not involve real money or monetary prizes.</p></section></div>');
 }

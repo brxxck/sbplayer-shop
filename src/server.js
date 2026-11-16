@@ -14,7 +14,7 @@ import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobb
 import {onlineGamesPage} from './online-games-views.js';
 import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
 import {blackjackPage} from './online-blackjack-views.js';
-import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction} from './solo-blackjack.js';
+import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction,SOLO_DOUBLE_EVENT_KEY,soloDoubleEventEnabled} from './solo-blackjack.js';
 import {soloBlackjackPage,soloTableMarkup,soloControlsMarkup} from './solo-blackjack-views.js';
 import {suspendGlobalCrash} from './online-crash.js';
 import {rouletteTick,rouletteSnapshot,rouletteWatch,roulettePlace} from './online-roulette.js';
@@ -513,6 +513,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         rate(ctx,'arcade.solo.blackjack.page',55,60000);
         const state=soloBlackjackSnapshot(user,url.searchParams.get('round'));
         return html(soloBlackjackPage(ctx,summary(),state,recentRounds(user,'blackjack_solo',15)));
+      }
+      if(req.method==='GET'&&pathname==='/arcade/blackjack/event'){
+        rate(ctx,'arcade.solo.blackjack.event',35,60000);
+        res.setHeader('Cache-Control','no-store');
+        return respond(res,200,JSON.stringify({enabled:soloDoubleEventEnabled()}),
+          'application/json; charset=utf-8');
       }
       if(req.method==='GET'&&pathname==='/arcade/blackjack/state'){
         rate(ctx,'arcade.solo.blackjack.state',100,60000);
@@ -2455,7 +2461,26 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const manageable=manageableRoles(roles,botMember,config);
       const roleMap=Object.fromEntries(config.applicationRoles.map(x=>[x,getSetting('map:'+x,'')]));
       logAction(ctx,'settings.view','application.settings');
-      return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap}));
+      return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap,soloDoubleEvent:soloDoubleEventEnabled()}));
+    }
+    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // Only verified admins may activate the public Solo Blackjack event.
+    if(pathname==='/admin/settings/solo-blackjack-event'&&req.method==='POST'){
+      await authorize('admin');
+      rate(ctx,'arcade.solo.blackjack.admin_event',12,3600000);
+      const {fields}=await form();
+      const value=String(fields.enabled||'');
+      if(!['true','false'].includes(value))invalid('Invalid event setting.');
+      const before=soloDoubleEventEnabled(),after=value==='true';
+      if(before!==after)transaction(()=>{
+        setSetting(SOLO_DOUBLE_EVENT_KEY,value);
+        appendAudit(db,{actor:ctx.user.id,role:ctx.role,
+          action:'settings.solo_blackjack_double_event',target:'blackjack_solo',
+          details:{before,after},ip:ctx.ip});
+      });
+      return success('/admin/settings',after?
+        'Solo Blackjack Double Down event is live for all players.':
+        'Solo Blackjack Double Down event has ended.');
     }
     if(pathname==='/admin/settings/webhook/test'&&req.method==='POST'){
       await authorize('owner');rate(ctx,'webhook.test',5,600000);

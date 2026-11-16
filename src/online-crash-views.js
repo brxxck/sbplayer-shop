@@ -21,11 +21,11 @@ function betControls(ctx,state){
   personal?.status==='lost'?'The rocket crashed before you collected.':
   state.phase==='playing'?'Round in progress. Join the next betting window.':
   state.phase==='settled'?'Result confirmed. The next round opens automatically.':'Waiting for the next round.';
- const wager=Math.min(1000,Math.max(10,Number(state.lastWager)||50));
+ const wager=Math.min(10000,Math.max(10,Number(state.lastWager)||50));
  const auto=Number(state.lastAutoAt||0);
  const betForm='<form method="post" action="/arcade/online/crash/bet" class="gcr-bet-form" data-gcr-form data-gcr-bet>'+
   token(ctx)+formRequest()+'<input type="hidden" name="round_id" value="'+esc(state.roundId)+'">'+
-  '<div class="gcr-bet-inputs"><label>Wager in points <input type="number" min="10" max="1000" step="1" name="wager" data-gcr-wager value="'+wager+'" required></label>'+
+  '<div class="gcr-bet-inputs"><label>Wager in points <input type="number" min="10" max="10000" step="1" name="wager" data-gcr-wager value="'+wager+'" required></label>'+
   '<label>Auto-collect (optional) <input type="number" min="1.10" max="20" step="0.01" name="auto_at" data-gcr-auto placeholder="Off" value="'+(auto?(auto/100).toFixed(2):'')+'"></label></div>'+
   '<div class="gcr-quick-wagers">'+[10,50,100,500,1000].map(value=>'<button type="button" data-gcr-quick="'+value+'">'+n(value)+'</button>').join('')+'</div>'+
   '<button type="submit" class="btn btn-primary gcr-submit" '+(state.balance<10?'disabled':'')+'>🚀 Place wager</button></form>';
@@ -99,7 +99,7 @@ export function globalCrashPage(ctx,summary,state){
   '<span data-gcr-lobby>'+n(state.lobbyPlayers)+' in lobby</span></div>'+
   players(state)+'</section></aside></div>'+
   '<section class="panel padded gcr-rules"><h2>How Global Crash works</h2>'+
-  '<p>Rounds start automatically, even when nobody is playing. Wager 10–1,000 Discord Level Points during the betting countdown. The rocket rises from 1.00×, and you may collect at any moment before it crashes. Set an optional 1.10×–20.00× auto-collect target so the server collects when the target is reached, even if your browser disconnects. Theoretical return for fixed auto-collect strategies is approximately 96%; actual outcomes vary.</p>'+
+  '<p>Rounds start automatically, even when nobody is playing. Wager 10–10,000 Discord Level Points during the betting countdown. The rocket rises from 1.00×, and you may collect at any moment before it crashes. Set an optional 1.10×–20.00× auto-collect target so the server collects when the target is reached, even if your browser disconnects. Theoretical return for fixed auto-collect strategies is approximately 96%; actual outcomes vary.</p>'+
   '<p>Every wager, collection and loss is recorded server-side. The pre-round hash commitment and revealed seed make each completed crash value independently verifiable. Players cannot purchase or withdraw points for money.</p></section>'+
  '</div>');
 }

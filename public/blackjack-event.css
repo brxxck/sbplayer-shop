@@ -1,0 +1,14 @@
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Event-only overlay; original Solo Blackjack layout and game controls remain untouched. */
+.blackjack-event-toast[hidden]{display:none!important}
+.blackjack-event-toast{
+ position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top));z-index:1600;
+ transform:translateX(-50%);width:min(520px,calc(100vw - 28px));
+ padding:14px 17px;border:1px solid #e8c868;border-radius:13px;
+ background:linear-gradient(135deg,#173e4d,#102e42 55%,#223b4d);
+ box-shadow:0 9px 34px #000a,0 0 0 1px #fff2;
+ color:#fff0bb;font-size:13px;line-height:1.5;font-weight:800;text-align:center;
+ pointer-events:none;
+}
+@media(max-width:480px){.blackjack-event-toast{top:calc(63px + env(safe-area-inset-top));padding:11px 13px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){.blackjack-event-toast{animation:none}}
