@@ -16,7 +16,7 @@ const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 export const assetVersion = '1.21.2';
  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
  // Cache-bust the Arcade-specific assets independently of other website work.
- const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2';
+ const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2-wager-10k-v1';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
@@ -463,7 +463,7 @@ const challengeDialog=!self?`<dialog class="profile-challenge-dialog" data-profi
  <form method="post" action="/arcade/coinflip/challenges" data-profile-challenge-form>
  ${token(ctx)}<input type="hidden" name="request_id" value="${randomUUID()}">
  <input type="hidden" name="target_id" value="${attr(person.id)}">
- <label>Points to wager<input type="number" name="wager" min="10" max="1000" step="1" data-pvp-wager data-last-round-at="${Number(pvpWager.at)||0}" value="${Math.max(10,Math.min(1000,Number(pvpWager.value)||50))}" required></label>
+ <label>Points to wager<input type="number" name="wager" min="10" max="10000" step="1" data-pvp-wager data-last-round-at="${Number(pvpWager.at)||0}" value="${Math.max(10,Math.min(10000,Number(pvpWager.value)||50))}" required></label>
  <fieldset class="profile-coin-choices"><legend>Choose your side</legend>
  <label><input name="face" type="radio" value="heads" checked><strong>🟡 SB</strong> Heads</label>
  <label><input name="face" type="radio" value="tails"><strong>⚪ CAM</strong> Tails</label></fieldset>
