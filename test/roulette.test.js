@@ -165,7 +165,7 @@ test('Actual winning number pays every winning selection; settlement is never re
 test('No bet accepted at 30 seconds, over 10k per round, too many chips or insufficient wallet',()=>{
  const t=4000000,s=begin(t);
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',9)]),t+1),e=>e.status===400);
- assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',1001)]),t+1),e=>e.status===400);
+ assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',10001)]),t+1),e=>e.status===400);
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('split:1-3',100)]),t+1),e=>e.status===400);
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('color:red',100),bet('color:black',100)],
   'invalid'),t+1),e=>e.status===400);
