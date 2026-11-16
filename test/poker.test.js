@@ -7,13 +7,13 @@ import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-poker-'));
-const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404',eve='100000000000000405';
+const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404',eve='100000000000000405',frank='100000000000000406',grace='100000000000000407',hugo='100000000000000408';
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'poker.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,one,run}=await import('../src/db.js');
 await import('../src/level-points.js');
 const poker=await import('../src/poker.js');
 const {pokerRank,pokerPots,pokerDeck,compareRanks}=await import('../src/poker-rules.js');
-for(const id of [alice,bob,outsider,dave,eve]){
+for(const id of [alice,bob,outsider,dave,eve,frank,grace,hugo]){
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',id,'user-'+id,id,Date.now());
  run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,10000,0)',guild,id);
 }
@@ -53,17 +53,17 @@ test('Poker Suggested Play considers visible cards, public pot and legal moves o
  assert.ok(!JSON.stringify(strong).includes('secret'));
 });
 test('Only acting Poker player receives the suggested move; spectators never get one',()=>{
- const hintTable=poker.pokerCreate(dave,{mode:'public'});
- const second=eve;
+ const hintTable=poker.pokerCreate(frank,{mode:'public'});
+ const second=grace;
  poker.pokerJoin(second,hintTable.tableId);
- const firstState=poker.pokerState(dave,hintTable.tableId);
+ const firstState=poker.pokerState(frank,hintTable.tableId);
  const acting=firstState.hand.players.find(p=>p.turn);
  assert.ok(acting);
  const current=poker.pokerState(acting.id,hintTable.tableId);
  assert.ok(current.hand.myTurn);
  assert.ok(current.hand.suggestedPlay);
  assert.ok(['check','call','raise','fold'].includes(current.hand.suggestedPlay.action));
- const nonActor=[dave,eve].find(x=>x!==acting.id);
+ const nonActor=[frank,grace].find(x=>x!==acting.id);
  const waiting=poker.pokerState(nonActor,hintTable.tableId);
  assert.equal(waiting.hand.suggestedPlay,null);
  const spectator=poker.pokerState(outsider,hintTable.tableId);
@@ -73,8 +73,9 @@ test('Only acting Poker player receives the suggested move; spectators never get
 });
 test('Poker table includes a display-only Suggested Play card',async()=>{
  const {pokerTablePage}=await import('../src/poker-views.js');
- const current=poker.pokerState(bob,poker.pokerLobby(bob).activeTable);
- const markup=pokerTablePage({user:{id:bob},pathname:'/arcade/poker/table/'+current.id,csrf:'test',
+ const table=poker.pokerCreate(hugo,{mode:'solo',bots:'1'});
+ const current=poker.pokerState(hugo,table.tableId);
+ const markup=pokerTablePage({user:{id:hugo},pathname:'/arcade/poker/table/'+current.id,csrf:'test',
   arcadeFragment:true},current);
  assert.match(markup,/SUGGESTED PLAY/);
  assert.match(markup,/data-poker-suggestion-action/);
