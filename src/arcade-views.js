@@ -139,13 +139,13 @@ export function slotsPage(ctx,summary,{round,rounds}){
  const cells=new Set(wins.flatMap(win=>win.positions.map(p=>p.reel+':'+p.row)));
  const resultTier=modern?slotTier(Number(newest.details.multiplier)||0):'none';
  const reelMarkup=reels.map((column,i)=>`<div class="arcade-reel" data-reel-index="${i}" aria-label="Reel ${i+1}"><div class="arcade-reel-window">
- ${column.map((s,row)=>`<div class="arcade-reel-face ${cells.has(i+':'+row)?'arcade-reel-winning':''}" data-slot-row="${row}" data-symbol="${esc(s)}">${slotSymbolFace(s)}</div>`).join('')}
+ ${column.map((s,row)=>{const winning=cells.has(i+':'+row);return `<div class="arcade-reel-face ${winning?'arcade-reel-winning':''}" data-slot-row="${row}" data-symbol="${esc(s)}" data-slot-winning="${winning?'true':'false'}" aria-label="${esc(s)}${winning?' - winning symbol':''}">${slotSymbolFace(s)}</div>`;}).join('')}
  </div></div>`).join('');
  const lines=wins.length?`<div class="arcade-slot-wins" aria-live="polite"><strong>${wins.length} winning line${wins.length===1?'':'s'}!</strong><div>${wins.slice(0,12).map(w=>`<span>Line ${w.line}: ${symbolIcons[w.symbol]} ${w.count}× · ${w.multiplier.toFixed(2)}×</span>`).join('')}${wins.length>12?`<span>+${wins.length-12} more lines</span>`:''}</div></div>`:'';
  return chrome(ctx,'Slots',summary,`<section class="panel padded arcade-feature-game arcade-custom-slots" data-slots-version="2" data-slots-tier="${resultTier}">
- <div class="arcade-section-title"><h2>🎰 SB's Custom Slots</h2><span>5 reels · 3 rows · 20 paylines</span></div>
+ <div class="arcade-section-title"><h2>🎰 Slots</h2><span>5 reels · 3 rows · 20 paylines</span></div>
  <div class="arcade-slot-machine">
-  <div class="arcade-slot-brand"><span>✦ SB'S LUCKY SLOTS ✦</span><small>SPIN TO WIN</small></div>
+  <div class="arcade-slot-brand"><span>✦ SLOTS ✦</span><small>SPIN TO WIN</small></div>
   <div class="arcade-slot-reels" data-slot-reels>${reelMarkup}</div>
   <div class="arcade-slot-bottom"><span>20 LINES</span><strong>👑 SB CROWN · UP TO 200×</strong><span>MAX 1,000×</span></div>
  </div>

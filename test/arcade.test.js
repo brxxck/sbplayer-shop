@@ -79,6 +79,46 @@ test('Slots V2 correctly values Wild substitution, lines and the 1000x maximum w
  assert.equal(Object.hasOwn(outcome,'freeSpins'),false);
 });
 
+test('Slots is named simply Slots and winning tiles remain highlighted on rerender',async()=>{
+ const views=await import('../src/arcade-views.js');
+ const {evaluateSlotGrid}=await import('../src/slots-rules.js');
+ const reels=[
+  ['Cherry','Crown','Lemon'],['Cherry','Wild','Grapes'],
+  ['Cherry','Crown','Bell'],['Lemon','Diamond','Star'],['Lemon','Seven','Bell']
+ ];
+ const settled=evaluateSlotGrid(reels);
+ assert.ok(settled.wins.length>0,'fixture must include winning lines');
+ const winning=new Set(settled.wins.flatMap(win=>win.positions.map(pos=>pos.reel+':'+pos.row)));
+ const round={
+  id:98765,game:'slots',wager:100,payout:Math.floor(100*settled.multiplier),status:'won',
+  created_at:1731000000000,updated_at:1731000000000,
+  details:{...settled,reels,tier:'big',version:2}
+ };
+ const ctx={user:{id:alice},pathname:'/arcade/slots',csrf:'test',arcadeFragment:true};
+ const summary={balance:2500,played:1,wins:1,biggest_win:2000};
+ for(let pass=0;pass<2;pass++){
+  const html=views.slotsPage(ctx,summary,{round:pass===0?round:null,rounds:[round]});
+  assert.match(html,/<h2>🎰 Slots<\/h2>/);
+  assert.match(html,/<span>✦ SLOTS ✦<\/span>/);
+  assert.doesNotMatch(html,/SB's Custom Slots|SB'S LUCKY SLOTS/);
+  const rendered=[...html.matchAll(/class="arcade-reel-face ([^"]*)" data-slot-row="([0-2])" data-symbol="([^"]+)" data-slot-winning="(true|false)"/g)];
+  assert.equal(rendered.length,15);
+  rendered.forEach((match,index)=>{
+   const reel=Math.floor(index/3),row=index%3,expected=winning.has(reel+':'+row);
+   assert.equal(match[2],String(row));
+   assert.equal(match[4],String(expected),'persistent winning tile at '+reel+':'+row);
+   assert.equal(match[1].includes('arcade-reel-winning'),expected);
+  });
+ }
+ const client=readFileSync(new URL('../public/arcade.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../public/arcade.css',import.meta.url),'utf8');
+ assert.match(client,/cell\.classList\.toggle\('arcade-reel-winning',winning\)/);
+ assert.match(client,/spin\.stop\(false\)/);
+ assert.match(client,/stop\(restore=true\)/);
+ assert.match(css,/\.arcade-reel-face\[data-slot-winning="true"\]/);
+ assert.match(css,/outline:3px solid #ffe6a0/);
+});
+
 test('Mines supports saved board, safe reveal, cashout and duplicate payout protection',()=>{
  const initial=levelWallet(alice).balance;
  const id=arcade.createMines(alice,form(100,{bombs:'4'}));
