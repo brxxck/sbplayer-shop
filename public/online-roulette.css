@@ -123,3 +123,12 @@
 @keyframes roulette-chip-enter{from{transform:translateY(-19px) scale(.65);opacity:.3}to{transform:translateY(0) scale(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){.roulette-choice.roulette-chip-marked:after{animation:none}}
 :root[data-arcade-motion="instant"] .roulette-choice.roulette-chip-marked:after{animation:none}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Custom wagers are typed; no 10k preset is provided. */
+.roulette-manual-chip{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end;min-width:0}
+.roulette-manual-chip label{display:grid;min-width:0;gap:5px;color:#b6cce0;font-size:12px;font-weight:750}
+.roulette-manual-chip input{width:100%;min-width:0;min-height:44px;padding:9px 11px;border:1px solid #426785;border-radius:9px;background:#0c2238;color:#e7f0f7;font-size:16px}
+.roulette-manual-chip .btn{min-height:44px;white-space:nowrap}
+.roulette-manual-chip input:focus-visible{outline:2px solid #88c9f7;outline-offset:2px}
+@media(max-width:360px){.roulette-manual-chip{grid-template-columns:minmax(0,1fr)}.roulette-manual-chip .btn{width:100%}}
