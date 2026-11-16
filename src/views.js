@@ -13,10 +13,10 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 // Version the stylesheet URL so upgrades cannot reuse stale browser CSS.
-export const assetVersion = '1.21.2';
+export const assetVersion = '1.21.3';
  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
  // Cache-bust the Arcade-specific assets independently of other website work.
- const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2-wager-10k-event-v1';
+ const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2-wager-10k-event-v1-sbs-slots-v2';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
