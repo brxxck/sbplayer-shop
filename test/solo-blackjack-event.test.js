@@ -121,14 +121,23 @@ const post=(path,session,payload)=>fetch(base+path,{method:'POST',redirect:'manu
  headers:{cookie:session.cookie,'Content-Type':'application/x-www-form-urlencoded'},
  body:new URLSearchParams({_csrf:session.csrf,...payload})});
 
-test('admin setting is access controlled, audited, and visible to both Blackjack pages only through short notices',async()=>{
+test('owner-only Blackjack Events tab toggles the public event with CSRF and audit records',async()=>{
  reset();
  const admin=await login(owner),member=await login(alice);
- const denied=await post('/admin/settings/solo-blackjack-event',member,{enabled:'true'});
+ const denied=await post('/owner/blackjack-events/toggle',member,{enabled:'true'});
  assert.equal(denied.status,403,'ordinary members cannot enable promotions');
- const invalid=await post('/admin/settings/solo-blackjack-event',admin,{enabled:'sometimes'});
+ const pageDenied=await fetch(base+'/owner/blackjack-events',{headers:{cookie:member.cookie}});
+ assert.equal(pageDenied.status,403,'ordinary members cannot view owner event settings');
+ const page=await fetch(base+'/owner/blackjack-events',{headers:{cookie:admin.cookie}});
+ assert.equal(page.status,200);
+ const markup=await page.text();
+ assert.match(markup,/Blackjack Events/);
+ assert.match(markup,/action="\/owner\/blackjack-events\/toggle"/);
+ assert.match(markup,/Start Double Down event/);
+ assert.doesNotMatch(markup,/action="\/admin\/settings\/solo-blackjack-event"/);
+ const invalid=await post('/owner/blackjack-events/toggle',admin,{enabled:'sometimes'});
  assert.equal(invalid.status,400);
- const started=await post('/admin/settings/solo-blackjack-event',admin,{enabled:'true'});
+ const started=await post('/owner/blackjack-events/toggle',admin,{enabled:'true'});
  assert.equal(started.status,303);
  const publicState=await fetch(base+'/arcade/blackjack/event',{headers:{cookie:member.cookie}});
  assert.equal(publicState.status,200);
@@ -136,9 +145,13 @@ test('admin setting is access controlled, audited, and visible to both Blackjack
  assert.equal(soloDoubleEventEnabled(),true);
  const events=one("SELECT COUNT(*) AS count FROM owner_audit_log WHERE action='settings.solo_blackjack_double_event'");
  assert.ok(events?.count>=1,'setting changes are audited');
- const ended=await post('/admin/settings/solo-blackjack-event',admin,{enabled:'false'});
+ const livePage=await (await fetch(base+'/owner/blackjack-events',{headers:{cookie:admin.cookie}})).text();
+ assert.match(livePage,/End Double Down event/);
+ const ended=await post('/owner/blackjack-events/toggle',admin,{enabled:'false'});
  assert.equal(ended.status,303);
  assert.equal(soloDoubleEventEnabled(),false);
+ const oldAdminRoute=await post('/admin/settings/solo-blackjack-event',admin,{enabled:'true'});
+ assert.equal(oldAdminRoute.status,404,'legacy admin endpoint must not control the owner-only event');
 });
 
 test('only a temporary three-second notice is added; underlying Solo Blackjack markup remains in order',()=>{
@@ -159,4 +172,18 @@ test('only a temporary three-second notice is added; underlying Solo Blackjack m
  assert.ok(output.indexOf('data-sbj-table')<output.indexOf('data-sbj-controls'));
  assert.match(output,/data-sbj-quick="1000"/);
  assert.doesNotMatch(output,/data-sbj-quick="10000"/);
+});
+
+// BUILT BY SB // RUNING ON WEED AND CAFFEINE
+test('Blackjack Events is a discoverable Owner tab and is never shown as an Admin setting',()=>{
+ const nav=readFileSync(new URL('../src/navigation.js',import.meta.url),'utf8');
+ const server=readFileSync(new URL('../src/server.js',import.meta.url),'utf8');
+ const views=readFileSync(new URL('../src/views.js',import.meta.url),'utf8');
+ assert.match(nav,/\['\/owner\/blackjack-events','Blackjack Events'\]/);
+ assert.match(nav,/if\(ctx.role==='owner'\)groups.push/);
+ assert.match(server,/pathname==='\/owner\/blackjack-events'/);
+ assert.match(server,/await authorize\('owner'\)/);
+ assert.match(views,/export function ownerBlackjackEvents/);
+ const adminSettings=views.slice(views.indexOf('export function settings('),views.indexOf('export function ownerBlackjackEvents('));
+ assert.doesNotMatch(adminSettings,/solo-blackjack-event|Double Down event/);
 });

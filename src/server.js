@@ -2461,13 +2461,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const manageable=manageableRoles(roles,botMember,config);
       const roleMap=Object.fromEntries(config.applicationRoles.map(x=>[x,getSetting('map:'+x,'')]));
       logAction(ctx,'settings.view','application.settings');
-      return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap,soloDoubleEvent:soloDoubleEventEnabled()}));
+      return html(view.settings(ctx,{open:getSetting('applications_open','true')==='true',roles,manageable,roleMap}));
     }
-    // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-    // Only verified admins may activate the public Solo Blackjack event.
-    if(pathname==='/admin/settings/solo-blackjack-event'&&req.method==='POST'){
-      await authorize('admin');
-      rate(ctx,'arcade.solo.blackjack.admin_event',12,3600000);
+    // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+    // Dedicated Owner-panel tab: this promo is not editable through Admin Settings.
+    if(pathname==='/owner/blackjack-events'&&req.method==='GET'){
+      await authorize('owner');
+      res.setHeader('Cache-Control','no-store');
+      return html(view.ownerBlackjackEvents(ctx,{enabled:soloDoubleEventEnabled()}));
+    }
+    if(pathname==='/owner/blackjack-events/toggle'&&req.method==='POST'){
+      await authorize('owner');
+      rate(ctx,'arcade.solo.blackjack.owner_event',12,3600000);
       const {fields}=await form();
       const value=String(fields.enabled||'');
       if(!['true','false'].includes(value))invalid('Invalid event setting.');
@@ -2478,7 +2483,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
           action:'settings.solo_blackjack_double_event',target:'blackjack_solo',
           details:{before,after},ip:ctx.ip});
       });
-      return success('/admin/settings',after?
+      return success('/owner/blackjack-events',after?
         'Solo Blackjack Double Down event is live for all players.':
         'Solo Blackjack Double Down event has ended.');
     }
