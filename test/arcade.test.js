@@ -33,45 +33,50 @@ test('house flip wins double wager or loses it, and never mutates balance twice'
  assert.throws(()=>arcade.houseCoin(alice,form(100,{face:'edge'})),e=>e.status===400);
 });
 
-test('slots spin uses saved reels with only one debit and one payout',()=>{
+test('Slots V2 saves all 15 symbols, 20 paylines and exactly one wallet debit and payout',()=>{
  const starting=levelWallet(alice).balance,fields=form(125);
  const id=arcade.spinSlots(alice,fields),round=arcade.getRound(alice,id,'slots');
- assert.equal(round.details.reels.length,3);
- assert.ok(round.details.reels.every(s=>['Cherry','Lemon','Bell','Diamond','Seven'].includes(s)));
+ const symbols=['Cherry','Lemon','Grapes','Bell','Star','Diamond','Seven','Crown','Wild'];
+ assert.equal(round.details.version,2);
+ assert.equal(round.details.reels.length,5);
+ assert.ok(round.details.reels.every(reel=>reel.length===3&&reel.every(s=>symbols.includes(s))));
+ assert.ok(round.payout>=0&&round.payout<=125000);
+ assert.equal(round.payout,Math.floor(125*round.details.multiplier+1e-8));
  assert.equal(levelWallet(alice).balance,starting-125+round.payout);
- assert.ok(['none','pair','triple'].includes(round.details.match));
- assert.ok([0,10,5,7,16,28].includes(round.details.multiplier));
- if(round.details.match==='pair'){
-  assert.equal(round.details.multiplier,10);
-  assert.equal(round.payout,1250);
-  assert.equal(round.status,'won');
+ assert.ok(['lines','none'].includes(round.details.match));
+ for(const win of round.details.wins){
+  assert.ok(win.line>=1&&win.line<=20);
+  assert.ok(win.count>=3&&win.count<=5);
+  assert.equal(win.positions.length,win.count);
  }
- if(round.details.match==='none')assert.equal(round.payout,0);
  assert.equal(arcade.spinSlots(alice,fields),id);
  assert.equal(levelWallet(alice).balance,starting-125+round.payout);
 });
 
-test('Slots rare two-symbol match pays 10x, while all-three and no-match payouts remain distinct',()=>{
- const draws=values=>{
-  const sequence=[...values];return (max)=>{
-   assert.ok(sequence.length>0,'draw count exceeded scripted values');
-   const value=sequence.shift();
-   assert.ok(Number.isInteger(value)&&value>=0&&value<max);
-   return value;
-  };
- };
- const pair=arcade.slotOutcome(draws([0,2,1,2]));
- assert.equal(pair.match,'pair');
- assert.equal(pair.multiplier,10);
- assert.deepEqual(pair.reels,['Bell','Bell','Lemon']);
- const triple=arcade.slotOutcome(draws([50,4]));
- assert.equal(triple.match,'triple');
- assert.equal(triple.multiplier,28);
- assert.deepEqual(triple.reels,['Seven','Seven','Seven']);
- const nothing=arcade.slotOutcome(draws([450,0,0,0]));
- assert.equal(nothing.match,'none');
- assert.equal(nothing.multiplier,0);
- assert.equal(new Set(nothing.reels).size,3);
+test('Slots V2 correctly values Wild substitution, lines and the 1000x maximum without free spins',async()=>{
+ const {evaluateSlotGrid,evaluateSlotLine,slotOutcome,SLOT_PAYLINES,SLOT_PAYTABLE,SLOT_SYMBOLS}=
+  await import('../src/slots-rules.js');
+ assert.equal(SLOT_PAYLINES.length,20);
+ assert.equal(SLOT_SYMBOLS.length,9);
+ assert.ok(!SLOT_SYMBOLS.includes('Bonus'));
+ assert.deepEqual(evaluateSlotLine(['Crown','Wild','Crown','Cherry','Cherry']),{
+  symbol:'Crown',count:3,hundredths:1200,multiplier:12
+ });
+ assert.deepEqual(evaluateSlotLine(['Wild','Wild','Wild','Lemon','Seven']),{
+  symbol:'Wild',count:3,hundredths:200,multiplier:2
+ });
+ assert.equal(evaluateSlotLine(['Cherry','Lemon','Grapes','Bell','Star']),null);
+ assert.equal(SLOT_PAYTABLE.Crown[2],20000);
+ const allCrown=Array.from({length:5},()=>Array(3).fill('Crown'));
+ const max=evaluateSlotGrid(allCrown);
+ assert.equal(max.wins.length,20);
+ assert.equal(max.multiplier,1000);
+ assert.equal(max.capped,true);
+ const outcome=slotOutcome(()=>0);
+ assert.equal(outcome.reels.length,5);
+ assert.equal(outcome.reels[0].length,3);
+ assert.equal(outcome.multiplier,50);
+ assert.equal(Object.hasOwn(outcome,'freeSpins'),false);
 });
 
 test('Mines supports saved board, safe reveal, cashout and duplicate payout protection',()=>{

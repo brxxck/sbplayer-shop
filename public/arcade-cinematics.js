@@ -104,17 +104,19 @@
   for(const win of wins){
    const id=String(win.dataset.arcadeRound||'');
    const profit=Number(win.dataset.arcadeProfit||0);
+   const tier=String(win.dataset.arcadeTier||'big');
+   const slotsWin=id.startsWith('slots:');
    const settled=Number(win.dataset.arcadeSettled||0);
-   if(!id||touched.has(id)||!Number.isSafeInteger(profit)||profit<250||!settled||
+   if(!id||touched.has(id)||!Number.isSafeInteger(profit)||profit<=0||(!slotsWin&&profit<250)||!settled||
       Math.abs(Date.now()-settled)>120000)continue;
    touched.add(id);
    const seenKey='sb-arcade:cinematic-seen:'+memberId+':'+id;
    try{if(localStorage.getItem(seenKey))continue;localStorage.setItem(seenKey,'1');}catch{}
-   celebrate(profit);
+   celebrate(profit,tier);
   }
  }
  let overlay=null;
- function celebrate(profit){
+ function celebrate(profit,tier='big'){
   if(prefs.motion==='instant')return;
   const reduced=prefs.motion==='reduced'||reducedOS;
   overlay?.remove();
@@ -122,10 +124,13 @@
   overlay.className='arcade-cinematic'+(reduced?' arcade-cinematic-reduced':'');
   overlay.setAttribute('role','status');
   overlay.setAttribute('aria-live','polite');
+  const slotTitles={big:'BIG WIN!',mega:'MEGA WIN!',epic:'EPIC WIN!',jackpot:'JACKPOT!'};
+  const headline=slotTitles[tier]||'BIG WIN!';
+  const symbol=tier==='jackpot'?'👑':tier==='epic'?'💎':'✦';
   overlay.innerHTML='<div class="arcade-cinematic-backdrop"></div>'+
    '<div class="arcade-cinematic-stage"><span class="arcade-cinematic-eyebrow">SB ARCADE</span>'+
-   '<div class="arcade-cinematic-symbol" aria-hidden="true">✦</div>'+
-   '<h2>BIG WIN!</h2><div class="arcade-cinematic-profit" data-cinematic-profit></div>'+
+   '<div class="arcade-cinematic-symbol" aria-hidden="true">'+symbol+'</div>'+
+   '<h2>'+headline+'</h2><div class="arcade-cinematic-profit" data-cinematic-profit></div>'+
    '<p>Points profit added to your balance</p><button class="arcade-cinematic-skip" type="button">Continue →</button></div>';
   document.body.append(overlay);
   const counter=overlay.querySelector('[data-cinematic-profit]');

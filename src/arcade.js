@@ -2,6 +2,7 @@
 import {randomInt,randomUUID} from 'node:crypto';
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
+import {slotOutcome,slotTier} from './slots-rules.js';
 
 export const ARCADE_MIN_BET=10;
 export const ARCADE_MAX_BET=10000;
@@ -93,49 +94,20 @@ export function houseCoin(userId,fields){
  });
 }
 
-const SLOT_SYMBOLS=['Cherry','Lemon','Bell','Diamond','Seven'];
-const SLOT_TRIPLES=[5,7,10,16,28];
-// Rare two-of-a-kind results replace the old common no-profit return.
-// Triple-match prizes and their existing overall frequency remain unchanged.
-const SLOT_TICKETS=10000;
-const SLOT_PAIR_TICKETS=50;
-const SLOT_TRIPLE_TICKETS=400;
-
-// Server-only game selection. Production calls use crypto.randomInt; optional
-// draw injection makes all outcome classes testable without statistical flakiness.
-export function slotOutcome(draw=randomInt){
- const ticket=draw(SLOT_TICKETS);
- if(ticket<SLOT_PAIR_TICKETS){
-  const match=draw(SLOT_SYMBOLS.length);
-  const otherDraw=draw(SLOT_SYMBOLS.length-1);
-  const other=otherDraw>=match?otherDraw+1:otherDraw;
-  const otherPosition=draw(3);
-  const reels=Array.from({length:3},(_,i)=>SLOT_SYMBOLS[i===otherPosition?other:match]);
-  return {reels,multiplier:10,match:'pair'};
- }
- if(ticket<SLOT_PAIR_TICKETS+SLOT_TRIPLE_TICKETS){
-  const symbol=draw(SLOT_SYMBOLS.length);
-  return {reels:Array(3).fill(SLOT_SYMBOLS[symbol]),multiplier:SLOT_TRIPLES[symbol],match:'triple'};
- }
- const indices=Array.from({length:SLOT_SYMBOLS.length},(_,i)=>i);
- for(let i=0;i<3;i++){
-  const j=i+draw(indices.length-i);
-  [indices[i],indices[j]]=[indices[j],indices[i]];
- }
- return {reels:indices.slice(0,3).map(i=>SLOT_SYMBOLS[i]),multiplier:0,match:'none'};
-}
-
+// Slots have no free spins. All winnings settle atomically in the existing wallet.
+export {slotOutcome} from './slots-rules.js';
 export function spinSlots(userId,fields){
  const wager=wagerOf(fields),key=keyOf(fields);
  return transaction(()=>{
   const old=priorRound(userId,key,'slots');if(old)return old.id;
   ensureNewKey(userId,key);
   walletChange(userId,-wager,'slots.wager','slots:wager:'+key);
-  const {reels,multiplier,match}=slotOutcome();
-  const payout=wager*multiplier;
+  const outcome=slotOutcome();
+  // Round once at the end, not once per line. 1,000x is the maximum total payout.
+  const payout=Math.floor(wager*outcome.multiplier+1e-8);
   if(payout)walletChange(userId,payout,'slots.payout','slots:payout:'+key);
   return createRound({userId,game:'slots',wager,payout,status:payout>wager?'won':payout===wager?'push':'lost',
-   details:{reels,multiplier,match},key});
+   details:{...outcome,tier:slotTier(outcome.multiplier),version:2},key});
  });
 }
 

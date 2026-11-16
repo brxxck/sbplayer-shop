@@ -2,13 +2,14 @@
 import {randomUUID} from 'node:crypto';
 import {shell,esc,token,titlebar,avatar} from './views.js';
 import {isCinematicWin} from './arcade-cinematic-rules.js';
+import {SLOT_SYMBOLS,SLOT_PAYTABLE,SLOT_PAYLINES,slotTier} from './slots-rules.js';
 
 const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
 const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
-const symbolIcons={Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'};
+const symbolIcons={Cherry:'🍒',Lemon:'🍋',Grapes:'🍇',Bell:'🔔',Star:'⭐',Diamond:'💎',Seven:'7️⃣',Crown:'👑',Wild:'🃏'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
   <span class="arcade-coin-face arcade-coin-sb">SB</span>
@@ -26,7 +27,7 @@ const lastWager=(rounds,game)=>{
 };
 export const wagerField=({game='',value=50,at=0}={})=>`<label class="arc-label">Wager in points<input inputmode="numeric" type="number" min="10" max="10000" step="1" name="wager" data-arcade-wager="${esc(game)}" data-last-round-at="${Number(at)||0}" value="${Math.max(10,Math.min(10000,Number(value)||50))}" required></label>`;
 const request=()=>`<input type="hidden" name="request_id" value="${randomUUID()}">`;
-const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
+const cinemaAttrs=round=>isCinematicWin(round)?` data-arcade-bigwin="1" data-arcade-round="${esc(round.game)}:${Number(round.id)}" data-arcade-profit="${Number(round.payout)-Number(round.wager)}" data-arcade-tier="${round.game==='slots'?esc(round.details?.tier||'none'):'big'}" data-arcade-multiplier="${round.game==='slots'?Number(round.details?.multiplier)||0:0}" data-arcade-settled="${Number(round.updated_at)||0}"`:'';
 export const arcadeMobileMenu=(ctx,page)=>{
  // Mobile uses an accessible, compact game menu instead of clipped horizontal tabs.
  const mobileGames=[
@@ -71,8 +72,14 @@ export const resultBox=round=>{
  if(game==='coinflip')extra=`You chose ${coinName(details.selected)} · Coin landed on ${coinName(details.landed)}.`;
  if(game==='coinflip_pvp')extra=`Coin landed on ${coinName(details.landed)}.`;
  if(game==='slots'){
-  extra=details.reels.map(s=>symbolIcons[s]||esc(s)).join(' ');
-  if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
+  if(details.version===2){
+   const hits=details.wins||[];
+   extra=hits.length?hits.length+' winning line'+(hits.length===1?'':'s')+' · '+Number(details.multiplier||0).toFixed(2)+'× total':'No winning lines this spin.';
+   if(details.capped)extra+=' · Maximum 1,000× payout applied';
+  }else{
+   extra=(details.reels||[]).map(s=>symbolIcons[s]||esc(s)).join(' ');
+   if(details.match==='pair'&&details.multiplier===10)extra+=' · Rare Pair! 10× payout';
+  }
  }
  if(game==='mines')extra=details.exploded!==undefined?'You uncovered a mine.':'You safely collected your points.';
  if(game==='roulette_online')extra='Global round #'+number(details.globalRound)+' · '+number(details.winningNumber)+' '+esc(details.color)+' · '+number(details.bets.length)+' bet selection(s).';
@@ -118,15 +125,37 @@ export function coinflipPage(ctx,summary,{round,rounds,houseWager=null}){
  ${resultBox(newest?.game==='coinflip'?newest:null)}
  ${historyList(rounds)}`);
 }
+// Every wager is one settled 5x3 spin. BONUS and free spins are intentionally absent.
+const slotSymbolFace=s=>`<span class="arcade-slot-symbol arcade-slot-${esc(s.toLowerCase())}" aria-label="${esc(s==='Crown'?'SB Crown':s)}">${s==='Wild'?'<strong>WILD</strong>':s==='Crown'?'<span class="arcade-slot-crown-art">👑<b>SB</b></span>':symbolIcons[s]||'❔'}</span>`;
+const slotPaytable=()=>`<details class="arcade-slot-paytable"><summary>View symbol payouts and paylines</summary>
+ <div class="arcade-slot-paytable-scroll"><table><thead><tr><th>Symbol</th><th>3 match</th><th>4 match</th><th>5 match</th></tr></thead><tbody>
+ ${SLOT_SYMBOLS.map(s=>`<tr><th>${slotSymbolFace(s)} <span>${s==='Crown'?'SB Crown':s==='Seven'?'Lucky Seven':s==='Star'?'Golden Star':s==='Bell'?'Golden Bell':s}</span></th>${SLOT_PAYTABLE[s].map(p=>`<td>${(p/100).toLocaleString('en-GB',{maximumFractionDigits:2})}×</td>`).join('')}</tr>`).join('')}
+ </tbody></table></div><p>20 fixed lines, matching left to right. Wild substitutes for regular symbols. All payouts use the total wager. Combined prizes are capped at 1,000×.</p></details>`;
 export function slotsPage(ctx,summary,{round,rounds}){
- const newest=round||rounds[0], reels=newest?.details?.reels||['Seven','Seven','Seven'];
- return chrome(ctx,'Slots',summary,`<section class="panel padded arcade-feature-game">
- <div class="arcade-section-title"><h2>🎰 SB Slots</h2><span>Three reels</span></div>
- <div class="arcade-slot-reels" data-slot-reels>${reels.map((s,i)=>`<div class="arcade-reel" data-reel-index="${i}" data-symbol="${esc(s)}" aria-label="${esc(s)}"><div class="arcade-reel-window"><div class="arcade-reel-face">${symbolIcons[s]||esc(s)}</div></div></div>`).join('')}</div>
- <p>Match symbols across three reels to earn points. Results are settled instantly by the website.</p>
+ const newest=round||rounds.find(r=>r.game==='slots')||null;
+ const modern=newest?.details?.version===2;
+ const reels=modern?newest.details.reels:Array.from({length:5},(_,i)=>['Cherry','Bell','Seven','Diamond','Crown'].map((x,j)=>SLOT_SYMBOLS[(i+j*2)%8]).slice(0,3));
+ const wins=modern?(newest.details.wins||[]):[];
+ const cells=new Set(wins.flatMap(win=>win.positions.map(p=>p.reel+':'+p.row)));
+ const resultTier=modern?slotTier(Number(newest.details.multiplier)||0):'none';
+ const reelMarkup=reels.map((column,i)=>`<div class="arcade-reel" data-reel-index="${i}" aria-label="Reel ${i+1}"><div class="arcade-reel-window">
+ ${column.map((s,row)=>`<div class="arcade-reel-face ${cells.has(i+':'+row)?'arcade-reel-winning':''}" data-slot-row="${row}" data-symbol="${esc(s)}">${slotSymbolFace(s)}</div>`).join('')}
+ </div></div>`).join('');
+ const lines=wins.length?`<div class="arcade-slot-wins" aria-live="polite"><strong>${wins.length} winning line${wins.length===1?'':'s'}!</strong><div>${wins.slice(0,12).map(w=>`<span>Line ${w.line}: ${symbolIcons[w.symbol]} ${w.count}× · ${w.multiplier.toFixed(2)}×</span>`).join('')}${wins.length>12?`<span>+${wins.length-12} more lines</span>`:''}</div></div>`:'';
+ return chrome(ctx,'Slots',summary,`<section class="panel padded arcade-feature-game arcade-custom-slots" data-slots-version="2" data-slots-tier="${resultTier}">
+ <div class="arcade-section-title"><h2>🎰 SB's Custom Slots</h2><span>5 reels · 3 rows · 20 paylines</span></div>
+ <div class="arcade-slot-machine">
+  <div class="arcade-slot-brand"><span>✦ SB'S LUCKY SLOTS ✦</span><small>SPIN TO WIN</small></div>
+  <div class="arcade-slot-reels" data-slot-reels>${reelMarkup}</div>
+  <div class="arcade-slot-bottom"><span>20 LINES</span><strong>👑 SB CROWN · UP TO 200×</strong><span>MAX 1,000×</span></div>
+ </div>
+ ${modern?`<div class="arcade-slot-last"><span>LAST SPIN</span><strong>${number(newest.payout)} points returned</strong><span>${newest.details.multiplier.toFixed(2)}×</span></div>`:''}
+ ${lines}
+ <p>Match 3 or more symbols from left to right. Wild helps complete combinations. Each spin settles immediately — no free spins.</p>
  <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
- <button type="submit" class="btn btn-primary">Spin Reels</button></form></section>
- ${resultBox(newest)}${historyList(rounds)}`);
+ <button type="submit" class="btn btn-primary arcade-slot-spin">🎰 SPIN</button></form>
+ ${slotPaytable()}
+ </section>${modern?resultBox(newest):newest?.details?.version!==2?resultBox(newest):''}${historyList(rounds)}`);
 }
 export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  const active=round?.status==='active'?round:null;
