@@ -2,7 +2,7 @@
 // Private, persistent solo Blackjack. The secret shoe and dealer's hole card
 // never appear in public Arcade rounds or client state until settlement.
 // Wallet debits, state transitions and payouts are one SQLite transaction.
-import {db,one,run,transaction} from './db.js';
+import {db,one,run,transaction,getSetting} from './db.js';
 import {config} from './config.js';
 import {walletChange} from './arcade.js';
 import {isCinematicWin} from './arcade-cinematic-rules.js';
@@ -13,6 +13,10 @@ import {
 } from './blackjack-rules.js';
 
 export const SOLO_BLACKJACK_GAME='blackjack_solo';
+// // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+// Public community event: every player who doubles while enabled receives a winning payout.
+export const SOLO_DOUBLE_EVENT_KEY='blackjack_solo_double_event';
+export const soloDoubleEventEnabled=()=>getSetting(SOLO_DOUBLE_EVENT_KEY,'false')==='true';
 const bad=(message,status=409)=>{throw Object.assign(new Error(message),{status});};
 const validUser=id=>{
  const value=String(id||'');
@@ -65,7 +69,7 @@ function safeDetails(game,terminal){
  const hands=game.hands.map(hand=>({
   cards:hand.cards,wager:hand.wager,split:hand.split,done:hand.done,
   doubled:!!hand.doubled,
-  ...(terminal?{outcome:hand.outcome,payout:hand.payout}:{})
+  ...(terminal?{outcome:hand.outcome,payout:hand.payout,doubleEventBonus:!!hand.doubleEventBonus}:{})
  }));
  return {
   initialWager:game.initialWager,hands,activeIndex:terminal?null:game.activeIndex,
@@ -94,7 +98,11 @@ function settle(user,round,game,revision){
   blackjackDealerPlay(game.dealer,game.shoe);
  let wager=0,payout=0;
  for(const hand of game.hands){
-  const result=blackjackPayout(hand,game.dealer);
+  const normal=blackjackPayout(hand,game.dealer);
+  // Reward is fixed at the moment Double Down is chosen; a later admin toggle
+  // cannot retroactively remove an already promised event payout.
+  const result=hand.doubled&&hand.doubleEventBonus?
+   {payout:hand.wager*2,outcome:'won'}:normal;
   hand.done=true;hand.outcome=result.outcome;hand.payout=result.payout;
   wager+=hand.wager;payout+=hand.payout;
  }
@@ -237,6 +245,7 @@ export function soloBlackjackAction(userId,fields){
   else if(action==='double'){
    walletChange(user,-hand.wager,'blackjack.solo.double','solo-blackjack:double:'+key);
    hand.wager*=2;hand.doubled=true;
+   hand.doubleEventBonus=soloDoubleEventEnabled();
    hand.cards.push(drawBlackjackCard(game.shoe));hand.done=true;
   }else if(action==='split'){
    walletChange(user,-hand.wager,'blackjack.solo.split','solo-blackjack:split:'+key);
