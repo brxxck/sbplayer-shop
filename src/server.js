@@ -12,6 +12,8 @@ import {dropPlinko} from './plinko.js';
 import {plinkoPage} from './plinko-views.js';
 import {onlineGamesSnapshot,joinOnlineLobby,leaveOnlineLobby,heartbeatOnlineLobby} from './online-games.js';
 import {onlineGamesPage} from './online-games-views.js';
+import {pokerLobby,pokerCreate,pokerJoin,pokerLeave,pokerSitOut,pokerAction,pokerChat,pokerState} from './poker.js';
+import {pokerLobbyPage,pokerTablePage} from './poker-views.js';
 import {blackjackTick,blackjackSnapshot,blackjackBet,blackjackAction} from './online-blackjack.js';
 import {blackjackPage} from './online-blackjack-views.js';
 import {soloBlackjackSnapshot,soloBlackjackStart,soloBlackjackAction,SOLO_DOUBLE_EVENT_KEY,soloDoubleEventEnabled} from './solo-blackjack.js';
@@ -171,7 +173,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/poker.js','/static/poker.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -410,6 +412,46 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // Global Roulette: thirty FULL seconds to place bets, eight to spin,
       // four to display the server-verified result. Every debit and payout
       // happens transactionally against the Level Points wallet.
+      // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+      // Poker uses website points directly; all bets and settlement are
+      // server-authoritative and authenticated against Discord + CSRF.
+      if(req.method==='GET'&&(pathname==='/arcade/poker'||pathname==='/arcade/online/poker')){
+        rate(ctx,'poker.lobby',60,60000);
+        return html(pokerLobbyPage(ctx,pokerLobby(user)));
+      }
+      if(req.method==='POST'&&pathname==='/arcade/poker/create'){
+        const {fields}=await form();rate(ctx,'poker.create',12,60000);
+        const room=pokerCreate(user,fields);
+        return redirect(res,'/arcade/poker/table/'+room.tableId);
+      }
+      const pokerMatch=/^\\/arcade\\/poker\\/table\\/([0-9a-f-]{36})(?:\\/(state|join|leave|sitout|action|chat))?$/.exec(pathname);
+      if(pokerMatch){
+        const id=pokerMatch[1],action=pokerMatch[2]||'';
+        const code=url.searchParams.get('code')||'';
+        if(req.method==='GET'&&!action){
+          rate(ctx,'poker.table',65,60000);
+          res.setHeader('Cache-Control','no-store');
+          return html(pokerTablePage(ctx,pokerState(user,id,code),code));
+        }
+        if(req.method==='GET'&&action==='state'){
+          rate(ctx,'poker.state',100,60000);
+          res.setHeader('Cache-Control','no-store');
+          return respond(res,200,JSON.stringify(pokerState(user,id,code)),'application/json; charset=utf-8');
+        }
+        if(req.method==='POST'){
+          const {fields}=await form();
+          rate(ctx,'poker.'+action,action==='chat'?24:action==='action'?90:18,60000);
+          let state;
+          if(action==='join'){pokerJoin(user,id,String(fields.code||''));return redirect(res,'/arcade/poker/table/'+id);}
+          if(action==='leave'){pokerLeave(user,id);return redirect(res,'/arcade/poker');}
+          if(action==='sitout'){pokerSitOut(user,id,String(fields.sitting_out)==='1');return redirect(res,'/arcade/poker/table/'+id);}
+          if(action==='action')state=pokerAction(user,id,fields);
+          else if(action==='chat'){pokerChat(user,id,fields.message);state=pokerState(user,id);}
+          else missing();
+          res.setHeader('Cache-Control','no-store');
+          return respond(res,200,JSON.stringify(state),'application/json; charset=utf-8');
+        }
+      }
       if(req.method==='GET'&&pathname==='/arcade/online/roulette'){
         rate(ctx,'arcade.roulette.page',55,60000);
         return html(onlineRoulettePage(ctx,summary(),rouletteWatch(user)));
