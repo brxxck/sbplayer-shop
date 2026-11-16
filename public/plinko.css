@@ -90,3 +90,28 @@
 @media(max-width:570px){.plinko-panel{padding:13px!important}.plinko-panel .arcade-section-title h2{font-size:21px}.plinko-canvas-box{border-radius:12px}.plinko-board-label{top:9px;left:10px;font-size:11px}.plinko-board-ribbon{width:23px;height:23px;font-size:10px}.plinko-board-label small{font-size:7px;margin-left:0}.plinko-board-notice{bottom:7px;font-size:10px;padding:5px 7px}.plinko-slot-value{padding:5px 0;min-height:28px;font-size:clamp(7px,1.65vw,10px);border-radius:4px}.plinko-controls{padding:13px;gap:12px}.plinko-risk label b{font-size:12px}.plinko-risk label small{font-size:9px}.plinko-board-actions span{font-size:9px}.plinko-stake-summary strong{font-size:18px}}
 @media(prefers-reduced-motion:reduce){.plinko-slot-landed{animation:none!important}}
 :root[data-arcade-motion="instant"] .plinko-slot-landed,:root[data-arcade-motion="reduced"] .plinko-slot-landed{animation:none}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Responsive six-choice ball counter and a bounded results panel for 100 balls. */
+.plinko-root,.plinko-panel,.plinko-layout,.plinko-controls,.plinko-form{min-width:0}
+.plinko-ball-count{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.plinko-ball-count label span{min-height:44px;white-space:nowrap;padding:7px 3px}
+.plinko-stake-summary{min-width:0}
+.plinko-last{overflow:hidden;min-width:0}
+.plinko-last-results{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:7px;max-width:100%}
+.plinko-last-chip{min-width:0;min-height:45px;box-sizing:border-box;overflow:hidden;padding:7px 5px;font-size:13px}
+.plinko-last-chip small{font-size:10px;overflow-wrap:anywhere}
+.plinko-last-more{min-width:0;border-top:1px solid #2f4e66;padding-top:11px}
+.plinko-last-more>summary{cursor:pointer;padding:9px 12px;font-size:12px;font-weight:850;color:#f0cf88;background:#102a3f;border:1px solid #3a5d76;border-radius:9px;margin-bottom:10px}
+.plinko-last-more[open]>.plinko-last-results{margin-top:12px;max-height:245px;overflow:auto;overscroll-behavior:contain;padding:2px 5px 5px 2px}
+.plinko-last-actions{padding-top:10px;border-top:1px solid #26415e}
+@media(max-width:570px){
+ .plinko-panel,.plinko-controls{min-width:0}
+ .plinko-ball-count{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .plinko-ball-count label span{font-size:12px;min-height:43px}
+ .plinko-last-results{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .plinko-last-chip{padding:6px 3px;font-size:12px}
+ .plinko-last-actions{display:grid;grid-template-columns:1fr;justify-items:stretch}
+ .plinko-last-actions button{width:100%}
+ .plinko-controls .plinko-quick-wagers{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
