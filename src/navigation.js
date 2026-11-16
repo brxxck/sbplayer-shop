@@ -14,7 +14,7 @@ export function navigationGroups(ctx){
  if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','All Tickets'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[])]});
  else if(ctx.teamRecruiter)groups.push({label:'Recruitment',collapsible:true,items:[['/team-applications/review','Team Recruitment']]});
  if(admin)groups.push({label:'Administration',collapsible:true,items:[['/admin/roles','Roles'],['/admin/moderation','Moderation'],['/admin/dm-reports','Message Reports'],['/admin/settings','Settings']]});
- if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/level-points','BotGhost Connection'],['/owner/point-all','Point All'],['/owner/owners','Owner Access'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});
+ if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/level-points','BotGhost Connection'],['/owner/point-all','Point All'],['/owner/blackjack-events','Blackjack Events'],['/owner/owners','Owner Access'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});
  return groups;
 }
 export function renderNavigation(ctx,link){return navigationGroups(ctx).map(g=>{
