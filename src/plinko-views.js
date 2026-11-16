@@ -3,7 +3,7 @@
 import {randomUUID} from 'node:crypto';
 import {esc,token} from './views.js';
 import {chrome,historyList,resultBox} from './arcade-views.js';
-import {PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES} from './plinko.js';
+import {PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES,plinkoSuggestedPlay} from './plinko.js';
 
 const n=value=>Number(value||0).toLocaleString('en-GB');
 const mult=cents=>(cents/100).toFixed(2)+'×';
@@ -27,6 +27,18 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
  const count=PLINKO_COUNTS.includes(saved.count)?saved.count:1;
  const wager=Number.isSafeInteger(saved.perBall)&&saved.perBall>=10&&saved.perBall<=10000?saved.perBall:50;
  const table=PLINKO_TABLES[rows][risk];
+ const suggested=plinkoSuggestedPlay(Number(summary.balance));
+ const suggestedMarkup='<section class="plinko-suggested-play" data-plinko-suggestion>'+
+  '<div class="plinko-suggested-head"><span>💡 SUGGESTED PLAY</span><small>Optional preset</small></div>'+
+  (suggested.enabled?
+   '<strong>'+n(suggested.count)+' ball'+(suggested.count===1?'':'s')+' × '+n(suggested.wager)+' pts</strong>'+
+   '<span>'+suggested.rows+' rows · Medium risk · '+n(suggested.totalWager)+' points total</span>':
+   '<strong>Not available yet</strong><span>You need at least 10 points for a drop.</span>')+
+  '<p>Balanced settings only — not a win prediction or better odds. You choose whether to play.</p>'+
+  '<button type="button" class="btn btn-outline" data-plinko-suggest-apply '+
+  'data-suggest-rows="'+suggested.rows+'" data-suggest-risk="'+suggested.risk+'" '+
+  'data-suggest-count="'+suggested.count+'" data-suggest-wager="'+suggested.wager+'" '+
+  (!suggested.enabled?'disabled':'')+'>Apply Suggested Play</button></section>';
  const result=latest?{
   id:latest.id,rows:saved.rows,risk:saved.risk,count:saved.count,
   wager:latest.wager,payout:latest.payout,
@@ -78,7 +90,7 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
   '<div class="plinko-quick-wagers">'+[10,50,100,250,500,1000].map(value=>
    '<button type="button" data-plinko-quick="'+value+'">'+n(value)+'</button>').join('')+'</div>'+
   '<label class="arc-label">Board size'+selectRows+'</label>'+
-  riskControl(risk)+countControls(count)+
+  riskControl(risk)+countControls(count)+suggestedMarkup+
   '<div class="plinko-stake-summary"><div><span>TOTAL WAGER</span><strong data-plinko-stake>'+
   n(wager*count)+' pts</strong></div><div><span>YOUR BALANCE</span><strong data-plinko-balance data-plinko-wallet="'+Number(summary.balance)+'">'+
   n(summary.balance)+' pts</strong></div></div>'+
