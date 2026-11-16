@@ -72,10 +72,26 @@
    (p.turn?'<span class="poker-clock">'+seconds+'s</span>':'')+'</div>';
  }
  let syncAt=Date.now();
+ // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+ // Suggestions are display-only: they never submit a Poker action.
+ function renderSuggestion(){
+  const h=state.hand,suggestion=h?.myTurn?h.suggestedPlay:null;
+  const panel=find('[data-poker-suggestion]');
+  if(!panel)return;
+  panel.dataset.suggestedAction=suggestion?.action||'';
+  const label=find('[data-poker-suggestion-action]');
+  const explanation=find('[data-poker-suggestion-reason]');
+  if(label)label.textContent=suggestion?.label||
+    (h?.phase==='results'?'Next hand coming up…':state.joined?'Available on your turn':'Join a table to receive guidance');
+  if(explanation)explanation.textContent=suggestion?
+    suggestion.hand+' · '+suggestion.reason:
+    'Uses only your private cards, public community cards and visible bets. Hidden cards are never used.';
+ }
  function refreshControls(){
   const h=state.hand;
   const bar=find('[data-poker-buttons]'),raise=find('[data-poker-raise]');
   if(!bar||!raise)return;
+  renderSuggestion();
   if(!h||!state.joined){bar.innerHTML='';raise.innerHTML='';return;}
   const me=h.players.find(p=>p.id===state.self);
   if(!me){bar.innerHTML='';raise.innerHTML='';return;}
