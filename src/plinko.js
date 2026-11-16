@@ -9,7 +9,7 @@ import {walletChange,ARCADE_MIN_BET,ARCADE_MAX_BET} from './arcade.js';
 
 export const PLINKO_ROWS=Object.freeze([8,12,16]);
 export const PLINKO_RISKS=Object.freeze(['low','medium','high']);
-export const PLINKO_COUNTS=Object.freeze([1,5,10]);
+export const PLINKO_COUNTS=Object.freeze([1,5,10,25,50,100]);
 // Multiplier * 100, from edge slot to edge slot. 50/50 peg decisions
 // make landing probability C(rows,slot)/2^rows. Independently weighted,
 // symmetric tables return approximately 96% BEFORE whole-point rounding.
