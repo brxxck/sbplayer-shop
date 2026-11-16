@@ -424,7 +424,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         const room=pokerCreate(user,fields);
         return redirect(res,'/arcade/poker/table/'+room.tableId);
       }
-      const pokerMatch=/^\\/arcade\\/poker\\/table\\/([0-9a-f-]{36})(?:\\/(state|join|leave|sitout|action|chat))?$/.exec(pathname);
+      const pokerMatch=new RegExp('^/arcade/poker/table/([0-9a-f-]{36})(?:/(state|join|leave|sitout|action|chat))?$').exec(pathname);
       if(pokerMatch){
         const id=pokerMatch[1],action=pokerMatch[2]||'';
         const code=url.searchParams.get('code')||'';
