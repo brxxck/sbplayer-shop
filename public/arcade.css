@@ -314,3 +314,37 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 .arcade-custom-slots .arcade-slot-wild strong{font-family:system-ui,sans-serif;font-size:.37em;font-weight:1000;letter-spacing:.04em;color:#ffe4a7;text-shadow:0 2px 0 #701d2d,0 0 12px #ff6d56;padding:.45em .3em;border:2px ridge #d8a85e;border-radius:.22em;background:linear-gradient(145deg,#a52748,#50142e)}
 .arcade-slot-paytable .arcade-slot-wild strong{font-size:9px}
 .arcade-slot-paytable .arcade-slot-crown-art>b{font-size:8px}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Winning tile emphasis is permanent for the last server-settled spin.
+   Only a new spin clears the highlights; there is no fade-out timer. */
+.arcade-custom-slots .arcade-reel-face.arcade-reel-winning,
+.arcade-custom-slots .arcade-reel-face[data-slot-winning="true"]{
+  z-index:1;
+  background:radial-gradient(ellipse at center,#ffe4a44d 0%,#d8993857 64%,#462b29 100%);
+  outline:3px solid #ffe6a0;
+  outline-offset:-3px;
+  box-shadow:inset 0 0 0 1px #fff8d4,inset 0 0 24px 3px #f9bc4e83,0 0 12px 2px #ffc54f72;
+  transition:none;
+  animation:none;
+}
+.arcade-custom-slots .arcade-reel-face.arcade-reel-winning .arcade-slot-symbol,
+.arcade-custom-slots .arcade-reel-face[data-slot-winning="true"] .arcade-slot-symbol{
+  filter:drop-shadow(0 0 7px #fff0ad) drop-shadow(0 3px 5px #0008);
+  transform:scale(1.06);
+}
+.arcade-custom-slots .arcade-reel-face[data-slot-winning="true"]::after{
+  content:"✦";position:absolute;right:5px;top:3px;
+  color:#fff3c4;font-size:clamp(10px,1.5vw,14px);
+  text-shadow:0 0 8px #ffcf4f;pointer-events:none;
+}
+.arcade-custom-slots .arcade-reel.stopped{border-color:#d2a85c}
+@media(max-width:600px){
+  .arcade-custom-slots .arcade-reel-face.arcade-reel-winning,
+  .arcade-custom-slots .arcade-reel-face[data-slot-winning="true"]{
+    outline-width:2px;outline-offset:-2px;
+  }
+  .arcade-custom-slots .arcade-reel-face[data-slot-winning="true"]::after{
+    right:2px;top:1px;font-size:10px;
+  }
+}
