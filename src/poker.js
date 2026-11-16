@@ -215,7 +215,7 @@ function advance(t,stamp=clock()){
  return t;
 }
 const tableInfo=t=>({id:t.id,mode:t.mode,seats:t.seat_limit,seated:seats(t).length,
- smallBlind:t.small_blind,bigBlind:t.big_blind,bots:t.bots,handsPlayed:t.state.handsPlayed||0});
+ smallBlind:t.small_blind,bigBlind:t.big_blind,bots:t.bots,handsPlayed:(t.state||JSON.parse(t.state_json||'{}')).handsPlayed||0});
 export function pokerLobby(userId){
  const user=userOf(userId);
  const publics=all("SELECT * FROM poker_tables WHERE guild_id=? AND mode='public' ORDER BY updated_at DESC LIMIT 16",config.guildId).map(tableInfo);
@@ -350,7 +350,7 @@ export function pokerState(userId,tableId,code=''){
   const sessionSeat=members.find(p=>p.id===user);
   const sessionProfit=sessionSeat?one("SELECT COALESCE(SUM(payout-wager),0) AS profit FROM arcade_rounds WHERE guild_id=? AND user_id=? AND game IN ('poker_solo','poker_live','poker_private') AND created_at>=?",config.guildId,user,sessionSeat.joined_at)?.profit||0:0;
   return {...tableInfo(t),owner:t.owner_id===user,sessionProfit,
-   inviteCode:t.owner_id===user?t.invite_code:undefined,joined:seated(t,user),
+   ...(t.mode==='private'&&t.owner_id===user?{inviteCode:t.invite_code}:{}),joined:seated(t,user),
    mySeat:members.find(p=>p.id===user)?.seat??null,watching:members.length,
    members:members.map(p=>({...p,points:wallet(p.id)})),
    balance:wallet(user),hand:h?{id:h.id,phase:h.phase,board:h.board,pot:h.pot,players,
