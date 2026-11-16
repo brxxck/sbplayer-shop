@@ -359,3 +359,19 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 .arcade-slot-daily-free .arcade-slot-free-spin{min-height:42px;border-color:#f0c06f;color:#fff0cb;font-weight:850}
 .arcade-slot-daily-free>a{white-space:normal;text-align:center}
 @media(max-width:640px){.arcade-slot-daily-free{display:grid}.arcade-slot-daily-free .arcade-form,.arcade-slot-daily-free button,.arcade-slot-daily-free>a{width:100%}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Explicit, session-only Crash Auto Play controls. */
+.arcade-crash-auto{display:grid;gap:12px;width:min(100%,760px);padding:15px;border:1px solid #4a6684;border-radius:12px;background:#14263a}
+.arcade-crash-auto-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.arcade-crash-auto-heading>div{display:grid;gap:4px}
+.arcade-crash-auto-heading strong{color:#f4d594;font-size:15px}
+.arcade-crash-auto-heading small{font-size:11px;color:#bbcadb}
+.arcade-crash-auto-heading>strong{font-size:12px;color:#99e2ce;text-align:right}
+.arcade-crash-auto-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.arcade-crash-auto-fields label{font-size:12px;color:#c4d2e4;display:grid;gap:6px;min-width:0}
+.arcade-crash-auto-fields input,.arcade-crash-auto-fields select{background:#0b1a2b;border:1px solid #4b6b86;color:#fff2d6;padding:10px;border-radius:7px;width:100%;min-width:0}
+.arcade-crash-auto-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.arcade-crash-auto-buttons button{min-height:43px;flex:1}
+.arcade-crash-auto-buttons [data-crash-auto-stop]{border-color:#dfad67}
+@media(max-width:590px){.arcade-crash-auto-fields{grid-template-columns:1fr}.arcade-crash-auto-buttons{flex-direction:column}}
