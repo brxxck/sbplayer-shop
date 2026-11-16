@@ -16,7 +16,7 @@ const path=(s)=>String(s||'').startsWith('/uploads/')?s:'';
 export const assetVersion = '1.21.2';
  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
  // Cache-bust the Arcade-specific assets independently of other website work.
- const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2-wager-10k-event-v1-sbs-slots-v2-winning-tiles-v2-poker-live-private-solo-plinko100-crash-auto-v1-plinko-suggested-v1';
+ const arcadeAssetVersion = 'global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2-wager-10k-event-v1-sbs-slots-v2-winning-tiles-v2-poker-live-private-solo-plinko100-crash-auto-v1-poker-suggested-v1';
 const name=u=>u?.nickname||u?.display_name||u?.global_name||u?.username||'Unknown';
 export function avatar(u,size='md',custom=false) {
   const source=custom&&u?.avatar_path?path(u.avatar_path):discordAvatar(u);
