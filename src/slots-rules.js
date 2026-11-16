@@ -5,7 +5,7 @@ import {randomInt} from 'node:crypto';
 
 export const SLOT_SYMBOLS=Object.freeze(['Cherry','Lemon','Grapes','Bell','Star','Diamond','Seven','Crown','Wild']);
 // Integers are relative reel weights, not advertised win probabilities.
-// Exact line EV before rounding is about 95.13% of total wager with 20 paylines.
+// Theoretical uncapped line EV is about 95.24% of total wager; caps and rounding reduce it.
 export const SLOT_WEIGHTS=Object.freeze([20,17,15,12,10,8,6,3,3]);
 export const SLOT_MAX_MULTIPLIER=1000;
 export const SLOT_PAYTABLE=Object.freeze({
