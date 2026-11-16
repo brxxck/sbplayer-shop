@@ -155,7 +155,7 @@ export function slotsPage(ctx,summary,{round,rounds}){
  <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
  <button type="submit" class="btn btn-primary arcade-slot-spin">🎰 SPIN</button></form>
  ${slotPaytable()}
- </section>${modern?resultBox(newest):newest?.details?.version!==2?resultBox(newest):''}${historyList(rounds)`);
+ </section>${modern?resultBox(newest):newest?.details?.version!==2?resultBox(newest):''}${historyList(rounds)}`);
 }
 export function minesPage(ctx,summary,{round,rounds,currentPayout=0}){
  const active=round?.status==='active'?round:null;
