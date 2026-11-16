@@ -37,3 +37,23 @@
 .daily-positive{color:#75e8be;font-variant-numeric:tabular-nums;font-weight:750}
 @media(max-width:980px){.daily-reward-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.daily-task-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.daily-task-grid{grid-template-columns:1fr}.daily-reward-summary{gap:8px}.daily-reward-summary>div{padding:12px}.daily-reward-summary strong{font-size:19px}.daily-reward-intro{flex-direction:column;align-items:stretch}.daily-reward-reset{text-align:left}.daily-task{padding:17px}.daily-reward-links .btn{flex:1 1 100%}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Exactly four daily reward cards: 3 rotating games + 1 daily Slots credit. */
+.daily-task-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.daily-task-progress{display:grid;gap:8px;font-size:12px}
+.daily-task-progress-line{display:flex;justify-content:space-between;gap:10px;color:#afc9df}
+.daily-task-progress-line strong{color:#ffdf9c;font-variant-numeric:tabular-nums}
+.daily-task-progress progress{appearance:none;-webkit-appearance:none;width:100%;height:9px;border:0;border-radius:100px;background:#0b1a2c;overflow:hidden}
+.daily-task-progress progress::-webkit-progress-bar{background:#0b1a2c;border-radius:100px}
+.daily-task-progress progress::-webkit-progress-value{background:linear-gradient(90deg,#ad3a53,#f2cc81);border-radius:100px}
+.daily-task-progress progress::-moz-progress-bar{background:linear-gradient(90deg,#ad3a53,#f2cc81);border-radius:100px}
+.daily-free-spin-bonus{border-color:#d4ac60;background:linear-gradient(150deg,#3b263d,#102a35 85%);justify-content:space-between}
+.daily-free-spin-bonus h2{color:#f6d58e;margin:7px 0}
+.daily-bonus-eyebrow{font-size:10px;color:#eecb8c;letter-spacing:.11em;font-weight:900}
+.daily-free-spin-bonus p{color:#c7d6e7;font-size:13px;line-height:1.55}
+.daily-free-spin-meta{display:grid;gap:7px;margin-top:12px;font-size:12px;color:#a6c6d5}
+.daily-free-spin-meta strong{color:#f4dc9b}
+.daily-bonus-action{margin-top:10px}
+.daily-bonus-action a,.daily-bonus-action button{width:100%;min-height:46px}
+@media(max-width:680px){.daily-task-grid{grid-template-columns:1fr}}
