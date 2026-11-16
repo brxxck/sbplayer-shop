@@ -41,7 +41,7 @@ test('Solo Blackjack options and full history collapse on phones, not desktop',(
 test('Solo Blackjack exposes only five quick-bet presets while manual wager remains available',()=>{
  assert.match(view,/\[50,100,250,500,1000\]\.map/);
  assert.doesNotMatch(view,/\[10,25,50,100,250,500,1000\]\.map/);
- assert.match(view,/min="10" max="1000"/);
+ assert.match(view,/min="10" max="10000"/);
 });
 
 test('mobile puts card table before wager for all round phases and preserves live controls',()=>{
