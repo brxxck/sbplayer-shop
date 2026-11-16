@@ -46,14 +46,16 @@ test('mobile puts card table before wager for all round phases and preserves liv
  assert.match(mobile,/position:sticky; bottom:calc\(74px/);
  assert.match(mobile,/\.arcade-solo \.sbj-stats,/);
  assert.match(mobile,/\.arcade-solo \.sbj-result>p \{ display:none; \}/);
- assert.match(mobile,/\.arcade-solo \.sbj-chip-values button:last-child \{ grid-column:span 2; \}/);
+ assert.match(mobile,/\.arcade-solo \.sbj-chip-values \{ display:grid; grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/);
+ assert.match(mobile,/\.arcade-solo \.sbj-chip-values button:last-child \{ grid-column:auto; \}/);
+ assert.match(mobile,/\.arcade-solo \.sbj-chip-values button \{ min-width:0; width:100%; min-height:44px/);
  assert.match(mobile,/\.arcade-solo \.sbj-result/);
  assert.match(js,/function syncQuickWager/);
  assert.match(js,/setAttribute\('aria-pressed',String\(selected\)\)/);
 });
 
 test('mobile rebuild cache-busts CSS and JavaScript while keeping old routes intact',()=>{
- assert.match(shell,/mobile-first-r1-solo-game-first-v2/);
+ assert.match(shell,/mobile-first-r1-solo-game-first-v2-bets-row-v1/);
  assert.match(shell,/global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2/);
  assert.match(view,/\/arcade\/online\/blackjack/);
  assert.match(js,/\/arcade\/blackjack\/start/);
