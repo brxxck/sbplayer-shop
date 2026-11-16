@@ -91,6 +91,24 @@ test('One 10-ball batch transfers points once and persists every exact path and 
  assert.equal(arcade.recentRounds(alice,'plinko',1)[0].id,id);
  assert.ok(arcade.arcadeSummary(alice).biggest_win>=3170);
 });
+test('One 100-ball drop settles atomically and returns 100 saved peg paths',()=>{
+ const user='100000000000000154';
+ run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
+  user,'plinko100','Plinko 100',Date.now());
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,0)',guild,user,10000);
+ const fields=form(10,8,'low',100),before=balance(user);
+ const id=dropPlinko(user,fields,()=>0),round=arcade.getRound(user,id,'plinko');
+ assert.equal(round.details.count,100);
+ assert.equal(round.details.balls.length,100);
+ assert.equal(round.wager,1000);
+ assert.equal(round.payout,4100);
+ assert.ok(round.details.balls.every(b=>b.wager===10&&b.payout===41&&b.slot===0&&b.decisions.length===8));
+ assert.equal(balance(user),before-1000+4100);
+ assert.equal(all("SELECT * FROM arcade_transfers WHERE user_id=? AND reason IN ('plinko.wager','plinko.payout')",user).length,2);
+ assert.equal(dropPlinko(user,fields,()=>{throw Error('Duplicate batch must never re-roll');}),id);
+ assert.equal(balance(user),before-1000+4100);
+});
+
 test('Idempotent request IDs never charge, pay or generate results again',()=>{
  const key=randomUUID(),input=form(100,16,'high',5,key);
  let called=0;
