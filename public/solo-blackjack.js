@@ -20,14 +20,14 @@
   if(!userId)return null;
   try{
    const saved=JSON.parse(localStorage.getItem(wagerKey)||'null');
-   return saved&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=1000&&
+   return saved&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=10000&&
     Number(saved.at)>Number(model?.lastWagerAt||0)?saved.wager:null;
   }catch{return null;}
  }
  function rememberWager(){
   const field=controls.querySelector('[data-sbj-wager]');
   const amount=Number(field?.value);
-  if(!field||!/^\d+$/.test(field.value)||!Number.isSafeInteger(amount)||amount<10||amount>1000)return;
+  if(!field||!/^\d+$/.test(field.value)||!Number.isSafeInteger(amount)||amount<10||amount>10000)return;
   try{localStorage.setItem(wagerKey,JSON.stringify({wager:amount,at:Date.now()}));}catch{}
  }
  function syncQuickWager(){
