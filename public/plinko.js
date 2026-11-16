@@ -173,7 +173,7 @@
     const radio=form.querySelector('input[name="risk"][value="'+selection.risk+'"]');
     if(radio)radio.checked=true;
    }
-   if([1,5,10].includes(selection.count)){
+   if([1,5,10,25,50,100].includes(selection.count)){
     const count=form.querySelector('input[name="count"][value="'+selection.count+'"]');
     if(count)count.checked=true;
    }
@@ -215,7 +215,7 @@
   const rows=Number(round?.details?.rows);
   const count=Number(round?.details?.count);
   const balls=round?.details?.balls;
-  if(![8,12,16].includes(rows)||![1,5,10].includes(count)||!Array.isArray(balls)||balls.length!==count)return null;
+  if(![8,12,16].includes(rows)||![1,5,10,25,50,100].includes(count)||!Array.isArray(balls)||balls.length!==count)return null;
   const result=[];
   for(const ball of balls){
    if(!Array.isArray(ball.decisions)||ball.decisions.length!==rows||
@@ -242,7 +242,7 @@
    highlightSlot=balls.at(-1).slot;renderSlots();paint();
    done();return;
   }
-  const reduced=style==='reduced',msPerPeg=reduced?55:128,delay=reduced?85:180;
+  const reduced=style==='reduced',msPerPeg=reduced?55:128,delay=balls.length>=50?(reduced?12:30):balls.length>=25?(reduced?25:65):(reduced?85:180);
   const journey=(rows+1)*msPerPeg;
   const beginning=performance.now();
   const skip=root.querySelector('[data-plinko-skip]');

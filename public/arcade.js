@@ -69,6 +69,90 @@
   const queued=[];
   let busy=false,crashCleanup=()=>{};
 
+  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+  // Bounded, opt-in Solo Crash Auto Play: one authoritative round at a time.
+  // Stays in this tab only and never silently resumes after a refresh.
+  const crashAuto={active:false,remaining:0,total:0,wager:0,autoAt:'2.00',timer:null};
+  function crashAutoStop(message='Stopped'){
+    crashAuto.active=false;
+    if(crashAuto.timer!==null)clearTimeout(crashAuto.timer);
+    crashAuto.timer=null;
+    const panel=document.querySelector('[data-crash-auto-panel]');
+    if(panel){
+      panel.querySelector('[data-crash-auto-status]').textContent=message;
+      panel.querySelector('[data-crash-auto-start]').disabled=!!document.querySelector('[data-crash-game][data-crash-active="1"]');
+      panel.querySelector('[data-crash-auto-stop]').hidden=true;
+    }
+  }
+  function crashAutoDisplay(){
+    const panel=document.querySelector('[data-crash-auto-panel]');
+    if(!panel)return;
+    const running=crashAuto.active,game=panel.closest('[data-crash-game]');
+    panel.querySelector('[data-crash-auto-start]').disabled=running||game?.dataset.crashActive==='1';
+    panel.querySelector('[data-crash-auto-stop]').hidden=!running;
+    if(running)panel.querySelector('[data-crash-auto-status]').textContent=
+      (crashAuto.total-crashAuto.remaining)+' / '+crashAuto.total+' started';
+  }
+  function scheduleCrashAuto(delay=1250){
+    if(!crashAuto.active)return;
+    if(crashAuto.timer!==null)clearTimeout(crashAuto.timer);
+    crashAuto.timer=setTimeout(()=>{crashAuto.timer=null;void crashAutoStartRound();},delay);
+  }
+  async function crashAutoStartRound(){
+    if(!crashAuto.active)return;
+    const game=document.querySelector('[data-crash-game]');
+    if(!game||document.visibilityState==='hidden'){crashAutoStop('Stopped — page inactive');return;}
+    if(game.dataset.crashActive==='1')return; // Wait for server settlement and result display.
+    if(crashAuto.remaining<=0){crashAutoStop('Completed '+crashAuto.total+' rounds');return;}
+    if(busy){scheduleCrashAuto(400);return;}
+    const root=game.closest('.arcade-root');
+    const raw=root?.querySelector('.arcade-wallet strong')?.textContent?.replace(/[^0-9]/g,'')||'';
+    const available=Number(raw);
+    if(!Number.isSafeInteger(available)||available<crashAuto.wager){
+      crashAutoStop('Stopped — not enough points');
+      announce('Auto Play stopped: insufficient points for the next wager.',true);
+      return;
+    }
+    if(!crypto?.randomUUID){crashAutoStop('Stopped — secure request IDs unavailable');return;}
+    busy=true;
+    try{
+      const data=new URLSearchParams({_csrf:csrf(),request_id:crypto.randomUUID(),
+        wager:String(crashAuto.wager),auto_at:crashAuto.autoAt});
+      const response=await fetch('/arcade/crash/start',{
+        method:'POST',credentials:'same-origin',cache:'no-store',redirect:'manual',headers:ajaxHeaders,body:data
+      });
+      const payload=await parseResponse(response);
+      if(!response.ok||payload?.ok!==true)throw Error(payload?.error||'Server rejected Crash Auto Play.');
+      crashAuto.remaining--;
+      replaceGame(payload);
+    }catch(error){
+      crashAutoStop('Stopped — error');
+      announce((error?.message||'Unable to confirm Auto Play round.')+' Check history before retrying.',true);
+    }finally{
+      busy=false;crashAutoDisplay();
+    }
+  }
+  document.addEventListener('click',event=>{
+    if(event.target.closest?.('[data-crash-auto-stop]')){
+      crashAutoStop('Stopped by you');return;
+    }
+    const start=event.target.closest?.('[data-crash-auto-start]');
+    if(!start)return;
+    const panel=start.closest('[data-crash-auto-panel]'),game=start.closest('[data-crash-game]');
+    if(!panel||!game||game.dataset.crashActive==='1'||busy||crashAuto.active)return;
+    const rounds=Number(panel.querySelector('[data-crash-auto-rounds]')?.value);
+    const wager=Number(panel.querySelector('[data-crash-auto-wager]')?.value);
+    const autoAt=String(panel.querySelector('[data-crash-auto-at]')?.value||'');
+    if(![5,10,25].includes(rounds)||!Number.isSafeInteger(wager)||wager<10||wager>10000||
+       !validAutoCollect(autoAt)||autoAt===''){
+      announce('Choose valid Auto Play rounds, wager (10–10,000) and auto-collect (1.10–20×).',true);return;
+    }
+    crashAuto.active=true;crashAuto.total=rounds;crashAuto.remaining=rounds;
+    crashAuto.wager=wager;crashAuto.autoAt=autoAt;
+    crashAutoDisplay();scheduleCrashAuto(0);
+  });
+  window.addEventListener('pagehide',()=>crashAutoStop('Stopped — page closed'));
+
   // Presentation only: the server determines the grid and all winning lines.
   const reelFaces=['🍒','🍋','🍇','🔔','⭐','💎','7️⃣','👑','🃏'];
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -316,7 +400,14 @@
       // Reels move when the player spins, rather than when old results are loaded.
     }
     const game=root.querySelector('[data-crash-game]');
-    if(!game){crashCleanup=()=>{};return;}
+    if(!game){if(crashAuto.active)crashAutoStop('Stopped — left Crash');crashCleanup=()=>{};return;}
+    crashAutoDisplay();
+    if(crashAuto.active){
+      if(game.dataset.crashActive!=='1'){
+        if(crashAuto.remaining>0)scheduleCrashAuto(game.dataset.crashOutcome?1500:350);
+        else crashAutoStop('Completed '+crashAuto.total+' rounds');
+      }
+    }
     const chartPath=game.querySelector('[data-crash-chart-line]');
     const rocket=game.querySelector('[data-crash-rocket]');
     const flightStage=game.querySelector('.arcade-crash-display');

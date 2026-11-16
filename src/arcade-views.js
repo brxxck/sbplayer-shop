@@ -8,7 +8,7 @@ const number=n=>Number(n||0).toLocaleString('en-GB');
 const date=n=>new Date(n).toLocaleString('en-GB',{dateStyle:'short',timeStyle:'short'});
 const href=(path)=>'/arcade/'+path;
 const states={won:'Win',lost:'Loss',push:'Returned',cashed_out:'Collected',active:'Playing'};
-const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette'};
+const gameNames={coinflip:'Coin Flip',coinflip_pvp:'Player Coin Flip',slots:'Slots',mines:'Mines',crash:'Crash',blackjack:'Online Blackjack',blackjack_solo:'Solo Blackjack',crash_online:'Global Crash',plinko:'Plinko',roulette_online:'Live Roulette',poker_solo:'Solo Poker',poker_live:'Live Poker',poker_private:'Private Poker'};
 const symbolIcons={Cherry:'🍒',Lemon:'🍋',Grapes:'🍇',Bell:'🔔',Star:'⭐',Diamond:'💎',Seven:'7️⃣',Crown:'👑',Wild:'🃏'};
 const coinName=face=>face==='heads'?'SB (Heads)':'CAM (Tails)';
 const coinArt=(selected='heads')=>`<div class="arcade-coin-disc" data-coin-disc data-landed="${selected}">
@@ -57,7 +57,7 @@ export const chrome=(ctx,page,summary,content)=>{
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  ${solo?'<a class="sbj-online-link" href="/arcade/online/blackjack">♠ Multiplayer Blackjack</a></div></details>':''}
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
+  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/poker">Poker</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
  ${content}
 </div>`;
@@ -105,6 +105,7 @@ export function arcadeHome(ctx,summary,rounds){
  ${gameTile('/arcade/crash','🚀','Crash','Watch the multiplier rise and collect in time','arcade-crash')}
  ${gameTile('/arcade/blackjack','♠️','Solo Blackjack','Hit, stand, double or split against the house dealer','arcade-blackjack-solo')}
  ${gameTile('/arcade/plinko','🔴','Plinko','Bounce through pegs and land on multiplier slots','arcade-plinko')}
+ ${gameTile('/arcade/poker','♠️','Solo Poker','No-Limit Hold\'em against 1–5 medium bots','arcade-poker')}
  </section>
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
@@ -131,7 +132,7 @@ const slotPaytable=()=>`<details class="arcade-slot-paytable"><summary>View symb
  <div class="arcade-slot-paytable-scroll"><table><thead><tr><th>Symbol</th><th>3 match</th><th>4 match</th><th>5 match</th></tr></thead><tbody>
  ${SLOT_SYMBOLS.map(s=>`<tr><th>${slotSymbolFace(s)} <span>${s==='Crown'?'SB Crown':s==='Seven'?'Lucky Seven':s==='Star'?'Golden Star':s==='Bell'?'Golden Bell':s}</span></th>${SLOT_PAYTABLE[s].map(p=>`<td>${(p/100).toLocaleString('en-GB',{maximumFractionDigits:2})}×</td>`).join('')}</tr>`).join('')}
  </tbody></table></div><p>20 fixed lines, matching left to right. Wild substitutes for regular symbols. All payouts use the total wager. Combined prizes are capped at 1,000×.</p></details>`;
-export function slotsPage(ctx,summary,{round,rounds}){
+export function slotsPage(ctx,summary,{round,rounds,freeSpins=0}){
  const newest=round||rounds.find(r=>r.game==='slots')||null;
  const modern=newest?.details?.version===2;
  const reels=modern?newest.details.reels:Array.from({length:5},(_,i)=>['Cherry','Bell','Seven','Diamond','Crown'].map((x,j)=>SLOT_SYMBOLS[(i+j*2)%8]).slice(0,3));
@@ -149,11 +150,16 @@ export function slotsPage(ctx,summary,{round,rounds}){
   <div class="arcade-slot-reels" data-slot-reels>${reelMarkup}</div>
   <div class="arcade-slot-bottom"><span>20 LINES</span><strong>👑 SB CROWN · UP TO 200×</strong><span>MAX 1,000×</span></div>
  </div>
- ${modern?`<div class="arcade-slot-last"><span>LAST SPIN</span><strong>${number(newest.payout)} points returned</strong><span>${newest.details.multiplier.toFixed(2)}×</span></div>`:''}
+ ${modern?`<div class="arcade-slot-last"><span>${newest.details.isRewardSpin?'FREE SPIN · 50 PTS':'LAST SPIN'}</span><strong>${number(newest.payout)} points returned</strong><span>${newest.details.multiplier.toFixed(2)}×</span></div>`:''}
  ${lines}
- <p>Match 3 or more symbols from left to right. Wild helps complete combinations. Each spin settles immediately — no free spins.</p>
- <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
+ <p>Match 3 or more symbols from left to right. Wild helps complete combinations. Paid spins and daily free-spin rewards each settle immediately. No free-spin bonus rounds.</p>
+ <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds.filter(r=>!r.details?.isRewardSpin),'slots'))}
  <button type="submit" class="btn btn-primary arcade-slot-spin">🎰 SPIN</button></form>
+ <section class="arcade-slot-daily-free" aria-label="Daily reward free spins">
+  <div><strong>🎁 Daily Free Spins</strong><span>${number(freeSpins)} available · 50-point stake · no points deducted</span></div>
+  ${freeSpins>0?`<form action="/arcade/slots/free-spin" method="post" class="arcade-form">${token(ctx)}${request()}<button type="submit" class="btn btn-outline arcade-slot-free-spin">Use 1 Free Spin</button></form>`:
+    `<a class="btn btn-outline" href="/points/daily">Claim today's 50 free spins →</a>`}
+ </section>
  ${slotPaytable()}
  </section>${modern?resultBox(newest):newest?.details?.version!==2?resultBox(newest):''}${historyList(rounds)}`);
 }
@@ -232,6 +238,17 @@ export function crashPage(ctx,summary,status,rounds){
  ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
  ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00" data-arcade-auto-collect data-last-round-at="${Number(lastAutoCollect(rounds).at)||0}" value="${lastAutoCollect(rounds).value}"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
+ <section class="arcade-crash-auto panel" data-crash-auto-panel>
+  <div class="arcade-crash-auto-heading"><div><strong>⚙ Auto Play</strong><small>Optional · runs only while this page stays open</small></div><strong data-crash-auto-status>Off</strong></div>
+  <div class="arcade-crash-auto-fields">
+   <label>Rounds <select data-crash-auto-rounds><option value="5">5 rounds</option><option value="10">10 rounds</option><option value="25">25 rounds</option></select></label>
+   <label>Wager per round <input type="number" data-crash-auto-wager min="10" max="10000" step="1" value="${lastWager(rounds,'crash').value}" inputmode="numeric"></label>
+   <label>Auto-collect at <input type="number" data-crash-auto-at min="1.10" max="20" step="0.01" value="2.00" inputmode="decimal"></label>
+  </div>
+  <div class="arcade-crash-auto-buttons"><button type="button" class="btn btn-primary" data-crash-auto-start ${active?'disabled':''}>▶ Start Auto Play</button>
+  <button type="button" class="btn btn-outline" data-crash-auto-stop hidden>■ Stop Auto Play</button></div>
+  <p class="muted tiny">Auto Play never starts by itself. Maximum 25 rounds, one at a time. Stop at any time; an already-paid wager completes normally. No auto-retry after errors.</p>
+ </section>
  <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
  </section>${historyList(rounds)}`);
 }

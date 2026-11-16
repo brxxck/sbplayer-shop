@@ -38,13 +38,19 @@ export function plinkoPage(ctx,summary,{round=null,rounds=[]}={}){
  const selectRows='<select name="rows" data-plinko-rows>'+
   PLINKO_ROWS.map(n=>'<option value="'+n+'"'+(rows===n?' selected':'')+'>'+n+' rows · '+(n+1)+' slots</option>').join('')+
  '</select>';
+ // Compact results prevent 25-100 ball drops from filling the page.
+ const resultChip=b=>'<span class="plinko-last-chip '+(b.payout>=b.wager?'win':'loss')+'">'+
+  mult(b.multiplierCents)+' <small>'+(b.payout-b.wager>=0?'+':'')+n(b.payout-b.wager)+' pts</small></span>';
+ const lastBalls=Array.isArray(saved.balls)?saved.balls:[];
+ const topBalls=lastBalls.slice(0,12),remainingBalls=lastBalls.slice(12);
  const ballResult=latest?'<section class="plinko-last panel padded" data-plinko-last-result>'+
   '<div class="arcade-section-title"><h2>Last drop</h2><span>'+
   n(saved.count)+' ball'+(saved.count===1?'':'s')+' · '+esc(saved.risk)+' risk</span></div>'+
-  '<div class="plinko-last-results">'+(saved.balls||[]).map(b=>
-   '<span class="plinko-last-chip '+(b.payout>=b.wager?'win':'loss')+'">'+mult(b.multiplierCents)+
-   ' <small>'+(b.payout-b.wager>=0?'+':'')+n(b.payout-b.wager)+' pts</small></span>').join('')+
-  '</div><div class="plinko-last-actions"><div><small>TOTAL NET PROFIT</small><strong class="'+
+  '<div class="plinko-last-results">'+topBalls.map(resultChip).join('')+'</div>'+
+  (remainingBalls.length?'<details class="plinko-last-more"><summary>Show all '+lastBalls.length+
+   ' results ('+remainingBalls.length+' more)</summary><div class="plinko-last-results">'+
+   remainingBalls.map(resultChip).join('')+'</div></details>':'')+
+  '<div class="plinko-last-actions"><div><small>TOTAL NET PROFIT</small><strong class="'+
   (latest.payout>=latest.wager?'plinko-profit':'plinko-loss')+'">'+
   (latest.payout-latest.wager>=0?'+':'')+n(latest.payout-latest.wager)+' pts</strong></div>'+
   '<button type="button" class="btn btn-outline" data-plinko-replay>↻ Replay last drop</button></div>'+
