@@ -10,6 +10,19 @@ import {walletChange,ARCADE_MIN_BET,ARCADE_MAX_BET} from './arcade.js';
 export const PLINKO_ROWS=Object.freeze([8,12,16]);
 export const PLINKO_RISKS=Object.freeze(['low','medium','high']);
 export const PLINKO_COUNTS=Object.freeze([1,5,10,25,50,100]);
+
+ // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+ // A conservative, optional settings preset, NOT a winning prediction.
+ // Keep its total suggested wager modest relative to the member's wallet.
+export function plinkoSuggestedPlay(balance){
+ const points=Number.isSafeInteger(balance)&&balance>=0?balance:0;
+ const rows=12,risk='medium',count=points>=10000?5:1;
+ if(points<10)return {enabled:false,rows,risk,count:1,wager:10,totalWager:10};
+ const budget=Math.min(500,Math.max(10,Math.floor(points*0.005)));
+ const wager=Math.max(10,Math.min(100,Math.floor(budget/count)));
+ return {enabled:wager*count<=points,rows,risk,count,wager,totalWager:wager*count};
+}
+
 // Multiplier * 100, from edge slot to edge slot. 50/50 peg decisions
 // make landing probability C(rows,slot)/2^rows. Independently weighted,
 // symmetric tables return approximately 96% BEFORE whole-point rounding.
