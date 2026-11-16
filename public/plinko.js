@@ -370,32 +370,6 @@
   if(event.target.matches('[data-plinko-wager]')){rememberWager();renderSlots();}
  });
  document.addEventListener('click',event=>{
-  // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-  // Apply only the displayed preset; never spend points or submit a drop.
-  const apply=event.target.closest?.('[data-plinko-suggest-apply]');
-  if(apply&&root?.contains(apply)&&!busy&&!apply.disabled&&form){
-   const rows=Number(apply.dataset.suggestRows);
-   const count=Number(apply.dataset.suggestCount);
-   const wager=Number(apply.dataset.suggestWager);
-   const risk=String(apply.dataset.suggestRisk||'');
-   if(![8,12,16].includes(rows)||![1,5,10,25,50,100].includes(count)||
-      !['low','medium','high'].includes(risk)||!Number.isSafeInteger(wager)||
-      wager<10||wager>10000||wager*count>availableBalance()){
-    message('Suggested settings are unavailable for your current balance.',true);return;
-   }
-   const countOption=form.querySelector('input[name="count"][value="'+count+'"]');
-   const riskOption=form.querySelector('input[name="risk"][value="'+risk+'"]');
-   const wagerInput=form.querySelector('[data-plinko-wager]');
-   if(!countOption||!riskOption||!wagerInput)return;
-   form.elements.namedItem('rows').value=String(rows);
-   countOption.checked=true;riskOption.checked=true;
-   wagerInput.value=String(wager);
-   highlightSlot=-1;
-   saveSettings();rememberWager();renderSlots();paint();
-   message('Suggested settings applied. Review the wager and press Drop to play.');
-   experience()?.play('click');
-   return;
-  }
   const quick=event.target.closest?.('[data-plinko-quick]');
   if(quick&&root?.contains(quick)&&!busy){
    const wager=form.querySelector('[data-plinko-wager]');
