@@ -146,9 +146,9 @@ test('Discord member can claim the fourth daily free-spin reward and play Slots 
   assert.match(html,/Four daily rewards/);
   assert.match(html,/RESET IN/);
   assert.match(html,/data-daily-reset-countdown/);
-  assert.match(html,/\\/static\\/daily-rewards\\.js/);
-  assert.doesNotMatch(html,/<strong>00:00 UTC<\\/strong>/);
-  const reset=html.match(/data-reset-at="(\\d+)" data-server-now="(\\d+)"/);
+  assert.ok(html.includes('/static/daily-rewards.js'));
+  assert.ok(!html.includes('<strong>00:00 UTC</strong>'));
+  const reset=html.match(new RegExp('data-reset-at="([0-9]+)" data-server-now="([0-9]+)"'));
   assert.ok(reset,'the countdown must be supplied with UTC reset and server timestamps');
   assert.equal(new Date(Number(reset[1])).toISOString().slice(11,19),'00:00:00');
   assert.equal((await get('/static/daily-rewards.js')).status,200);
