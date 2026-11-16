@@ -34,7 +34,7 @@ export function dailyRewardsPage(ctx,state,{balance=0,history=[]}={}){
   +titlebar('DAILY ARCADE REWARDS','Four daily rewards','Three games rotate daily with 15–20 rounds and 100–500-point prizes. The fourth reward is 50 free Slots spins.')
   +'<div class="daily-reward-summary">'
    +'<div><small>TODAY EARNED</small><strong>'+n(state.earned)+' / '+n(state.total)+' pts</strong></div>'
-   +'<div><small>CHALLENGES COMPLETED</small><strong>'+state.completed+' / 4'</strong></div>'
+   +'<div><small>CHALLENGES COMPLETED</small><strong>'+state.completed+' / 4</strong></div>'
    +'<div><small>READY TO CLAIM</small><strong>'+n(state.available)+' pts</strong></div>'
    +'<div><small>YOUR POINT BALANCE</small><strong>'+n(balance)+' pts</strong></div>'
   +'</div>'
