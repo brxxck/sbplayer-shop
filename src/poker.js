@@ -153,6 +153,7 @@ function takeAction(t,p,action,to=0,stamp=clock()){
  }else if(action==='allin'){
   if(max<=0)fail('No points left to go all-in.',409);
   add=max;const newBet=p.street+add;
+  if(newBet>h.currentBet&&!p.raiseRights)fail('Action is not reopened for a raise.',409);
   addBet(t,h,p,add);p.allIn=true;
   if(newBet>h.currentBet){
    const raiseSize=newBet-h.currentBet;
@@ -263,19 +264,23 @@ export function pokerJoin(userId,tableId,code=''){
   return tableInfo(t);
  });
 }
+// Leaving never changes or refunds already committed points. A player who
+// can still act folds; an all-in player remains eligible for side-pot payouts.
 export function pokerLeave(userId,tableId){
  const user=userOf(userId);
  return transaction(()=>{
   const t=load(tableId);
   if(!seated(t,user))fail('Not seated at this table.',403);
-  const h=t.state.hand;
-  if(h&&h.phase!=='results'&&h.players.some(p=>p.id===user&&!p.folded)){
-   run('UPDATE poker_seats SET sitting_out=1,last_seen_at=0 WHERE user_id=? AND table_id=?',user,t.id);
-   // Leaving does not refund committed wagers. They settle normally at hand end.
-   const participant=h.players.find(p=>p.id===user);
-   if(participant&&h.players[h.turn]?.id===user)takeAction(t,participant,'fold');
+  const h=t.state.hand,participant=h?.players.find(p=>p.id===user);
+  if(h&&h.phase!=='results'&&participant&&!participant.folded&&!participant.allIn){
+   const wasTurn=h.players[h.turn]?.id===user;
+   participant.folded=true;participant.acted=true;h.seq++;
+   h.history.push({text:participant.name+' folded and left the table',at:clock()});
+   if(h.players.filter(p=>!p.folded).length===1)settle(t,clock());
+   else if(wasTurn)turnDone(t,clock(),h.turn);
    save(t);
-  }else run('DELETE FROM poker_seats WHERE user_id=? AND table_id=?',user,t.id);
+  }
+  run('DELETE FROM poker_seats WHERE user_id=? AND table_id=?',user,t.id);
   return {left:true};
  });
 }
