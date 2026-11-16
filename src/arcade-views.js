@@ -132,7 +132,7 @@ const slotPaytable=()=>`<details class="arcade-slot-paytable"><summary>View symb
  <div class="arcade-slot-paytable-scroll"><table><thead><tr><th>Symbol</th><th>3 match</th><th>4 match</th><th>5 match</th></tr></thead><tbody>
  ${SLOT_SYMBOLS.map(s=>`<tr><th>${slotSymbolFace(s)} <span>${s==='Crown'?'SB Crown':s==='Seven'?'Lucky Seven':s==='Star'?'Golden Star':s==='Bell'?'Golden Bell':s}</span></th>${SLOT_PAYTABLE[s].map(p=>`<td>${(p/100).toLocaleString('en-GB',{maximumFractionDigits:2})}×</td>`).join('')}</tr>`).join('')}
  </tbody></table></div><p>20 fixed lines, matching left to right. Wild substitutes for regular symbols. All payouts use the total wager. Combined prizes are capped at 1,000×.</p></details>`;
-export function slotsPage(ctx,summary,{round,rounds}){
+export function slotsPage(ctx,summary,{round,rounds,freeSpins=0}){
  const newest=round||rounds.find(r=>r.game==='slots')||null;
  const modern=newest?.details?.version===2;
  const reels=modern?newest.details.reels:Array.from({length:5},(_,i)=>['Cherry','Bell','Seven','Diamond','Crown'].map((x,j)=>SLOT_SYMBOLS[(i+j*2)%8]).slice(0,3));
@@ -150,11 +150,16 @@ export function slotsPage(ctx,summary,{round,rounds}){
   <div class="arcade-slot-reels" data-slot-reels>${reelMarkup}</div>
   <div class="arcade-slot-bottom"><span>20 LINES</span><strong>👑 SB CROWN · UP TO 200×</strong><span>MAX 1,000×</span></div>
  </div>
- ${modern?`<div class="arcade-slot-last"><span>LAST SPIN</span><strong>${number(newest.payout)} points returned</strong><span>${newest.details.multiplier.toFixed(2)}×</span></div>`:''}
+ ${modern?`<div class="arcade-slot-last"><span>${newest.details.isRewardSpin?'FREE SPIN · 50 PTS':'LAST SPIN'}</span><strong>${number(newest.payout)} points returned</strong><span>${newest.details.multiplier.toFixed(2)}×</span></div>`:''}
  ${lines}
- <p>Match 3 or more symbols from left to right. Wild helps complete combinations. Each spin settles immediately — no free spins.</p>
- <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds,'slots'))}
+ <p>Match 3 or more symbols from left to right. Wild helps complete combinations. Paid spins and daily free-spin rewards each settle immediately. No free-spin bonus rounds.</p>
+ <form action="/arcade/slots/spin" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}${wagerField(lastWager(rounds.filter(r=>!r.details?.isRewardSpin),'slots'))}
  <button type="submit" class="btn btn-primary arcade-slot-spin">🎰 SPIN</button></form>
+ <section class="arcade-slot-daily-free" aria-label="Daily reward free spins">
+  <div><strong>🎁 Daily Free Spins</strong><span>${number(freeSpins)} available · 50-point stake · no points deducted</span></div>
+  ${freeSpins>0?`<form action="/arcade/slots/free-spin" method="post" class="arcade-form">${token(ctx)}${request()}<button type="submit" class="btn btn-outline arcade-slot-free-spin">Use 1 Free Spin</button></form>`:
+    `<a class="btn btn-outline" href="/points/daily">Claim today's 50 free spins →</a>`}
+ </section>
  ${slotPaytable()}
  </section>${modern?resultBox(newest):newest?.details?.version!==2?resultBox(newest):''}${historyList(rounds)}`);
 }
