@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-// Four rotating daily Arcade challenges plus earned 50 x 50-point Slots reward.
+// Three rotating paid-game challenges plus a fourth independent 50 x 50 free Spins daily reward.
 // Rewards use the existing website points. Free spins debit no player points.
 // The user retains unspent free-spin credits across UTC daily resets.
 import {db,all,one,run,transaction} from './db.js';
@@ -7,9 +7,9 @@ import {config} from './config.js';
 import {walletChange} from './arcade.js';
 import {slotOutcome,slotTier} from './slots-rules.js';
 
-// Four distinct games rotate at midnight UTC. Every task changes its required
+// Three distinct games rotate at midnight UTC. Each game task changes its required
 // round count (15-20) and point reward (100-500) every day.
-export const DAILY_CHALLENGE_COUNT=4;
+export const DAILY_CHALLENGE_COUNT=3;
 export const DAILY_REWARD_MIN=100;
 export const DAILY_REWARD_MAX=500;
 export const DAILY_FREE_SPINS=50;
@@ -86,13 +86,13 @@ export function dailyRewardsStatus(userId,at=Date.now()){
   config.guildId,user,day);
  const claimedCount=challenges.filter(c=>c.claimed).length;
  return {day,start,end,resetAt:end,challenges,
-  completed:challenges.filter(c=>c.complete).length,
-  claimed:claimedCount,earned:challenges.filter(c=>c.claimed).reduce((n,c)=>n+c.reward,0),
+  completed:challenges.filter(c=>c.complete).length+(bonusClaimed?1:0),
+  claimed:claimedCount+(bonusClaimed?1:0),earned:challenges.filter(c=>c.claimed).reduce((n,c)=>n+c.reward,0),
   available:challenges.filter(c=>c.ready).reduce((n,c)=>n+c.reward,0),
   total:challenges.reduce((n,c)=>n+c.reward,0),
   freeSpins:{stake:DAILY_FREE_SPIN_STAKE,quantity:DAILY_FREE_SPINS,
    available:freeSpinCredits(user),claimedToday:bonusClaimed,
-   ready:claimedCount===challenges.length&&!bonusClaimed}};
+   ready:!bonusClaimed}};
 }
 export function claimDailyReward(userId,challengeId,at=Date.now()){
  const user=validUser(userId);
@@ -116,7 +116,7 @@ export function claimDailyFreeSpins(userId,at=Date.now()){
  return transaction(()=>{
   const state=dailyRewardsStatus(user,at);
   if(state.freeSpins.claimedToday)fail(409,'You have already claimed today\'s free spins.');
-  if(!state.freeSpins.ready)fail(409,'Claim all four completed daily challenges first.');
+  if(!state.freeSpins.ready)fail(409,'You have already claimed today\'s free spins.');
   const stamp=Date.now();
   run('INSERT INTO daily_free_spin_claims(guild_id,user_id,day_key,quantity,claimed_at) VALUES(?,?,?,?,?)',
    config.guildId,user,state.day,DAILY_FREE_SPINS,stamp);
@@ -138,7 +138,7 @@ export function spinDailyFreeSlots(userId,fields){
   const stamp=Date.now();
   if(run('UPDATE daily_free_spin_credits SET remaining=remaining-1,updated_at=? WHERE guild_id=? AND user_id=? AND remaining>0',
     stamp,config.guildId,user).changes!==1)
-   fail(409,'No free spins left. Complete Daily Rewards to earn more.');
+   fail(409,'No free spins left. Claim your next daily free-spin reward.');
   const outcome=slotOutcome();
   const payout=Math.floor(DAILY_FREE_SPIN_STAKE*outcome.multiplier+1e-8);
   if(payout)walletChange(user,payout,'slots.free.reward','slots:free:reward:'+key);
