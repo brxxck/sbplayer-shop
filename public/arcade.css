@@ -307,3 +307,10 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
  .arcade-custom-slots .arcade-slot-spin{min-height:48px}
 }
 @media(prefers-reduced-motion:reduce){.arcade-custom-slots .arcade-reel.spinning .arcade-reel-face{filter:none}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+.arcade-custom-slots .arcade-slot-crown-art{position:relative;display:inline-grid;place-items:center;line-height:1}
+.arcade-custom-slots .arcade-slot-crown-art>b{position:absolute;bottom:-.12em;font-family:system-ui,sans-serif;font-size:.25em;line-height:1;padding:.15em .4em;border-radius:.25em;background:#b42e43;border:1px solid #ffdc91;color:#fff1b5;text-shadow:0 1px #571b28;letter-spacing:.08em}
+.arcade-custom-slots .arcade-slot-wild strong{font-family:system-ui,sans-serif;font-size:.37em;font-weight:1000;letter-spacing:.04em;color:#ffe4a7;text-shadow:0 2px 0 #701d2d,0 0 12px #ff6d56;padding:.45em .3em;border:2px ridge #d8a85e;border-radius:.22em;background:linear-gradient(145deg,#a52748,#50142e)}
+.arcade-slot-paytable .arcade-slot-wild strong{font-size:9px}
+.arcade-slot-paytable .arcade-slot-crown-art>b{font-size:8px}
