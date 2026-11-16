@@ -60,7 +60,7 @@ function pokerCard(){
 export function onlineGamesPage(ctx,summary,state){
  return shell(ctx,'Online Games','<div class="online-games-root" data-online-games>'+
   '<div class="arcade-header online-hero"><div><div class="arcade-eyebrow">SB ARCADE · COMMUNITY MULTIPLAYER</div>'+
-  '<h1>Online Games</h1><p>Play four-seat Blackjack, live Roulette and Texas Hold'em Poker.</p></div>'+
+  '<h1>Online Games</h1><p>Play four-seat Blackjack, live Roulette and Texas Hold&#39;em Poker.</p></div>'+
   '<a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>'+n(summary.balance)+' <span>✦</span></strong><small>Claim more from levels →</small></a></div>'+
   '<nav class="arcade-tabs" aria-label="Arcade sections"><a href="/arcade">Solo Arcade</a><a href="/arcade/online" aria-current="page">Online Games</a>'+
   '<a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a></nav>'+
