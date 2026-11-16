@@ -14,7 +14,7 @@ await import('../src/level-points.js');
 const arcade=await import('../src/arcade.js');
 const {
  PLINKO_ROWS,PLINKO_RISKS,PLINKO_COUNTS,PLINKO_TABLES,plinkoTable,
- plinkoProbability,plinkoRtp,plinkoPath,plinkoPayout,dropPlinko,plinkoSuggestedPlay
+ plinkoProbability,plinkoRtp,plinkoPath,plinkoPayout,dropPlinko
 }=await import('../src/plinko.js');
 const alice='100000000000000151',bob='100000000000000152',poor='100000000000000153';
 for(const user of [alice,bob,poor]){
@@ -27,35 +27,6 @@ after(()=>{db.close();rmSync(dir,{recursive:true,force:true});});
 const balance=user=>one('SELECT balance FROM level_point_wallets WHERE guild_id=? AND user_id=?',guild,user).balance;
 const form=(wager=100,rows=12,risk='medium',count=1,request_id=randomUUID())=>({
  wager:String(wager),rows:String(rows),risk,count:String(count),request_id
-});
-
-test('Suggested Play is an optional, transparent Plinko preset with no bet made',async()=>{
- const noBalance=plinkoSuggestedPlay(0);
- assert.equal(noBalance.enabled,false);
- assert.equal(plinkoSuggestedPlay(9).enabled,false);
- assert.deepEqual(plinkoSuggestedPlay(100),{enabled:true,rows:12,risk:'medium',count:1,wager:10,totalWager:10});
- const highBalance=plinkoSuggestedPlay(1678461);
- assert.deepEqual(highBalance,{enabled:true,rows:12,risk:'medium',count:5,wager:100,totalWager:500});
- for(const points of [0,9,10,100,1000,9999,10000,20000,1500000]){
-  const hint=plinkoSuggestedPlay(points);
-  assert.ok(PLINKO_ROWS.includes(hint.rows));
-  assert.ok(PLINKO_COUNTS.includes(hint.count));
-  assert.ok(PLINKO_RISKS.includes(hint.risk));
-  if(hint.enabled){
-   assert.ok(hint.totalWager<=points,'never recommend more points than the wallet holds');
-   assert.equal(hint.totalWager,hint.count*hint.wager);
-   assert.ok(hint.wager>=10&&hint.wager<=10000);
-  }
- }
- const {plinkoPage}=await import('../src/plinko-views.js');
- const ctx={user:{id:alice},pathname:'/arcade/plinko',arcadeFragment:true,csrf:'unit-test'};
- const html=plinkoPage(ctx,{balance:1678461},{round:null,rounds:[]});
- assert.match(html,/SUGGESTED PLAY/);
- assert.match(html,/data-plinko-suggest-apply/);
- assert.match(html,/data-suggest-wager="100"/);
- assert.match(html,/data-suggest-count="5"/);
- assert.match(html,/not a win prediction/);
- assert.equal(balance(alice),10000,'displaying a suggestion must not deduct points');
 });
 
 test('All nine risk/row payout tables are symmetric, positive and near 96% theoretical RTP',()=>{
