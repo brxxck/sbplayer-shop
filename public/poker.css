@@ -96,3 +96,17 @@
 @media(prefers-reduced-motion:reduce){.poker-root *{animation:none!important;transition:none!important}}
 .poker-card.dealt{animation:pokerDeal .38s ease-out both}
 @keyframes pokerDeal{from{opacity:.4;transform:translateY(-20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* In-game poker advice based solely on the player's visible cards and wagers. */
+.poker-suggestion{display:grid;gap:8px;border:1px solid #9d895e;border-radius:11px;padding:13px;background:linear-gradient(120deg,#33263b,#113c3a 95%);min-width:0}
+.poker-suggestion-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.poker-suggestion-head strong{color:#f5d793;font-size:11px;letter-spacing:.09em}
+.poker-suggestion-head small{font-size:10px;color:#bed4dc}
+.poker-suggestion-action{font-size:21px;font-weight:950;color:#ffe6ae;font-variant-numeric:tabular-nums}
+.poker-suggestion[data-suggested-action=check] .poker-suggestion-action{color:#91e8bb}
+.poker-suggestion[data-suggested-action=call] .poker-suggestion-action{color:#a7e5ca}
+.poker-suggestion[data-suggested-action=fold] .poker-suggestion-action{color:#ffbbc4}
+.poker-suggestion[data-suggested-action=raise] .poker-suggestion-action{color:#ffd280}
+.poker-suggestion p{font-size:12px;line-height:1.55;color:#d6e3eb;margin:0}
+.poker-suggestion>small{font-size:10px;color:#9bb6c7;line-height:1.4}
