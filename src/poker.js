@@ -5,6 +5,7 @@ import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 import {walletChange} from './arcade.js';
 import {pokerDeck,pokerRank,pokerPots,POKER_MAX_HAND_STAKE,POKER_TURN_MS,POKER_RESULTS_MS} from './poker-rules.js';
+import {pokerSuggestedPlay} from './poker-advice.js';
 
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const idOf=x=>{if(typeof x!=='string'||!(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i).test(x))fail('Invalid Poker table.');return x;};
@@ -364,6 +365,11 @@ export function pokerState(userId,tableId,code=''){
     awards:show?h.winners:undefined,payouts:show?h.payouts:undefined,
     myCards:me?.cards||[],toCall:mine?Math.max(0,h.currentBet-me.street):0,
     maxRaiseTo:mine?me.street+available(me):0,canRaise:!!(mine&&me.raiseRights),
+    suggestedPlay:mine?pokerSuggestedPlay({
+     cards:me.cards,board:h.board,toCall:Math.max(0,h.currentBet-me.street),
+     pot:h.pot,minRaise,maxRaiseTo:me.street+available(me),
+     street:me.street,canRaise:!!me.raiseRights
+    }):null,
     myTurn:!!mine}:null,
    recent,histories,serverTime:clock(),self:user};
  });

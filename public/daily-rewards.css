@@ -57,3 +57,8 @@
 .daily-bonus-action{margin-top:10px}
 .daily-bonus-action a,.daily-bonus-action button{width:100%;min-height:46px}
 @media(max-width:680px){.daily-task-grid{grid-template-columns:1fr}}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Live, stable-width HH:MM:SS countdown with the exact next UTC reset below. */
+.daily-reward-reset strong[data-daily-reset-countdown]{font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.045em;min-width:8ch;font-size:clamp(20px,2.2vw,25px)}
+@media(max-width:680px){.daily-reward-reset strong[data-daily-reset-countdown]{min-width:0}}

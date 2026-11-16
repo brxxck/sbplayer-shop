@@ -2,17 +2,18 @@
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {pokerSuggestedPlay} from '../src/poker-advice.js';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const temp=mkdtempSync(join(tmpdir(),'sb-poker-'));
-const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404',eve='100000000000000405';
+const guild='100000000000000001',alice='100000000000000401',bob='100000000000000402',outsider='100000000000000403',dave='100000000000000404',eve='100000000000000405',frank='100000000000000406',grace='100000000000000407',hugo='100000000000000408';
 Object.assign(process.env,{NODE_ENV:'test',DB_PATH:join(temp,'poker.sqlite'),DISCORD_GUILD_ID:guild});
 const {db,one,run}=await import('../src/db.js');
 await import('../src/level-points.js');
 const poker=await import('../src/poker.js');
 const {pokerRank,pokerPots,pokerDeck,compareRanks}=await import('../src/poker-rules.js');
-for(const id of [alice,bob,outsider,dave,eve]){
+for(const id of [alice,bob,outsider,dave,eve,frank,grace,hugo]){
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',id,'user-'+id,id,Date.now());
  run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,10000,0)',guild,id);
 }
@@ -26,6 +27,62 @@ test('Poker evaluates royal flush, wheel, full house and card comparisons correc
  assert.equal(compareRanks(pokerRank(['As','Ks','Qs','Js','Ts']),pokerRank(['Ah','Kh','Qh','Jh','9h'])),1);
  const deck=pokerDeck();assert.equal(deck.length,52);assert.equal(new Set(deck).size,52);
 });
+test('Poker Suggested Play considers visible cards, public pot and legal moves only',()=>{
+ const base={board:[],pot:250,toCall:0,minRaise:200,maxRaiseTo:10000,street:0,canRaise:true};
+ const strong=pokerSuggestedPlay({...base,cards:['As','Ah']});
+ assert.deepEqual([strong.action,strong.raiseTo,strong.label],['raise',200,'Raise to 200 pts']);
+ const weak=pokerSuggestedPlay({...base,cards:['2c','7h'],toCall:500,pot:200});
+ assert.equal(weak.action,'fold');
+ assert.match(weak.reason,/Folding avoids risking/);
+ const noCost=pokerSuggestedPlay({...base,cards:['2c','7h']});
+ assert.equal(noCost.action,'check','never suggest fold when checking is free');
+ const noRaise=pokerSuggestedPlay({...base,cards:['As','Ah'],canRaise:false});
+ assert.equal(noRaise.action,'check','no unavailable raise suggestion');
+ const call=pokerSuggestedPlay({...base,cards:['As','Ah'],toCall:100,pot:200,canRaise:false});
+ assert.equal(call.action,'call');
+ assert.equal(call.label,'Call 100 pts');
+ const paired=pokerSuggestedPlay({...base,cards:['Ah','Qd'],board:['As','8c','4h'],
+  toCall:50,pot:500});
+ assert.equal(paired.action,'call');
+ assert.equal(paired.hand,'Top pair');
+ const sharedBoard=pokerSuggestedPlay({...base,cards:['2d','7c'],
+  board:['As','Ks','Qs','Js','Ts'],toCall:500,pot:150});
+ assert.equal(sharedBoard.action,'fold','a royal flush on the board is not private strength');
+ assert.equal(sharedBoard.hand,'Hand shared by the board');
+ assert.equal(pokerSuggestedPlay({...base,cards:['As','As']}),null,'duplicated cards are invalid');
+ assert.ok(!JSON.stringify(strong).includes('secret'));
+});
+test('Only acting Poker player receives the suggested move; spectators never get one',()=>{
+ const hintTable=poker.pokerCreate(frank,{mode:'public'});
+ const second=grace;
+ poker.pokerJoin(second,hintTable.tableId);
+ const firstState=poker.pokerState(frank,hintTable.tableId);
+ const acting=firstState.hand.players.find(p=>p.turn);
+ assert.ok(acting);
+ const current=poker.pokerState(acting.id,hintTable.tableId);
+ assert.ok(current.hand.myTurn);
+ assert.ok(current.hand.suggestedPlay);
+ assert.ok(['check','call','raise','fold'].includes(current.hand.suggestedPlay.action));
+ const nonActor=[frank,grace].find(x=>x!==acting.id);
+ const waiting=poker.pokerState(nonActor,hintTable.tableId);
+ assert.equal(waiting.hand.suggestedPlay,null);
+ const spectator=poker.pokerState(outsider,hintTable.tableId);
+ assert.equal(spectator.hand.suggestedPlay,null);
+ assert.equal(spectator.hand.myCards.length,0);
+ assert.ok(spectator.hand.players.every(p=>p.cards.length===0));
+});
+test('Poker table includes a display-only Suggested Play card',async()=>{
+ const {pokerTablePage}=await import('../src/poker-views.js');
+ const table=poker.pokerCreate(hugo,{mode:'solo',bots:'1'});
+ const current=poker.pokerState(hugo,table.tableId);
+ const markup=pokerTablePage({user:{id:hugo},pathname:'/arcade/poker/table/'+current.id,csrf:'test',
+  arcadeFragment:true},current);
+ assert.match(markup,/SUGGESTED PLAY/);
+ assert.match(markup,/data-poker-suggestion-action/);
+ assert.match(markup,/You decide what to play/);
+ assert.doesNotMatch(markup,/data-poker-suggest-apply/);
+});
+
 test('Poker divides side pots by eligible contributions without inventing points',()=>{
  const result=pokerPots([
   {id:'a',contributed:100,folded:false,cards:['Ah','Ac']},
