@@ -79,6 +79,41 @@ test('Slots V2 correctly values Wild substitution, lines and the 1000x maximum w
  assert.equal(Object.hasOwn(outcome,'freeSpins'),false);
 });
 
+test('Slots line 7 counts the screenshot\'s four connected cherries rather than three',async()=>{
+ const {SLOT_PAYLINES,SLOT_PAYTABLE,evaluateSlotGrid}=await import('../src/slots-rules.js');
+ const reels=[
+  ['Seven','Crown','Cherry'],
+  ['Crown','Bell','Cherry'],
+  ['Lemon','Cherry','Crown'],
+  ['Crown','Cherry','Lemon'],
+  ['Diamond','Diamond','Star']
+ ];
+ assert.deepEqual(SLOT_PAYLINES[6],[2,2,1,1,2]);
+ const result=evaluateSlotGrid(reels);
+ assert.equal(result.wins.length,1,'one winning line');
+ assert.equal(result.wins[0].line,7);
+ assert.equal(result.wins[0].symbol,'Cherry');
+ assert.equal(result.wins[0].count,4);
+ assert.equal(result.multiplier,0.8,'four cherries earn 0.80x total wager');
+ assert.equal(SLOT_PAYTABLE.Cherry[1],80);
+ assert.deepEqual(result.wins[0].positions,[
+  {reel:0,row:2},{reel:1,row:2},{reel:2,row:1},{reel:3,row:1}
+ ]);
+ const {slotsPage}=await import('../src/arcade-views.js');
+ const round={id:1007,game:'slots',wager:1000,payout:800,status:'lost',
+  created_at:1731000000000,updated_at:1731000000000,
+  details:{...result,reels,version:2,tier:'small'}};
+ const ctx={user:{id:alice},pathname:'/arcade/slots',csrf:'test',arcadeFragment:true};
+ const summary={balance:10000,played:1,wins:0,biggest_win:0};
+ const html=slotsPage(ctx,summary,{round,rounds:[round]});
+ assert.match(html,/Line 7: 🍒 4× · 0\.80×/);
+ assert.match(html,/800 points returned/);
+ const tiles=[...html.matchAll(/class="arcade-reel-face ([^"]*)" data-slot-row="([0-2])" data-symbol="([^"]+)" data-slot-winning="(true|false)"/g)];
+ assert.equal(tiles.length,15);
+ const highlighted=tiles.flatMap((tile,index)=>tile[4]==='true'?[{reel:Math.floor(index/3),row:index%3}]:[]);
+ assert.deepEqual(highlighted,result.wins[0].positions,'exactly the four cherries glow persistently');
+});
+
 test('Slots is named simply Slots and winning tiles remain highlighted on rerender',async()=>{
  const views=await import('../src/arcade-views.js');
  const {evaluateSlotGrid}=await import('../src/slots-rules.js');
