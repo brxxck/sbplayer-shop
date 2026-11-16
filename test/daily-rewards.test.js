@@ -1,9 +1,11 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+
 const temp=mkdtempSync(join(tmpdir(),'sb-daily-rewards-'));
 const guild='100000000000000001',owner='100000000000000002';
 const alice='100000000000000003',bob='100000000000000004',other='100000000000000005',webMember='100000000000000011';
@@ -16,104 +18,115 @@ for(const id of [owner,alice,bob,other,webMember]){
  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',
   id,'member-'+id.slice(-3),'Member '+id.slice(-3),Date.now());
 }
-run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,?)',guild,alice,200,4);
-const postFor=(user,at=Date.now())=>Number(run('INSERT INTO posts(user_id,body,created_at) VALUES(?,?,?)',
- user,'Community post',at).lastInsertRowid);
-const suggestionFor=(user,at=Date.now())=>Number(run(
- 'INSERT INTO suggestions(user_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?)',
- user,'New community idea','Let us do something fun together',at,at).lastInsertRowid);
-const likePost=(id,user,at=Date.now())=>run('INSERT INTO post_likes(post_id,user_id,created_at) VALUES(?,?,?)',id,user,at);
-const commentOn=(id,user,body,at=Date.now())=>run("INSERT INTO comments(kind,target_id,user_id,body,created_at) VALUES('post',?,?,?,?)",
- String(id),user,body,at);
-const vote=(id,user,at=Date.now())=>run("INSERT INTO suggestion_votes(suggestion_id,user_id,choice,created_at) VALUES(?,?,'yes',?)",id,user,at);
+for(const id of [alice,bob,other,webMember]){
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,?)',guild,id,10000,4);
+}
 after(()=>{db.close();rmSync(temp,{recursive:true,force:true});});
-
-test('Three non-game daily tasks independently qualify and award exactly 50 points each',()=>{
- const initial=rewards.dailyRewardsStatus(alice);
- assert.deepEqual(initial.challenges.map(x=>x.id),['feed-like','feed-comment','suggestion-vote']);
- assert.equal(initial.available,0);
- assert.equal(initial.total,150);
- assert.equal(initial.resetAt-initial.start,86400000);
- const post=postFor(bob);
- const suggestion=suggestionFor(bob);
- likePost(post,alice);
- let state=rewards.dailyRewardsStatus(alice);
- assert.equal(state.available,50);
- assert.equal(state.challenges[0].ready,true);
- assert.equal(state.challenges[1].ready,false);
- assert.equal(rewards.claimDailyReward(alice,'feed-like').amount,50);
- assert.equal(levelWallet(alice).balance,250);
- assert.equal(levelWallet(alice).claimedLevel,4,'daily rewards do not advance level claim progress');
- assert.throws(()=>rewards.claimDailyReward(alice,'feed-like'),e=>e.status===409);
- commentOn(post,alice,'This community post is great!');
- vote(suggestion,alice);
- state=rewards.dailyRewardsStatus(alice);
- assert.equal(state.available,100);
- const collected=rewards.claimDailyReward(alice,'feed-comment');
- assert.equal(collected.amount,50);
- rewards.claimDailyReward(alice,'suggestion-vote');
- state=rewards.dailyRewardsStatus(alice);
- assert.equal(state.claimed,3);
- assert.equal(state.earned,150);
- assert.equal(state.available,0);
- assert.equal(levelWallet(alice).balance,350);
- assert.equal(rewards.dailyRewardHistory(alice).length,3);
- assert.equal(one("SELECT COUNT(*) n FROM arcade_transfers WHERE guild_id=? AND user_id=? AND reason='daily.reward'",guild,alice).n,3);
- assert.equal(one('SELECT COUNT(*) n FROM daily_reward_claims WHERE guild_id=? AND user_id=?',guild,alice).n,3);
- assert.throws(()=>rewards.claimDailyReward(alice,'bogus'),e=>e.status===404);
+function paidRounds(user,game,count,at=Date.now()){
+ for(let i=0;i<count;i++)run(
+  'INSERT INTO arcade_rounds(guild_id,user_id,game,wager,payout,status,details_json,request_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)',
+  guild,user,game,10,0,'lost','{}',randomUUID(),at,at
+ );
+}
+test('Exactly three unique daily games rotate targets (15-20) and prizes (100-500), plus fourth free-spin reward',()=>{
+ const at=Date.now();
+ assert.equal(rewards.DAILY_CHALLENGE_COUNT,3);
+ assert.equal(rewards.DAILY_FREE_SPINS,50);
+ assert.equal(rewards.DAILY_FREE_SPIN_STAKE,50);
+ const today=rewards.dailyRewardsStatus(alice,at);
+ const tomorrow=rewards.dailyRewardsStatus(alice,at+86400000);
+ assert.equal(today.challenges.length,3);
+ assert.equal(new Set(today.challenges.map(c=>c.game)).size,3);
+ assert.equal(today.completed,0);
+ assert.equal(today.claimed,0);
+ assert.equal(today.freeSpins.ready,true,'daily 50 free spins are NOT gated behind the game tasks');
+ assert.equal(today.freeSpins.available,0);
+ assert.ok(today.total>=300&&today.total<=1500);
+ for(const task of today.challenges){
+  assert.ok(task.target>=15&&task.target<=20);
+  assert.ok(task.reward>=100&&task.reward<=500);
+  assert.equal(task.progress,0);
+ }
+ assert.notDeepEqual(today.challenges.map(c=>[c.game,c.target,c.reward]),
+  tomorrow.challenges.map(c=>[c.game,c.target,c.reward]));
+ assert.deepEqual(rewards.dailyChallengeSchedule(at),rewards.dailyChallengeSchedule(at));
+ assert.equal(today.resetAt-today.start,86400000);
 });
-
-test('Self likes, self comments, short comments and self votes do not complete tasks',()=>{
- const ownPost=postFor(other),ownSuggestion=suggestionFor(other);
- likePost(ownPost,other);
- commentOn(ownPost,other,'Commenting on my own post is not valid');
- vote(ownSuggestion,other);
- let s=rewards.dailyRewardsStatus(other);
- assert.equal(s.completed,0);
- assert.equal(s.available,0);
- assert.throws(()=>rewards.claimDailyReward(other,'feed-like'),e=>e.status===409);
- const peerPost=postFor(bob),peerSuggestion=suggestionFor(bob);
- commentOn(peerPost,other,'Short');
- s=rewards.dailyRewardsStatus(other);assert.equal(s.challenges[1].ready,false);
- const another=postFor(bob);
- run('UPDATE posts SET deleted_at=? WHERE id=?',Date.now(),another);
- likePost(another,other);
- s=rewards.dailyRewardsStatus(other);assert.equal(s.challenges[0].ready,false);
- commentOn(peerPost,other,'Valid longer comment');
- vote(peerSuggestion,other);
- s=rewards.dailyRewardsStatus(other);
- assert.equal(s.challenges[1].ready,true);
- assert.equal(s.challenges[2].ready,true);
- assert.equal(s.challenges[0].ready,false);
- const amount=rewards.claimDailyReward(other,'feed-comment').amount;
- assert.equal(amount,50);
- assert.equal(levelWallet(other).balance,50,'first-ever reward creates a wallet');
+test('50 free 50-point Slots spins claim independently once daily and each spin cannot charge the wallet',()=>{
+ const initial=levelWallet(alice).balance;
+ let daily=rewards.dailyRewardsStatus(alice);
+ assert.equal(daily.challenges.every(c=>!c.claimed),true);
+ const claim=rewards.claimDailyFreeSpins(alice);
+ assert.deepEqual([claim.quantity,claim.stake,claim.remaining],[50,50,50]);
+ assert.equal(levelWallet(alice).balance,initial);
+ assert.equal(rewards.dailyRewardsStatus(alice).completed,1,'free spins are the fourth daily reward');
+ assert.throws(()=>rewards.claimDailyFreeSpins(alice),e=>e.status===409);
+ const req={request_id:randomUUID()},first= rewards.spinDailyFreeSlots(alice,req);
+ const round=arcade.getRound(alice,first,'slots');
+ assert.equal(round.game,'slots');
+ assert.equal(round.wager,0);
+ assert.equal(round.details.isRewardSpin,true);
+ assert.equal(round.details.unitStake,50);
+ assert.ok(round.payout>=0);
+ assert.equal(round.payout,Math.floor(50*round.details.multiplier+1e-8));
+ assert.equal(rewards.freeSpinCredits(alice),49);
+ assert.equal(levelWallet(alice).balance,initial+round.payout);
+ assert.equal(rewards.spinDailyFreeSlots(alice,req),first,'same request key cannot repeat the spin');
+ assert.equal(rewards.freeSpinCredits(alice),49);
+ assert.equal(levelWallet(alice).balance,initial+round.payout);
+ assert.ok(!rewards.dailyRewardsStatus(alice).challenges.some(c=>c.progress>0),'free spins never complete game challenges');
+ assert.equal(one("SELECT COUNT(*) n FROM arcade_transfers WHERE user_id=? AND reason='slots.free.reward'",alice).n,
+  round.payout?1:0);
+ const tomorrow=Date.now()+86400000;
+ const claim2=rewards.claimDailyFreeSpins(alice,tomorrow);
+ assert.equal(claim2.remaining,99,'unspent daily free spins persist across resets');
+ assert.equal(rewards.dailyRewardsStatus(alice,tomorrow).freeSpins.claimedToday,true);
 });
-
-test('Daily rewards reset at midnight UTC, without deleting previously earned balances',()=>{
- const user=bob,at=Date.parse('2026-11-15T23:59:58.000Z');
- const post=postFor(owner,at-1000);
- likePost(post,user,at-500);
- let state=rewards.dailyRewardsStatus(user,at);
- assert.equal(state.challenges[0].ready,true);
- assert.equal(state.day,'2026-11-15');
- rewards.claimDailyReward(user,'feed-like',at);
- assert.equal(levelWallet(user).balance,50);
- state=rewards.dailyRewardsStatus(user,at+5000);
- assert.equal(state.day,'2026-11-16');
- assert.equal(state.challenges[0].ready,false);
- assert.equal(state.claimed,0);
- assert.equal(levelWallet(user).balance,50);
- likePost(postFor(owner,at+5000),user,at+5100);
- assert.equal(rewards.dailyRewardsStatus(user,at+7000).challenges[0].ready,true);
- rewards.claimDailyReward(user,'feed-like',at+7000);
- assert.equal(levelWallet(user).balance,100);
- assert.equal(one('SELECT COUNT(*) AS n FROM daily_reward_claims WHERE guild_id=? AND user_id=? AND challenge_id=?',
-  guild,user,'feed-like').n,2);
- assert.throws(()=>rewards.claimDailyReward(user,'feed-like',at+7000),e=>e.status===409);
+test('Daily paid game rounds award their distinct scheduled points only once',()=>{
+ const today=rewards.dailyRewardsStatus(bob);
+ for(const c of today.challenges){
+  paidRounds(bob,c.game,c.target-1,today.start+5000);
+  const pending=rewards.dailyRewardsStatus(bob).challenges.find(x=>x.id===c.id);
+  assert.equal(pending.progress,c.target-1);
+  assert.equal(pending.ready,false);
+  assert.throws(()=>rewards.claimDailyReward(bob,c.id),e=>e.status===409);
+  paidRounds(bob,c.game,1,today.start+5000);
+  const ready=rewards.dailyRewardsStatus(bob).challenges.find(x=>x.id===c.id);
+  assert.equal(ready.progress,c.target);
+  assert.equal(ready.ready,true);
+  const before=levelWallet(bob).balance;
+  const claim=rewards.claimDailyReward(bob,c.id);
+  assert.equal(claim.amount,c.reward);
+  assert.equal(levelWallet(bob).balance,before+c.reward);
+  assert.throws(()=>rewards.claimDailyReward(bob,c.id),e=>e.status===409);
+ }
+ const result=rewards.dailyRewardsStatus(bob);
+ assert.equal(result.challenges.length,3);
+ assert.equal(result.completed,3);
+ assert.equal(result.claimed,3);
+ assert.equal(result.earned,result.total);
+ assert.equal(result.available,0);
+ assert.equal(result.freeSpins.ready,true,'daily free spin remains an independent fourth reward');
+ assert.equal(rewards.dailyRewardHistory(bob).length,3);
+ assert.equal(one("SELECT COUNT(*) n FROM arcade_transfers WHERE user_id=? AND reason='daily.reward'",bob).n,3);
 });
-
-test('Signed-in member can complete a post like, comment and suggestion vote through the website then claim',async()=>{
+test('UTC reset rotates game challenges but never removes previously awarded points',()=>{
+ const at=Date.parse('2026-11-15T23:59:58Z');
+ const day1=rewards.dailyRewardsStatus(other,at);
+ const c=day1.challenges[0];
+ paidRounds(other,c.game,c.target,at);
+ assert.equal(rewards.dailyRewardsStatus(other,at).challenges[0].ready,true);
+ const gained=rewards.claimDailyReward(other,c.id,at);
+ const after=levelWallet(other).balance;
+ assert.equal(gained.amount,c.reward);
+ const day2=rewards.dailyRewardsStatus(other,at+5000);
+ assert.notEqual(day2.day,day1.day);
+ assert.equal(day2.claimed,0);
+ assert.equal(day2.earned,0);
+ assert.equal(levelWallet(other).balance,after);
+ assert.equal(rewards.dailyRewardHistory(other).length,1);
+});
+test('Discord member can claim the fourth daily free-spin reward and play Slots without paying',async()=>{
  const {createServer}=await import('../src/server.js');
  const server=createServer({testLogin:true,discord:{
   getGuild:async()=>({id:guild,owner_id:owner}),
@@ -123,50 +136,36 @@ test('Signed-in member can complete a post like, comment and suggestion vote thr
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base='http://127.0.0.1:'+server.address().port;
  try{
-  const guest=await fetch(base+'/points/daily',{redirect:'manual'});
-  assert.equal(guest.status,200,'public Discord metadata page must not show private daily rewards');
-  assert.doesNotMatch(await guest.text(),/action="\/points\/daily\/claim"/);
   const auth=await fetch(base+'/__test/login/'+webMember,{redirect:'manual'});
   const cookie=auth.headers.get('set-cookie').split(';')[0];
   const get=path=>fetch(base+path,{headers:{cookie}});
   let response=await get('/points/daily');
   assert.equal(response.status,200);
   const html=await response.text();
-  assert.match(html,/Three challenges/);
-  assert.match(html,/Like a post/);
-  assert.match(html,/Leave a comment/);
-  assert.match(html,/Vote yes or no/);
-  assert.match(html,/00:00 UTC/);
+  assert.match(html,/Four daily rewards/);
+  assert.match(html,/50 Free Slots Spins/);
+  assert.match(html,/Claim 50 free spins/);
+  assert.equal((html.match(/class="daily-task /g)||[]).length,4);
   const csrf=/name="_csrf" value="([^"]+)"/.exec(html)[1];
-  const post=postFor(owner),suggestion=suggestionFor(owner);
-  const send=(path,fields,antiCsrf=csrf)=>fetch(base+path,{
+  const send=(path,fields={},antiCsrf=csrf)=>fetch(base+path,{
    method:'POST',redirect:'manual',headers:{cookie,'content-type':'application/x-www-form-urlencoded'},
    body:new URLSearchParams({_csrf:antiCsrf,...fields})
   });
-  const noCsrf=await send('/points/daily/claim',{challenge:'feed-like'},'bad');
-  assert.equal(noCsrf.status,403);
-  const before=levelWallet(webMember).balance;
-  const notReady=await send('/points/daily/claim',{challenge:'feed-like'});
-  assert.equal(notReady.status,409);
-  const liked=await send('/post/'+post+'/like',{});
-  assert.equal(liked.status,303);
-  response=await get('/points/daily');
-  assert.match(await response.text(),/Completed — ready to claim/);
-  const first=await send('/points/daily/claim',{challenge:'feed-like'});
-  assert.equal(first.status,303);
-  assert.equal(levelWallet(webMember).balance,before+50);
-  assert.equal((await send('/points/daily/claim',{challenge:'feed-like'})).status,409);
-  assert.equal((await send('/post/'+post+'/comment',{body:'A nice long community reply!'})).status,303);
-  assert.equal((await send('/suggestions/'+suggestion+'/vote',{choice:'yes'})).status,303);
-  assert.equal((await send('/points/daily/claim',{challenge:'feed-comment'})).status,303);
-  assert.equal((await send('/points/daily/claim',{challenge:'suggestion-vote'})).status,303);
-  assert.equal(levelWallet(webMember).balance,before+150);
-  const final=(await (await get('/points/daily')).text());
-  assert.match(final,/150 \/ 150 pts/);
-  assert.match(final,/3 \/ 3/);
-  assert.match(final,/Claimed today/);
-  assert.match(final,/Recent Daily Rewards/);
-  assert.equal((await fetch(base+'/points/daily/claim',{method:'POST',redirect:'manual'})).status,303,'signed out cannot credit points');
+  const start=levelWallet(webMember).balance;
+  assert.equal((await send('/points/daily/free-spins/claim',{},'bad')).status,403);
+  assert.equal((await send('/points/daily/free-spins/claim')).status,303);
+  assert.equal(rewards.freeSpinCredits(webMember),50);
+  assert.equal((await send('/points/daily/free-spins/claim')).status,409);
+  response=await get('/arcade/slots');
+  assert.equal(response.status,200);
+  const slots=await response.text();
+  assert.match(slots,/50 available · 50-point stake/);
+  assert.match(slots,/\/arcade\/slots\/free-spin/);
+  const runSpin=await send('/arcade/slots/free-spin',{request_id:randomUUID()});
+  assert.equal(runSpin.status,303);
+  assert.equal(rewards.freeSpinCredits(webMember),49);
+  assert.ok(levelWallet(webMember).balance>=start);
+  assert.equal(one("SELECT COUNT(*) n FROM arcade_rounds WHERE user_id=? AND game='slots' AND wager=0",webMember).n,1);
   assert.equal((await get('/static/daily-rewards.css')).status,200);
  }finally{await new Promise(resolve=>server.close(resolve));}
 });
