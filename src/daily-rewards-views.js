@@ -3,6 +3,11 @@
 import {shell,esc,token,titlebar} from './views.js';
 const n=x=>Number(x||0).toLocaleString('en-GB');
 const date=x=>new Date(x).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'})+' UTC';
+const initialResetCountdown=(resetAt,now)=>{
+ const seconds=Math.max(0,Math.ceil((resetAt-now)/1000));
+ const pad=x=>String(x).padStart(2,'0');
+ return pad(Math.floor(seconds/3600))+':'+pad(Math.floor(seconds%3600/60))+':'+pad(seconds%60);
+};
 const previousLabels={'feed-like':'Main Feed like','feed-comment':'Main Feed comment','suggestion-vote':'Suggestion vote'};
 function taskCard(ctx,c,index){
  const status=c.claimed?'✓ Claimed today':c.ready?'✓ Complete — ready to claim':'○ '+n(c.progress)+' / '+n(c.target)+' rounds';
@@ -29,8 +34,10 @@ export function dailyRewardsPage(ctx,state,{balance=0,history=[]}={}){
   esc(state.challenges.find(c=>c.id===x.challenge_id)?.title||previousLabels[x.challenge_id]||x.challenge_id.replace(/^play-/,'')+' Challenge')+
   '</td><td class="daily-positive">+'+n(x.amount)+'</td></tr>').join('')
   ||'<tr><td colspan="3">No daily rewards claimed yet.</td></tr>';
+ const serverNow=Date.now();
  return shell(ctx,'Daily Rewards',
-  '<link rel="stylesheet" href="/static/daily-rewards.css?v=arcade-4-dailies-free-spins-v2">'
+  '<link rel="stylesheet" href="/static/daily-rewards.css?v=daily-reset-countdown-v1">'
+  +'<script src="/static/daily-rewards.js?v=daily-reset-countdown-v1" defer></script>'
   +titlebar('DAILY ARCADE REWARDS','Four daily rewards','Three games rotate daily with 15–20 rounds and 100–500-point prizes. The fourth reward is 50 free Slots spins.')
   +'<div class="daily-reward-summary">'
    +'<div><small>TODAY EARNED</small><strong>'+n(state.earned)+' / '+n(state.total)+' pts</strong></div>'
@@ -40,7 +47,7 @@ export function dailyRewardsPage(ctx,state,{balance=0,history=[]}={}){
   +'</div>'
   +'<section class="panel padded daily-reward-intro"><div><h2>🎁 Today’s Daily Challenges</h2>'
    +'<p>Finish <strong>15–20 paid rounds</strong> in each of today’s three Arcade games. Earn <strong>100–500 points</strong> per game challenge. Claim your 50 free spins separately as the fourth daily reward.</p></div>'
-   +'<div class="daily-reward-reset"><small>RESETS</small><strong>00:00 UTC</strong><span>Next: '+esc(date(state.resetAt))+'</span></div></section>'
+   +'<div class="daily-reward-reset"><small>RESET IN</small><strong data-daily-reset-countdown data-reset-at="'+Number(state.resetAt)+'" data-server-now="'+serverNow+'" role="timer" aria-label="Time until daily rewards reset">'+initialResetCountdown(state.resetAt,serverNow)+'</strong><span>Next: '+esc(date(state.resetAt))+'</span></div></section>'
   +'<section class="daily-task-grid" aria-label="Four daily rewards">'+cards
   +'<article class="daily-task daily-free-spin-bonus"><div><span class="daily-bonus-eyebrow">DAILY REWARD 4 OF 4</span><h2>🎰 50 Free Slots Spins</h2>'
    +'<p><strong>50 points per spin</strong>, completely free. Any winning points are paid directly into your website balance. Free spins do not count towards paid-spin challenges.</p>'
