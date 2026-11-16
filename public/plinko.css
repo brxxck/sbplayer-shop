@@ -115,15 +115,3 @@
  .plinko-last-actions button{width:100%}
  .plinko-controls .plinko-quick-wagers{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-
-/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
-/* Optional Suggested Play presets, never an automatic point wager. */
-.plinko-suggested-play{border:1px solid #957856;border-radius:11px;padding:13px;background:linear-gradient(125deg,#342c39,#102f39 85%);display:grid;gap:9px;min-width:0}
-.plinko-suggested-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.plinko-suggested-head span{font-weight:900;letter-spacing:.08em;color:#f6d78e;font-size:11px}
-.plinko-suggested-head small{font-size:10px;color:#bbcddd}
-.plinko-suggested-play>strong{color:#fff0cb;font-size:17px;font-variant-numeric:tabular-nums}
-.plinko-suggested-play>span{font-size:12px;color:#c0e4d6}
-.plinko-suggested-play p{font-size:11px;color:#b5c7d9;line-height:1.5;margin:0}
-.plinko-suggested-play button{width:100%;min-height:40px;border-color:#d2ae69;color:#ffdf9e;font-weight:850}
-.plinko-suggested-play button:disabled{opacity:.5;cursor:not-allowed}
