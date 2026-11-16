@@ -69,75 +69,51 @@
   const queued=[];
   let busy=false,crashCleanup=()=>{};
 
-  // Spin the visible reel strips immediately, then stop sequentially on the
-  // three symbols confirmed by the server. These animations never choose rewards.
-  const reelFaces=['🍒','🍋','🔔','💎','7️⃣'];
+  // Presentation only: the server determines the grid and all winning lines.
+  const reelFaces=['🍒','🍋','🍇','🔔','⭐','💎','7️⃣','👑','🃏'];
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const slotFace=(symbol)=>{const face=document.createElement('span');face.className='arcade-slot-symbol';face.textContent=symbol;return face;};
   function beginSlotSpin(){
-    if(reducedMotion)return {stop(){}};
-    const reels=[...document.querySelectorAll('.arcade-root [data-slot-reels] .arcade-reel')];
+    const settings=window.SBArcadeExperience?.getPreferences?.();
+    if(reducedMotion||settings?.motion==='instant')return {tracks:[],stop(){}};
+    const reels=[...document.querySelectorAll('.arcade-custom-slots [data-slot-reels] .arcade-reel')];
     const tracks=[];
     for(const reel of reels){
-      const windowNode=reel.querySelector('.arcade-reel-window');
-      if(!windowNode)continue;
-      const track=document.createElement('div');
-      track.className='arcade-reel-track';
-      const loop=Array.from({length:5},()=>reelFaces[Math.floor(Math.random()*reelFaces.length)]);
-      track.innerHTML=[...loop,...loop].map(symbol=>'<span>'+symbol+'</span>').join('');
-      windowNode.replaceChildren(track);
+      const cells=[...reel.querySelectorAll('.arcade-reel-face')];
+      if(cells.length!==3)continue;
+      const tick=()=>{
+        for(const cell of cells){cell.replaceChildren(slotFace(reelFaces[Math.floor(Math.random()*reelFaces.length)]));}
+      };
+      const timer=setInterval(tick,settings?.motion==='reduced'?130:75);
       reel.classList.add('spinning');
-      track.style.animation='arcade-reel-running .46s linear infinite';
-      tracks.push({reel,track});
+      tracks.push({reel,timer});
     }
     return {tracks,stop(){
-      for(const {reel,track} of tracks){
-        track.style.animation='';
-        reel.classList.remove('spinning');
-        if(reel.isConnected){
-          const initial=reel.dataset.symbol;
-          const face=document.createElement('div');face.className='arcade-reel-face';
-          face.textContent=({Cherry:'🍒',Lemon:'🍋',Bell:'🔔',Diamond:'💎',Seven:'7️⃣'})[initial]||'❔';
-          reel.querySelector('.arcade-reel-window')?.replaceChildren(face);
-        }
-      }
+      for(const {reel,timer} of tracks){clearInterval(timer);reel.classList.remove('spinning');}
     }};
   }
   async function finishSlotSpin(spin,payload){
     if(!spin?.tracks?.length)return;
     const template=document.createElement('template');
     template.innerHTML=payload.html;
-    const finalReels=[...template.content.querySelectorAll('[data-slot-reels] .arcade-reel')];
-    const target=finalReels.map(x=>x.querySelector('.arcade-reel-face')?.textContent||'❔');
-    if(target.length!==spin.tracks.length)throw Error('Invalid reel result.');
-    const stops=spin.tracks.map(async({reel,track},i)=>{
-      const delay=160*i;await sleep(delay);
+    const finalReels=[...template.content.querySelectorAll('.arcade-custom-slots [data-slot-reels] .arcade-reel')];
+    if(finalReels.length!==spin.tracks.length){spin.stop();throw Error('Invalid reel result.');}
+    const stops=spin.tracks.map(async({reel,timer},index)=>{
+      await sleep(120+index*190);
+      clearInterval(timer);
       if(!reel.isConnected)return;
-      const windowNode=reel.querySelector('.arcade-reel-window');
-      if(!windowNode)return;
-      track.style.animation='';
-      const symbols=Array.from({length:13},()=>reelFaces[Math.floor(Math.random()*reelFaces.length)]);
-      symbols.push(target[i]);
-      track.innerHTML=symbols.map(x=>'<span>'+x+'</span>').join('');
-      track.style.transform='translate3d(0,0,0)';
-      const duration=440+i*130;
-      const height=windowNode.clientHeight||120;
-      if(typeof track.animate==='function'){
-        const motion=track.animate(
-          [{transform:'translate3d(0,0,0)'},{transform:'translate3d(0,-'+(13*height)+'px,0)'}],
-          {duration,easing:'cubic-bezier(.2,.7,.2,1)',fill:'forwards'});
-        await motion.finished.catch(()=>{});
-        motion.cancel();
-      }else await sleep(duration);
-      if(!reel.isConnected)return;
-      const face=document.createElement('div');
-      face.className='arcade-reel-face';face.textContent=target[i];
-      windowNode.replaceChildren(face);
+      const finalCells=[...finalReels[index].querySelectorAll('.arcade-reel-face')];
+      const cells=[...reel.querySelectorAll('.arcade-reel-face')];
+      if(finalCells.length!==3||cells.length!==3)throw Error('Invalid reel symbols.');
+      cells.forEach((cell,row)=>{
+        cell.dataset.symbol=finalCells[row].dataset.symbol;
+        cell.replaceChildren(finalCells[row].firstElementChild?.cloneNode(true)||slotFace('❔'));
+      });
       reel.classList.remove('spinning');reel.classList.add('stopped');
     });
-    await Promise.all(stops);
-    await sleep(130);
+    try{await Promise.all(stops);}finally{spin.stop();}
+    await sleep(100);
   }
-
 
   function announce(message,error=false){
     const root=document.querySelector('.arcade-root');
