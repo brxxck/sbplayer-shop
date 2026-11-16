@@ -233,6 +233,17 @@ export function crashPage(ctx,summary,status,rounds){
  ${showForm?`<form action="/arcade/crash/start" method="post" class="arcade-form arcade-center-form">${token(ctx)}${request()}
  ${wagerField(lastWager(rounds,'crash'))}<label class="arc-label">Auto-collect multiplier (optional)<input type="number" name="auto_at" min="1.10" max="20" step="0.01" placeholder="e.g. 2.00" data-arcade-auto-collect data-last-round-at="${Number(lastAutoCollect(rounds).at)||0}" value="${lastAutoCollect(rounds).value}"></label>
  <button type="submit" class="btn btn-primary">Start Crash</button></form>`:''}
+ <section class="arcade-crash-auto panel" data-crash-auto-panel>
+  <div class="arcade-crash-auto-heading"><div><strong>⚙ Auto Play</strong><small>Optional · runs only while this page stays open</small></div><strong data-crash-auto-status>Off</strong></div>
+  <div class="arcade-crash-auto-fields">
+   <label>Rounds <select data-crash-auto-rounds><option value="5">5 rounds</option><option value="10">10 rounds</option><option value="25">25 rounds</option></select></label>
+   <label>Wager per round <input type="number" data-crash-auto-wager min="10" max="10000" step="1" value="${lastWager(rounds,'crash')}" inputmode="numeric"></label>
+   <label>Auto-collect at <input type="number" data-crash-auto-at min="1.10" max="20" step="0.01" value="2.00" inputmode="decimal"></label>
+  </div>
+  <div class="arcade-crash-auto-buttons"><button type="button" class="btn btn-primary" data-crash-auto-start ${active?'disabled':''}>▶ Start Auto Play</button>
+  <button type="button" class="btn btn-outline" data-crash-auto-stop hidden>■ Stop Auto Play</button></div>
+  <p class="muted tiny">Auto Play never starts by itself. Maximum 25 rounds, one at a time. Stop at any time; an already-paid wager completes normally. No auto-retry after errors.</p>
+ </section>
  <p class="muted tiny">Rocket movement is visual only. The server determines the round result and handles collection, even if you leave the page.</p>
  </section>${historyList(rounds)}`);
 }
