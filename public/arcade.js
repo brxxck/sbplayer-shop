@@ -14,7 +14,7 @@
     const key=wagerKey(field);
     if(!key||!/^\d+$/.test(field.value))return;
     const wager=Number(field.value);
-    if(!Number.isSafeInteger(wager)||wager<10||wager>1000)return;
+    if(!Number.isSafeInteger(wager)||wager<10||wager>10000)return;
     try{localStorage.setItem(key,JSON.stringify({wager,at:Date.now()}));}catch{}
   }
   // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
@@ -47,7 +47,7 @@
       try{
         const cached=JSON.parse(localStorage.getItem(key)||'null');
         const roundAt=Number(field.dataset.lastRoundAt||0);
-        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<10||cached.wager>1000||
+        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<10||cached.wager>10000||
            !Number.isFinite(cached.at)||cached.at<roundAt)continue;
         field.value=String(cached.wager);
       }catch{}
