@@ -39,7 +39,7 @@ export function pokerTablePage(ctx,state,code=''){
   '<button type="button" class="btn btn-outline" data-poker-copy>Copy Invite Link</button></div>':'';
  const joining=(!joined&&state.mode!=='solo')?
   '<form class="poker-join" method="post" action="/arcade/poker/table/'+id+'/join">'+token(ctx)+
-  (code?'<input type="hidden" name="code" value="'+esc(code)+'">':'')+
+  (code&&state.mode!=='private'?'<input type="hidden" name="code" value="'+esc(code)+'">':'')+
   (state.mode==='private'?'<label>Invite code <input name="code" value="'+esc(code)+'" maxlength="8" required></label>':'')+
   '<button class="btn btn-primary" type="submit">Join this table →</button></form>':'';
  const sit=joined?'<form class="poker-sitout" action="/arcade/poker/table/'+id+'/sitout" method="post">'+token(ctx)+
