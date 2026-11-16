@@ -348,3 +348,14 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
     right:2px;top:1px;font-size:10px;
   }
 }
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* Daily reward spins are separate from the normal paid Slots game. */
+.arcade-slot-daily-free{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:13px;width:min(100%,760px);padding:14px 16px;border:1px solid #d3a658;border-radius:12px;background:linear-gradient(110deg,#382438,#132637 75%)}
+.arcade-slot-daily-free>div{display:grid;gap:5px}
+.arcade-slot-daily-free strong{color:#ffe3a3;font-size:14px}
+.arcade-slot-daily-free span{font-size:12px;color:#bfd0dc}
+.arcade-slot-daily-free .arcade-form{margin:0;display:flex}
+.arcade-slot-daily-free .arcade-slot-free-spin{min-height:42px;border-color:#f0c06f;color:#fff0cb;font-weight:850}
+.arcade-slot-daily-free>a{white-space:normal;text-align:center}
+@media(max-width:640px){.arcade-slot-daily-free{display:grid}.arcade-slot-daily-free .arcade-form,.arcade-slot-daily-free button,.arcade-slot-daily-free>a{width:100%}}
