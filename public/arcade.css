@@ -262,3 +262,48 @@ button.arcade-mine-tile:focus-visible{outline:3px solid #85caff}
 /* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
 /* The mobile-only native game picker must never duplicate desktop game tabs. */
 .arcade-game-menu{display:none}
+
+/* // BUILT BY SB // RUNING ON WEED AND CAFFEINE */
+/* SB's Custom Slots V2: 5 columns x 3 visible cells, compact on phones. */
+.arcade-custom-slots{gap:15px}
+.arcade-slot-machine{width:min(100%,760px);padding:15px 14px 13px;border:2px solid #cda45e;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,#6c263d80,#15142b 60%,#0a1425);box-shadow:0 12px 38px #0007,inset 0 0 22px #e9b86c17;min-width:0}
+.arcade-slot-brand{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;color:#ffe7a4;font-size:clamp(13px,2.2vw,23px);font-weight:950;letter-spacing:.06em;text-shadow:0 2px 12px #ffbf593d;text-align:center}
+.arcade-slot-brand small{color:#fac5d2;font-size:10px;letter-spacing:.2em}
+.arcade-custom-slots .arcade-slot-reels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:100%;margin:12px 0;align-items:stretch}
+.arcade-custom-slots .arcade-reel{width:100%;height:auto;aspect-ratio:1/2.9;min-width:0;max-height:360px;border:2px solid #d2a85c;border-radius:11px;display:block;font-size:inherit;background:linear-gradient(#2a273d,#101627 55%,#262846);overflow:hidden}
+.arcade-custom-slots .arcade-reel-window{height:100%;display:grid;grid-template-rows:repeat(3,minmax(0,1fr))}
+.arcade-custom-slots .arcade-reel-face{width:100%;height:100%;min-height:0;display:grid;place-items:center;border-bottom:1px solid #c19c4f38;position:relative;background:linear-gradient(150deg,#ffffff06,transparent 60%)}
+.arcade-custom-slots .arcade-reel-face:last-child{border-bottom:0}
+.arcade-custom-slots .arcade-slot-symbol{display:inline-flex;align-items:center;justify-content:center;line-height:1;filter:drop-shadow(0 3px 6px #0008);font-size:clamp(22px,5.2vw,55px);font-family:system-ui,Segoe UI Emoji,sans-serif}
+.arcade-custom-slots .arcade-slot-crown{filter:drop-shadow(0 0 8px #ffbb5e)}
+.arcade-custom-slots .arcade-slot-wild{filter:drop-shadow(0 0 7px #ff576f)}
+.arcade-custom-slots .arcade-reel-winning{background:radial-gradient(ellipse,#ffd87b44,#e7aa2322 65%,#0000);box-shadow:inset 0 0 0 2px #f7cf6e}
+.arcade-custom-slots .arcade-reel.spinning .arcade-reel-face{filter:blur(2px);opacity:.9}
+.arcade-custom-slots .arcade-reel.stopped{border-color:#ffe4aa}
+.arcade-slot-bottom{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#e4bf83;text-align:center;font-size:clamp(8px,1.8vw,12px);font-weight:850}
+.arcade-slot-bottom strong{color:#ffe7a4;font-size:clamp(8px,1.8vw,13px)}
+.arcade-custom-slots .arcade-slot-spin{width:100%;font-size:18px;font-weight:900;letter-spacing:.06em;min-height:52px;background:linear-gradient(130deg,#a52b45,#d75d53);border-color:#eeab70}
+.arcade-slot-last{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:14px;border:1px solid #3b4e73;border-radius:11px;padding:11px 16px;background:#111f37}
+.arcade-slot-last span{font-size:11px;color:#bfcce2;font-weight:800}
+.arcade-slot-last strong{color:#e7cd8e;font-size:15px}
+.arcade-slot-wins{max-width:760px;width:100%;padding:11px 15px;border:1px solid #b7944c;border-radius:12px;background:#342a25;color:#ffe39b}
+.arcade-slot-wins>div{display:flex;flex-wrap:wrap;gap:7px 14px;font-size:12px;margin-top:8px}
+.arcade-slot-wins span{white-space:nowrap}
+.arcade-slot-paytable{width:min(100%,760px);background:#111c30;border:1px solid #35445f;border-radius:12px;padding:12px 14px;color:#c8dcf1}
+.arcade-slot-paytable summary{cursor:pointer;font-weight:800}
+.arcade-slot-paytable-scroll{overflow-x:auto;margin-top:14px}
+.arcade-slot-paytable table{width:100%;min-width:375px;border-collapse:collapse;text-align:right;font-size:13px}
+.arcade-slot-paytable th,.arcade-slot-paytable td{padding:8px 7px;border-bottom:1px solid #3b4b664a}
+.arcade-slot-paytable th:first-child{text-align:left}
+.arcade-slot-paytable th:first-child .arcade-slot-symbol{display:inline-block;vertical-align:middle;font-size:22px;margin-right:7px}
+.arcade-slot-paytable p{color:#aabbd5;font-size:12px;line-height:1.5}
+@media(max-width:600px){
+ .arcade-slot-machine{padding:10px 7px;border-radius:13px}
+ .arcade-custom-slots .arcade-slot-reels{gap:3px;margin:9px 0}
+ .arcade-custom-slots .arcade-reel{border-width:1px;border-radius:6px}
+ .arcade-custom-slots .arcade-slot-symbol{font-size:clamp(20px,7vw,42px)}
+ .arcade-slot-brand small{font-size:9px}
+ .arcade-slot-last{gap:7px;font-size:12px}
+ .arcade-custom-slots .arcade-slot-spin{min-height:48px}
+}
+@media(prefers-reduced-motion:reduce){.arcade-custom-slots .arcade-reel.spinning .arcade-reel-face{filter:none}}
