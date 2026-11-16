@@ -5,6 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {runInNewContext} from 'node:vm';
 
 const temp=mkdtempSync(join(tmpdir(),'sb-daily-rewards-'));
 const guild='100000000000000001',owner='100000000000000002';
@@ -143,6 +144,14 @@ test('Discord member can claim the fourth daily free-spin reward and play Slots 
   assert.equal(response.status,200);
   const html=await response.text();
   assert.match(html,/Four daily rewards/);
+  assert.match(html,/RESET IN/);
+  assert.match(html,/data-daily-reset-countdown/);
+  assert.match(html,/\\/static\\/daily-rewards\\.js/);
+  assert.doesNotMatch(html,/<strong>00:00 UTC<\\/strong>/);
+  const reset=html.match(/data-reset-at="(\\d+)" data-server-now="(\\d+)"/);
+  assert.ok(reset,'the countdown must be supplied with UTC reset and server timestamps');
+  assert.equal(new Date(Number(reset[1])).toISOString().slice(11,19),'00:00:00');
+  assert.equal((await get('/static/daily-rewards.js')).status,200);
   assert.match(html,/50 Free Slots Spins/);
   assert.match(html,/Claim 50 free spins/);
   assert.equal((html.match(/class="daily-task /g)||[]).length,4);
@@ -168,6 +177,29 @@ test('Discord member can claim the fourth daily free-spin reward and play Slots 
   assert.equal(one("SELECT COUNT(*) n FROM arcade_rounds WHERE user_id=? AND game='slots' AND wager=0",webMember).n,1);
   assert.equal((await get('/static/daily-rewards.css')).status,200);
  }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('Daily rewards countdown ticks every second and refreshes once at midnight UTC',()=>{
+ const source=readFileSync(new URL('../public/daily-rewards.js',import.meta.url),'utf8');
+ const resetAt=Date.parse('2026-11-17T00:00:00Z');
+ const timer={dataset:{resetAt:String(resetAt),serverNow:String(resetAt-5000)},textContent:''};
+ let elapsed=0,tick=null,visibility=null,reloads=0;
+ const context={
+  document:{querySelector:selector=>selector==='[data-daily-reset-countdown]'?timer:null,
+   addEventListener:(event,cb)=>{if(event==='visibilitychange')visibility=cb;},hidden:false},
+  performance:{now:()=>elapsed},
+  Date:{now:()=>100000+elapsed},
+  window:{setInterval:(fn,ms)=>{assert.equal(ms,1000);tick=fn;},
+   location:{reload:()=>{reloads++;}}}
+ };
+ runInNewContext(source,context);
+ assert.equal(timer.textContent,'00:00:05');
+ assert.equal(typeof tick,'function');
+ elapsed=2000;tick();assert.equal(timer.textContent,'00:00:03');
+ elapsed=4000;visibility();assert.equal(timer.textContent,'00:00:01');
+ elapsed=5200;tick();assert.equal(timer.textContent,'00:00:00');
+ assert.equal(reloads,1);
+ elapsed=8000;tick();assert.equal(reloads,1,'never reload more than once at rollover');
 });
 
 test('Gold crown sits over the real #1 profile photo, never lower ranked avatars',async()=>{
