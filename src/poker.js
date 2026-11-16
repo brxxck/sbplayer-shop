@@ -34,7 +34,7 @@ db.exec("CREATE TABLE IF NOT EXISTS poker_tables ("+
 );
 const load=tableId=>{const t=one('SELECT * FROM poker_tables WHERE id=? AND guild_id=?',idOf(tableId),config.guildId);if(!t)fail('Poker table not found.',404);return {...t,state:JSON.parse(t.state_json)};};
 const save=t=>run('UPDATE poker_tables SET state_json=?,updated_at=? WHERE id=? AND guild_id=?',JSON.stringify(t.state),clock(),t.id,config.guildId);
-const seats=t=>all('SELECT s.user_id AS id,s.seat_no AS seat,s.sitting_out,s.last_seen_at,COALESCE(u.display_name,u.username) AS name FROM poker_seats s JOIN users u ON u.id=s.user_id WHERE s.table_id=? ORDER BY s.seat_no',t.id);
+const seats=t=>all('SELECT s.user_id AS id,s.seat_no AS seat,s.sitting_out,s.last_seen_at,s.joined_at,COALESCE(u.display_name,u.username) AS name FROM poker_seats s JOIN users u ON u.id=s.user_id WHERE s.table_id=? ORDER BY s.seat_no',t.id);
 const seated=(t,u)=>!!one('SELECT 1 FROM poker_seats WHERE table_id=? AND user_id=?',t.id,u);
 function canView(t,u,code=''){
  if(t.mode==='solo'&&t.owner_id!==u)fail('Not your Solo Poker table.',403);
@@ -174,10 +174,10 @@ function takeAction(t,p,action,to=0,stamp=clock()){
 function botTurn(t,p,stamp){
  const h=t.state.hand,owed=Math.max(0,h.currentBet-p.street),max=available(p);
  const ranks=p.cards.map(c=>'23456789TJQKA'.indexOf(c[0])+2);
- let strength=ranks[0]===ranks[1]?.8:Math.max(...ranks)>=13?.57:Math.max(...ranks)>=10?.42:.22;
+ let strength=ranks[0]===ranks[1]?0.8:Math.max(...ranks)>=13?0.57:Math.max(...ranks)>=10?0.42:0.22;
  if(h.board.length>=3){
   const rank=pokerRank([...p.cards,...h.board]);
-  strength=Math.max(strength,rank[0]>=4?.96:rank[0]>=3?.83:rank[0]===2?.7:rank[0]===1?.46:.2);
+  strength=Math.max(strength,rank[0]>=4?0.96:rank[0]>=3?0.83:rank[0]===2?0.7:rank[0]===1?0.46:0.2);
  }
  const roll=randomInt(100)/100;
  if(owed>Math.max(500,t.big_blind*4)&&roll>strength+.27){takeAction(t,p,'fold',0,stamp);return;}
@@ -273,7 +273,7 @@ export function pokerLeave(userId,tableId){
    run('UPDATE poker_seats SET sitting_out=1,last_seen_at=0 WHERE user_id=? AND table_id=?',user,t.id);
    // Leaving does not refund committed wagers. They settle normally at hand end.
    const participant=h.players.find(p=>p.id===user);
-   if(participant&&h.players[h.turn]?.id===user)takeAction(t,participant,h.currentBet===participant.street?'check':'fold');
+   if(participant&&h.players[h.turn]?.id===user)takeAction(t,participant,'fold');
    save(t);
   }else run('DELETE FROM poker_seats WHERE user_id=? AND table_id=?',user,t.id);
   return {left:true};
@@ -293,12 +293,12 @@ export function pokerAction(userId,tableId,fields){
  const action=String(fields.action||'');
  const key=idOf(String(fields.request_id||''));
  const signature=JSON.stringify([fields.hand_id,fields.seq,action,fields.raise_to||'']);
- return transaction(()=>{
+ transaction(()=>{
   const existing=one('SELECT * FROM poker_actions WHERE request_key=?',key);
   const t=load(tableId);canView(t,user);
   if(existing){
    if(existing.user_id!==user||existing.table_id!==t.id||existing.signature!==signature)fail('Poker request already used.',409);
-   return pokerState(user,t.id);
+   return;
   }
   const h=t.state.hand;
   if(!h||h.phase==='results'||h.id!==fields.hand_id||String(h.seq)!==String(fields.seq))fail('The hand changed. Refresh the table.',409);
@@ -308,8 +308,9 @@ export function pokerAction(userId,tableId,fields){
   takeAction(t,p,action,to);
   save(t);
   run('INSERT INTO poker_actions(request_key,user_id,table_id,signature,created_at) VALUES(?,?,?,?,?)',key,user,t.id,signature,clock());
-  return pokerState(user,t.id);
+  return;
  });
+ return pokerState(user,tableId);
 }
 export function pokerChat(userId,tableId,message){
  const user=userOf(userId),body=String(message||'').trim();
@@ -337,7 +338,7 @@ export function pokerState(userId,tableId,code=''){
   const players=(h?.players||[]).map(p=>({
    id:p.id,name:p.name,seat:p.seat,bot:p.bot,folded:p.folded,allIn:p.allIn,
    wager:p.contributed,street:p.street,acted:p.acted,
-   points:p.bot?null:wallet(p.id),cards:p.id===user||show&&!p.folded?p.cards:[],
+   points:p.bot?null:wallet(p.id),avatarUrl:p.bot?null:(()=>{const hash=one('SELECT avatar FROM users WHERE id=?',p.id)?.avatar||'';return /^[a-zA-Z0-9_]+$/.test(hash)?'https://cdn.discordapp.com/avatars/'+p.id+'/'+hash+'.png?size=64':null;})(),cards:p.id===user||show&&!p.folded?p.cards:[],
    cardCount:p.cards.length,turn:h.turn>=0&&h.players[h.turn].id===p.id
   }));
   const histories=all('SELECT id,user_id,message,created_at FROM poker_chat WHERE table_id=? ORDER BY id DESC LIMIT 18',t.id)
@@ -346,7 +347,9 @@ export function pokerState(userId,tableId,code=''){
    .map(r=>({id:r.id,wager:r.wager,payout:r.payout,profit:r.payout-r.wager,at:r.created_at}));
   const minRaise=h?h.currentBet+Math.max(t.big_blind,h.minRaise):t.big_blind;
   const mine=me&&h?.turn>=0&&h.players[h.turn].id===user&&h.phase!=='results';
-  return {...tableInfo(t),owner:t.owner_id===user,
+  const sessionSeat=members.find(p=>p.id===user);
+  const sessionProfit=sessionSeat?one("SELECT COALESCE(SUM(payout-wager),0) AS profit FROM arcade_rounds WHERE guild_id=? AND user_id=? AND game IN ('poker_solo','poker_live','poker_private') AND created_at>=?",config.guildId,user,sessionSeat.joined_at)?.profit||0:0;
+  return {...tableInfo(t),owner:t.owner_id===user,sessionProfit,
    inviteCode:t.owner_id===user?t.invite_code:undefined,joined:seated(t,user),
    mySeat:members.find(p=>p.id===user)?.seat??null,watching:members.length,
    members:members.map(p=>({...p,points:wallet(p.id)})),
