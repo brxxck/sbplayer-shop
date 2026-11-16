@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-// Daily Arcade challenges plus one earned, opt-in 50 x 50-point Slots reward.
+// Four rotating daily Arcade challenges plus earned 50 x 50-point Slots reward.
 // Rewards use the existing website points. Free spins debit no player points.
 // The user retains unspent free-spin credits across UTC daily resets.
 import {db,all,one,run,transaction} from './db.js';
@@ -7,19 +7,37 @@ import {config} from './config.js';
 import {walletChange} from './arcade.js';
 import {slotOutcome,slotTier} from './slots-rules.js';
 
-export const DAILY_REWARD_POINTS=50;
-export const DAILY_REWARDS_TOTAL=150;
+// Four distinct games rotate at midnight UTC. Every task changes its required
+// round count (15-20) and point reward (100-500) every day.
+export const DAILY_CHALLENGE_COUNT=4;
+export const DAILY_REWARD_MIN=100;
+export const DAILY_REWARD_MAX=500;
 export const DAILY_FREE_SPINS=50;
 export const DAILY_FREE_SPIN_STAKE=50;
-export const DAILY_CHALLENGES=Object.freeze([
- Object.freeze({id:'play-coinflip-15',game:'coinflip',target:15,icon:'🪙',title:'Coin Flip Challenge',
-  description:'Complete 15 paid Coin Flip rounds today.',href:'/arcade/coinflip',link:'Play Coin Flip'}),
- Object.freeze({id:'play-plinko-18',game:'plinko',target:18,icon:'🔴',title:'Plinko Challenge',
-  description:'Complete 18 paid Plinko drops today. One batch counts as one round.',href:'/arcade/plinko',link:'Play Plinko'}),
- Object.freeze({id:'play-slots-20',game:'slots',target:20,icon:'🎰',title:'Slots Challenge',
-  description:'Complete 20 paid Slots spins today. Reward free spins do not count.',href:'/arcade/slots',link:'Play Slots'})
+const DAILY_GAME_POOL=Object.freeze([
+ Object.freeze({game:'coinflip',icon:'🪙',name:'Coin Flip',href:'/arcade/coinflip',link:'Play Coin Flip',unit:'rounds'}),
+ Object.freeze({game:'plinko',icon:'🔴',name:'Plinko',href:'/arcade/plinko',link:'Play Plinko',unit:'drops'}),
+ Object.freeze({game:'slots',icon:'🎰',name:'Slots',href:'/arcade/slots',link:'Play Slots',unit:'paid spins'}),
+ Object.freeze({game:'crash',icon:'🚀',name:'Crash',href:'/arcade/crash',link:'Play Crash',unit:'rounds'}),
+ Object.freeze({game:'mines',icon:'💎',name:'Mines',href:'/arcade/mines',link:'Play Mines',unit:'completed rounds'}),
+ Object.freeze({game:'blackjack_solo',icon:'🃏',name:'Solo Blackjack',href:'/arcade/blackjack',link:'Play Blackjack',unit:'hands'})
 ]);
-const ids=new Set(DAILY_CHALLENGES.map(c=>c.id));
+// Deterministic daily server-wide rotation; no user can reroll their tasks.
+// Each numbered challenge slot changes game, required rounds AND prize daily.
+export function dailyChallengeSchedule(at=Date.now()){
+ const {start}=utcRewardDay(at),dayIndex=Math.floor(start/86400000);
+ return Object.freeze(Array.from({length:DAILY_CHALLENGE_COUNT},(_,i)=>{
+  const game=DAILY_GAME_POOL[(dayIndex+i)%DAILY_GAME_POOL.length];
+  const target=15+((dayIndex+i*2)%6);
+  const reward=DAILY_REWARD_MIN+50*((dayIndex+i*3)%9);
+  return Object.freeze({
+   id:'play-'+game.game,game:game.game,target,reward,
+   icon:game.icon,title:game.name+' Challenge',
+   description:'Complete '+target+' paid '+game.name+' '+game.unit+' today.',
+   href:game.href,link:game.link
+  });
+ }));
+}
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const validUser=user=>{const s=String(user||'');if(!/^[0-9]{15,22}$/.test(s))fail(400,'Invalid Discord user.');return s;};
 const validRequest=key=>{const s=String(key||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))fail(400,'Invalid free-spin request.');return s;};
@@ -56,39 +74,40 @@ function paidRoundCount(user,game,start,end){
 }
 export function dailyRewardsStatus(userId,at=Date.now()){
  const user=validUser(userId),{day,start,end}=utcRewardDay(at);
- const claimed=new Set(all("SELECT challenge_id FROM daily_reward_claims "+
-  "WHERE guild_id=? AND user_id=? AND day_key=?",config.guildId,user,day).map(x=>x.challenge_id));
- const challenges=DAILY_CHALLENGES.map(c=>{
+ const claims=all("SELECT challenge_id,amount FROM daily_reward_claims "+
+  "WHERE guild_id=? AND user_id=? AND day_key=?",config.guildId,user,day);
+ const claimed=new Map(claims.map(x=>[x.challenge_id,x.amount]));
+ const challenges=dailyChallengeSchedule(at).map(c=>{
   const progress=Math.min(c.target,paidRoundCount(user,c.game,start,end));
   const complete=progress>=c.target||claimed.has(c.id);
-  return {...c,progress,complete,claimed:claimed.has(c.id),ready:progress>=c.target&&!claimed.has(c.id),reward:DAILY_REWARD_POINTS};
+  return {...c,progress,complete,claimed:claimed.has(c.id),ready:progress>=c.target&&!claimed.has(c.id),reward:claimed.get(c.id)||c.reward};
  });
  const bonusClaimed=!!one('SELECT 1 FROM daily_free_spin_claims WHERE guild_id=? AND user_id=? AND day_key=?',
   config.guildId,user,day);
  const claimedCount=challenges.filter(c=>c.claimed).length;
  return {day,start,end,resetAt:end,challenges,
   completed:challenges.filter(c=>c.complete).length,
-  claimed:claimedCount,earned:claimedCount*DAILY_REWARD_POINTS,
-  available:challenges.filter(c=>c.ready).length*DAILY_REWARD_POINTS,
-  total:DAILY_REWARDS_TOTAL,
+  claimed:claimedCount,earned:challenges.filter(c=>c.claimed).reduce((n,c)=>n+c.reward,0),
+  available:challenges.filter(c=>c.ready).reduce((n,c)=>n+c.reward,0),
+  total:challenges.reduce((n,c)=>n+c.reward,0),
   freeSpins:{stake:DAILY_FREE_SPIN_STAKE,quantity:DAILY_FREE_SPINS,
    available:freeSpinCredits(user),claimedToday:bonusClaimed,
    ready:claimedCount===challenges.length&&!bonusClaimed}};
 }
 export function claimDailyReward(userId,challengeId,at=Date.now()){
  const user=validUser(userId);
- if(!ids.has(challengeId))fail(404,'Daily challenge not found.');
  return transaction(()=>{
   const state=dailyRewardsStatus(user,at);
   const challenge=state.challenges.find(c=>c.id===challengeId);
+  if(!challenge)fail(404,'Daily challenge not found.');
   if(challenge.claimed)fail(409,'You already claimed this challenge today.');
   if(!challenge.ready)fail(409,'Complete the Arcade challenge before claiming points.');
   const stamp=Date.now();
   run('INSERT INTO daily_reward_claims(guild_id,user_id,day_key,challenge_id,amount,claimed_at) VALUES(?,?,?,?,?,?)',
-   config.guildId,user,state.day,challengeId,DAILY_REWARD_POINTS,stamp);
-  walletChange(user,DAILY_REWARD_POINTS,'daily.reward',
+   config.guildId,user,state.day,challengeId,challenge.reward,stamp);
+  walletChange(user,challenge.reward,'daily.reward',
    'daily:'+config.guildId+':'+user+':'+state.day+':'+challengeId);
-  return {challengeId,amount:DAILY_REWARD_POINTS,day:state.day,
+  return {challengeId,amount:challenge.reward,day:state.day,
    balance:one('SELECT balance FROM level_point_wallets WHERE guild_id=? AND user_id=?',config.guildId,user).balance};
  });
 }
@@ -97,7 +116,7 @@ export function claimDailyFreeSpins(userId,at=Date.now()){
  return transaction(()=>{
   const state=dailyRewardsStatus(user,at);
   if(state.freeSpins.claimedToday)fail(409,'You have already claimed today\'s free spins.');
-  if(!state.freeSpins.ready)fail(409,'Claim all three completed daily challenges first.');
+  if(!state.freeSpins.ready)fail(409,'Claim all four completed daily challenges first.');
   const stamp=Date.now();
   run('INSERT INTO daily_free_spin_claims(guild_id,user_id,day_key,quantity,claimed_at) VALUES(?,?,?,?,?)',
    config.guildId,user,state.day,DAILY_FREE_SPINS,stamp);
