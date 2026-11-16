@@ -48,16 +48,25 @@ function rouletteCard(state){
   '<p class="online-warning">No queue limit. Choose chips and confirm before the betting countdown closes.</p></article>';
 }
 
+function pokerCard(){
+ return '<article class="online-room" data-online-game="poker">'+
+  '<div class="online-room-head"><span class="online-room-graphic" aria-hidden="true">♠</span>'+
+  '<div><div class="online-room-kicker">TEXAS HOLD EM · LIVE AND PRIVATE</div><h2>Live Poker</h2></div>'+
+  '<span class="online-room-badge">LIVE GAME</span></div>'+
+  '<p>2–6 players · 50 / 100 blinds · points are your chips. No tournaments or buy-ins.</p>'+
+  '<a class="btn btn-primary" href="/arcade/poker">♠ Join or Create Poker Table →</a>'+
+  '<p class="online-warning">Also includes Solo Poker against medium bots and invite-only Private Poker.</p></article>';
+}
 export function onlineGamesPage(ctx,summary,state){
  return shell(ctx,'Online Games','<div class="online-games-root" data-online-games>'+
   '<div class="arcade-header online-hero"><div><div class="arcade-eyebrow">SB ARCADE · COMMUNITY MULTIPLAYER</div>'+
-  '<h1>Online Games</h1><p>Play four-seat Blackjack or live Roulette with 30 full seconds for Roulette betting.</p></div>'+
+  '<h1>Online Games</h1><p>Play four-seat Blackjack, live Roulette and Texas Hold'em Poker.</p></div>'+
   '<a class="arcade-wallet" href="/points"><small>YOUR POINTS</small><strong>'+n(summary.balance)+' <span>✦</span></strong><small>Claim more from levels →</small></a></div>'+
   '<nav class="arcade-tabs" aria-label="Arcade sections"><a href="/arcade">Solo Arcade</a><a href="/arcade/online" aria-current="page">Online Games</a>'+
   '<a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a></nav>'+
-  '<div class="online-section-heading"><div><h2>Shared game lobbies</h2><p>Both live games share Level Points, live player counts and server-controlled rounds.</p></div>'+
+  '<div class="online-section-heading"><div><h2>Shared game lobbies</h2><p>All live games share Level Points, live player counts and server-controlled rounds.</p></div>'+
   '<span class="online-live-indicator" data-online-connection>Checking lobbies…</span></div>'+
-  '<section class="online-room-grid" aria-label="Multiplayer game lobbies">'+blackjackCard(ctx,state.blackjack)+rouletteCard(state)+'</section>'+
+  '<section class="online-room-grid" aria-label="Multiplayer game lobbies">'+blackjackCard(ctx,state.blackjack)+rouletteCard(state)+pokerCard()+'</section>'+
   '<section class="online-foundation-notes panel padded"><h2>One table, shared rounds</h2><p>Up to four members can play Blackjack at one table. New players wait for the next betting round. The live round shows how many players joined and the points wagered. Global Roulette cycles through 30 seconds of betting, eight seconds of spinning and four seconds of results. Existing solo games are unchanged.</p></section>'+
  '</div>');
 }
