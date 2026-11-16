@@ -48,7 +48,7 @@ const stakesOf=raw=>{
   const key=String(item.key||''),selection=rouletteSelection(key);
   if(!selection)invalid('Unsupported Roulette selection.');
   if(!Number.isSafeInteger(item.stake)||item.stake<ROULETTE_MIN_CHIP||item.stake>ROULETTE_MAX_CHIP)
-   invalid('Each chip must wager between 10 and 1,000 points.');
+   invalid('Each chip must wager between 10 and 10,000 points.');
   aggregate.set(key,(aggregate.get(key)||0)+item.stake);
   total+=item.stake;
   if(total>ROULETTE_MAX_ROUND_STAKE)invalid('Maximum combined Roulette wager is 10,000 points per round.');

@@ -15,7 +15,7 @@ export const ROULETTE_BET_MS=30000;
 export const ROULETTE_SPIN_MS=8000;
 export const ROULETTE_RESULTS_MS=4000;
 export const ROULETTE_MIN_CHIP=10;
-export const ROULETTE_MAX_CHIP=1000;
+export const ROULETTE_MAX_CHIP=10000;
 export const ROULETTE_MAX_ROUND_STAKE=10000;
 
 const entries=[];

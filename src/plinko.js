@@ -47,7 +47,7 @@ const wagerField=raw=>{
  if(!/^[0-9]+$/.test(String(raw??'')))fail(400,'Invalid wager.');
  const amount=Number(raw);
  if(!Number.isSafeInteger(amount)||amount<ARCADE_MIN_BET||amount>ARCADE_MAX_BET)
-  fail(400,'Wager must be between 10 and 1,000 points per ball.');
+  fail(400,'Wager must be between 10 and 10,000 points per ball.');
  return amount;
 };
 const requestKey=raw=>{

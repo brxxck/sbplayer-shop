@@ -4,7 +4,7 @@
 import {randomInt} from 'node:crypto';
 
 export const BLACKJACK_MIN_WAGER=10;
-export const BLACKJACK_MAX_WAGER=1000;
+export const BLACKJACK_MAX_WAGER=10000;
 export const BLACKJACK_BET_MS=18000;
 export const BLACKJACK_TURN_MS=25000;
 export const BLACKJACK_BREAK_MS=5500;
