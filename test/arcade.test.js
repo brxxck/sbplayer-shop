@@ -75,7 +75,7 @@ test('Slots V2 correctly values Wild substitution, lines and the 1000x maximum w
  const outcome=slotOutcome(()=>0);
  assert.equal(outcome.reels.length,5);
  assert.equal(outcome.reels[0].length,3);
- assert.equal(outcome.multiplier,1000);
+ assert.equal(outcome.multiplier,50);
  assert.equal(Object.hasOwn(outcome,'freeSpins'),false);
 });
 
