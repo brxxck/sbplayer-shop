@@ -38,6 +38,12 @@ test('Solo Blackjack options and full history collapse on phones, not desktop',(
  assert.match(mobile,/\.arcade-solo \.sbj-lower-details > summary/);
 });
 
+test('Solo Blackjack exposes only five quick-bet presets while manual wager remains available',()=>{
+ assert.match(view,/\[50,100,250,500,1000\]\.map/);
+ assert.doesNotMatch(view,/\[10,25,50,100,250,500,1000\]\.map/);
+ assert.match(view,/min="10" max="1000"/);
+});
+
 test('mobile puts card table before wager for all round phases and preserves live controls',()=>{
  assert.match(mobile,/SOLO BLACKJACK MOBILE GAME-FIRST V2/);
  assert.match(mobile,/\.arcade-solo \.sbj-root > \[data-sbj-table\]/);
@@ -46,7 +52,7 @@ test('mobile puts card table before wager for all round phases and preserves liv
  assert.match(mobile,/position:sticky; bottom:calc\(74px/);
  assert.match(mobile,/\.arcade-solo \.sbj-stats,/);
  assert.match(mobile,/\.arcade-solo \.sbj-result>p \{ display:none; \}/);
- assert.match(mobile,/\.arcade-solo \.sbj-chip-values \{ display:grid; grid-template-columns:repeat\(7,minmax\(0,1fr\)\)/);
+ assert.match(mobile,/\.arcade-solo \.sbj-chip-values \{ display:grid; grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
  assert.match(mobile,/\.arcade-solo \.sbj-chip-values button:last-child \{ grid-column:auto; \}/);
  assert.match(mobile,/\.arcade-solo \.sbj-chip-values button \{ min-width:0; width:100%; min-height:44px/);
  assert.match(mobile,/\.arcade-solo \.sbj-result/);
@@ -55,7 +61,7 @@ test('mobile puts card table before wager for all round phases and preserves liv
 });
 
 test('mobile rebuild cache-busts CSS and JavaScript while keeping old routes intact',()=>{
- assert.match(shell,/mobile-first-r1-solo-game-first-v2-bets-row-v1/);
+ assert.match(shell,/mobile-first-r1-solo-game-first-v2-bets-row-v2/);
  assert.match(shell,/global-crash-disabled-v1-mobile-first-r1-solo-game-first-v2/);
  assert.match(view,/\/arcade\/online\/blackjack/);
  assert.match(js,/\/arcade\/blackjack\/start/);
