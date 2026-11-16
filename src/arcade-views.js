@@ -57,7 +57,7 @@ export const chrome=(ctx,page,summary,content)=>{
  <div class="arcade-experience-options"><button type="button" data-arcade-sound aria-pressed="true" class="arcade-experience-sound">🔊 Sound on</button><label>Animations <select data-arcade-motion><option value="full">Full</option><option value="reduced">Reduced</option><option value="instant">Instant</option></select></label></div>
  ${solo?'<a class="sbj-online-link" href="/arcade/online/blackjack">♠ Multiplayer Blackjack</a></div></details>':''}
  <nav class="arcade-tabs" aria-label="Arcade games">
-  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
+  <a href="/arcade">All Games</a><a href="/arcade/online">Online Games</a><a href="/arcade/coinflip">Coin Flip</a><a href="/arcade/slots">Slots</a><a href="/arcade/mines">Mines</a><a href="/arcade/crash">Crash</a><a href="/arcade/blackjack">Blackjack</a><a href="/arcade/plinko">Plinko</a><a href="/arcade/poker">Poker</a><a href="/arcade/history">History</a><a href="/arcade/leaderboard">Leaderboard</a><a href="/points/daily">Daily Rewards</a>
  </nav>
  ${content}
 </div>`;
@@ -105,6 +105,7 @@ export function arcadeHome(ctx,summary,rounds){
  ${gameTile('/arcade/crash','🚀','Crash','Watch the multiplier rise and collect in time','arcade-crash')}
  ${gameTile('/arcade/blackjack','♠️','Solo Blackjack','Hit, stand, double or split against the house dealer','arcade-blackjack-solo')}
  ${gameTile('/arcade/plinko','🔴','Plinko','Bounce through pegs and land on multiplier slots','arcade-plinko')}
+ ${gameTile('/arcade/poker','♠️','Solo Poker','No-Limit Hold\'em against 1–5 medium bots','arcade-poker')}
  </section>
  <section class="panel padded arcade-info"><h2>How points work</h2><p>Earn points through Discord levels, claim them in <a href="/points">Level Points</a>, and use the same balance in any arcade game. Every game outcome and wallet transfer is saved.</p></section>
  ${historyList(rounds)}`);
