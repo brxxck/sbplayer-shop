@@ -3,8 +3,8 @@
 // All randomness and payouts are calculated on the server; clients see only public cards.
 import {randomInt} from 'node:crypto';
 
-export const BLACKJACK_MIN_WAGER=10;
-export const BLACKJACK_MAX_WAGER=10000;
+export const BLACKJACK_MIN_WAGER=1;
+export const BLACKJACK_MAX_WAGER=Math.floor(Number.MAX_SAFE_INTEGER/16);
 export const BLACKJACK_BET_MS=18000;
 export const BLACKJACK_TURN_MS=25000;
 export const BLACKJACK_BREAK_MS=5500;

@@ -5,7 +5,7 @@
 import {randomInt} from 'node:crypto';
 import {db,one,run,transaction} from './db.js';
 import {config} from './config.js';
-import {walletChange,ARCADE_MIN_BET,ARCADE_MAX_BET} from './arcade.js';
+import {walletChange} from './arcade.js';
 
 export const PLINKO_ROWS=Object.freeze([8,12,16]);
 export const PLINKO_RISKS=Object.freeze(['low','medium','high']);
@@ -46,8 +46,8 @@ const integerField=(raw,label,accepted)=>{
 const wagerField=raw=>{
  if(!/^[0-9]+$/.test(String(raw??'')))fail(400,'Invalid wager.');
  const amount=Number(raw);
- if(!Number.isSafeInteger(amount)||amount<ARCADE_MIN_BET||amount>ARCADE_MAX_BET)
-  fail(400,'Wager must be between 10 and 10,000 points per ball.');
+ if(!Number.isSafeInteger(amount)||amount<1)
+  fail(400,'Enter a positive whole-point wager per ball.');
  return amount;
 };
 const requestKey=raw=>{
@@ -94,6 +94,7 @@ export function dropPlinko(userId,fields,draw=randomInt){
  const perBall=wagerField(fields?.wager);
  const key=requestKey(fields?.request_id);
  const totalWager=count*perBall;
+ if(!Number.isSafeInteger(totalWager*Math.max(...table)))fail(400,'Wager exceeds the supported point range.');
  return transaction(()=>{
   const previous=one('SELECT id,user_id,game,details_json FROM arcade_rounds WHERE request_key=?',key);
   if(previous){

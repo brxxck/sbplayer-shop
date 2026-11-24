@@ -12,8 +12,8 @@ import {isCinematicWin} from './arcade-cinematic-rules.js';
 export const GLOBAL_CRASH_BET_MS=12000;
 export const GLOBAL_CRASH_BREAK_MS=5000;
 export const GLOBAL_CRASH_RATE=0.12;
-export const GLOBAL_CRASH_MIN_WAGER=10;
-export const GLOBAL_CRASH_MAX_WAGER=10000;
+export const GLOBAL_CRASH_MIN_WAGER=1;
+export const GLOBAL_CRASH_MAX_WAGER=Math.floor(Number.MAX_SAFE_INTEGER/10000);
 export const GLOBAL_CRASH_MAX_CENTS=10000;
 export const GLOBAL_CRASH_MIN_AUTO=110;
 export const GLOBAL_CRASH_MAX_AUTO=2000;
@@ -43,7 +43,7 @@ const wagerOf=raw=>{
  if(!/^[0-9]+$/.test(String(raw??'')))fail('Invalid wager.',400);
  const amount=Number(raw);
  if(!Number.isSafeInteger(amount)||amount<GLOBAL_CRASH_MIN_WAGER||amount>GLOBAL_CRASH_MAX_WAGER)
-  fail('Wager must be between 10 and 10,000 points.',400);
+  fail('Enter a valid whole-point wager.',400);
  return amount;
 };
 const autoOf=raw=>{

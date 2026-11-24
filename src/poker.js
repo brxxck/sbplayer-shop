@@ -4,7 +4,7 @@ import {randomInt,randomUUID} from 'node:crypto';
 import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 import {walletChange} from './arcade.js';
-import {pokerDeck,pokerRank,pokerPots,POKER_MAX_HAND_STAKE,POKER_TURN_MS,POKER_RESULTS_MS} from './poker-rules.js';
+import {pokerDeck,pokerRank,pokerPots,POKER_SAFE_STACK,POKER_TURN_MS,POKER_RESULTS_MS} from './poker-rules.js';
 import {pokerSuggestedPlay} from './poker-advice.js';
 
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
@@ -41,9 +41,12 @@ function canView(t,u,code=''){
  if(t.mode==='solo'&&t.owner_id!==u)fail('Not your Solo Poker table.',403);
  if(t.mode==='private'&&!seated(t,u)&&t.owner_id!==u&&String(code||'').trim().toUpperCase()!==t.invite_code)fail('Private invitation required.',403);
 }
-function available(p){return Math.min(POKER_MAX_HAND_STAKE-p.contributed,p.bot?POKER_MAX_HAND_STAKE:wallet(p.id));}
+function available(p){
+ const limit=p.bot?(p.startingStack??10000):POKER_SAFE_STACK;
+ return p.bot?limit-p.contributed:Math.min(limit-p.contributed,wallet(p.id));
+}
 function addBet(t,h,p,amount){
- if(!Number.isSafeInteger(amount)||amount<0||amount>available(p))fail('Not enough available points or hand limit reached.',409);
+ if(!Number.isSafeInteger(amount)||amount<0||amount>available(p))fail('Not enough available points for that bet.',409);
  if(!amount)return;
  if(!p.bot)walletChange(p.id,-amount,'poker.wager','poker:wager:'+h.id+':'+p.id+':'+h.seq);
  p.street+=amount;p.contributed+=amount;h.pot+=amount;
@@ -73,6 +76,7 @@ function startHand(t,stamp){
  if(ready.length<2)return false;
  const deck=pokerDeck();
  const players=ready.map(s=>({id:s.id,bot:!!s.bot,seat:s.seat,name:s.name,
+  ...(s.bot?{startingStack:Math.min(POKER_SAFE_STACK,wallet(t.owner_id))}:{}),
   cards:[deck.pop(),deck.pop()],contributed:0,street:0,folded:false,allIn:false,acted:false,raiseRights:true}));
  const prevSeat=t.state.lastDealerSeat??-1;
  const dealer=players.findIndex(p=>p.seat>prevSeat);
@@ -229,8 +233,8 @@ export function pokerCreate(userId,fields){
  if(!['solo','private','public'].includes(mode))fail('Choose a Poker mode.');
  const bots=mode==='solo'?intOf(fields.bots??'3',1,5,'bot count'):0;
  const seatLimit=mode==='solo'?bots+1:intOf(fields.seats??'6',2,6,'seats');
- const small=mode==='private'?intOf(fields.small_blind??'50',10,1000,'small blind'):50;
- const big=mode==='private'?intOf(fields.big_blind??'100',20,2000,'big blind'):100;
+ const small=mode==='private'?intOf(fields.small_blind??'50',1,POKER_SAFE_STACK-1,'small blind'):50;
+ const big=mode==='private'?intOf(fields.big_blind??'100',2,POKER_SAFE_STACK,'big blind'):100;
  if(big<=small||big>small*4)fail('Big blind must exceed the small blind and be at most four times it.');
  if(mode!=='solo'&&seatLimit<2)fail('At least two seats required.');
  return transaction(()=>{
@@ -310,7 +314,7 @@ export function pokerAction(userId,tableId,fields){
   if(!h||h.phase==='results'||h.id!==fields.hand_id||String(h.seq)!==String(fields.seq))fail('The hand changed. Refresh the table.',409);
   const p=h.players[h.turn];
   if(!p||p.id!==user||!seated(t,user))fail('Not your turn.',409);
-  const to=action==='raise'?intOf(fields.raise_to,1,POKER_MAX_HAND_STAKE,'raise'):0;
+  const to=action==='raise'?intOf(fields.raise_to,1,POKER_SAFE_STACK,'raise'):0;
   takeAction(t,p,action,to);
   save(t);
   run('INSERT INTO poker_actions(request_key,user_id,table_id,signature,created_at) VALUES(?,?,?,?,?)',key,user,t.id,signature,clock());
@@ -344,7 +348,7 @@ export function pokerState(userId,tableId,code=''){
   const players=(h?.players||[]).map(p=>({
    id:p.id,name:p.name,seat:p.seat,bot:p.bot,folded:p.folded,allIn:p.allIn,
    wager:p.contributed,street:p.street,acted:p.acted,
-   points:p.bot?null:wallet(p.id),avatarUrl:p.bot?null:(()=>{const hash=one('SELECT avatar FROM users WHERE id=?',p.id)?.avatar||'';return /^[a-zA-Z0-9_]+$/.test(hash)?'https://cdn.discordapp.com/avatars/'+p.id+'/'+hash+'.png?size=64':null;})(),cards:p.id===user||show&&!p.folded?p.cards:[],
+   points:p.bot?available(p):wallet(p.id),avatarUrl:p.bot?null:(()=>{const hash=one('SELECT avatar FROM users WHERE id=?',p.id)?.avatar||'';return /^[a-zA-Z0-9_]+$/.test(hash)?'https://cdn.discordapp.com/avatars/'+p.id+'/'+hash+'.png?size=64':null;})(),cards:p.id===user||show&&!p.folded?p.cards:[],
    cardCount:p.cards.length,turn:h.turn>=0&&h.players[h.turn].id===p.id
   }));
   const histories=all('SELECT id,user_id,message,created_at FROM poker_chat WHERE table_id=? ORDER BY id DESC LIMIT 18',t.id)

@@ -30,7 +30,7 @@
   try{
    const value=JSON.parse(localStorage.getItem(key)||'null');
    if(!value||!Number.isFinite(value.at))continue;
-   if(prop==='wager'&&Number.isSafeInteger(value.value)&&value.value>=10&&value.value<=10000){
+   if(prop==='wager'&&Number.isSafeInteger(value.value)&&value.value>=1){
     draftWager=value.value;draftTime=Math.max(draftTime,value.at);
    }
    if(prop==='auto'&&(value.value===''||(/^\d{1,2}(?:\.\d{1,2})?$/.test(String(value.value))&&Number(value.value)>=1.10&&Number(value.value)<=20))){
@@ -45,7 +45,7 @@
   const wager=controls.querySelector('[data-gcr-wager]');
   if(wager&&/^\d+$/.test(wager.value)){
    const amount=Number(wager.value);
-   if(Number.isSafeInteger(amount)&&amount>=10&&amount<=10000)draftWager=amount;
+   if(Number.isSafeInteger(amount)&&amount>=1)draftWager=amount;
   }
   const auto=controls.querySelector('[data-gcr-auto]');
   if(auto){
@@ -57,7 +57,7 @@
  function rememberInput(el){
   if(el.matches('[data-gcr-wager]')){
    const amount=Number(el.value);
-   if(/^\d+$/.test(el.value)&&Number.isSafeInteger(amount)&&amount>=10&&amount<=10000){
+   if(/^\d+$/.test(el.value)&&Number.isSafeInteger(amount)&&amount>=1){
     draftWager=amount;draftTime=Date.now();store(wagerKey,amount);
    }
   }
@@ -86,15 +86,15 @@
  function controlsMarkup(){
   const m=model,me=m.me;
   const preferenceFresh=draftTime>Number(m.lastBetAt||0);
-  const betValue=preferenceFresh&&draftWager!==null?draftWager:Math.max(10,Math.min(10000,Number(m.lastWager)||50));
+  const betValue=preferenceFresh&&draftWager!==null?draftWager:Math.max(1,Number(m.lastWager)||50);
   const autoValue=preferenceFresh&&draftAuto!==null?draftAuto:
     m.lastAutoAt?(Number(m.lastAutoAt)/100).toFixed(2):'';
   const stake=m.canBet?
    '<form method="post" action="/arcade/online/crash/bet" data-gcr-form data-gcr-bet class="gcr-bet-form">'+
-   '<div class="gcr-bet-inputs"><label>Wager in points <input type="number" min="10" max="10000" step="1" name="wager" data-gcr-wager value="'+safe(betValue)+'" required></label>'+
+   '<div class="gcr-bet-inputs"><label>Wager in points <input type="number" min="1" step="1" name="wager" data-gcr-wager value="'+safe(betValue)+'" required></label>'+
    '<label>Auto-collect (optional) <input type="number" min="1.10" max="20" step="0.01" name="auto_at" data-gcr-auto placeholder="Off" value="'+safe(autoValue)+'"></label></div>'+
    '<div class="gcr-quick-wagers">'+[10,50,100,500,1000].map(w=>'<button type="button" data-gcr-quick="'+w+'">'+fmt(w)+'</button>').join('')+'</div>'+
-   '<button type="submit" class="btn btn-primary gcr-submit" '+(m.balance<10?'disabled':'')+'>🚀 Place wager</button></form>':'';
+   '<button type="submit" class="btn btn-primary gcr-submit" '+(m.balance<1?'disabled':'')+'>🚀 Place wager</button></form>':'';
   const cash=m.canCashout?
    '<form method="post" action="/arcade/online/crash/collect" data-gcr-form data-gcr-collect>'+
    '<button type="submit" class="btn btn-primary gcr-cashout">💰 CASH OUT</button></form>':'';

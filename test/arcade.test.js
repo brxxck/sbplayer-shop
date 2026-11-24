@@ -173,7 +173,7 @@ test('Mines supports saved board, safe reveal, cashout and duplicate payout prot
  arcade.cashMines(alice,id);
  arcade.revealMines(alice,id,safe);
  assert.equal(levelWallet(alice).balance,before+terminal.payout);
- assert.throws(()=>arcade.createMines(bob,form(2,{bombs:'3'})),e=>e.status===400);
+ assert.throws(()=>arcade.createMines(bob,form(0,{bombs:'3'})),e=>e.status===400);
 });
 
 test('Mines immediately loses wager when bomb uncovered',()=>{
@@ -251,7 +251,10 @@ test('point claims remain compatible with wagers and cumulative wallet balance',
  assert.equal(levelWallet(charlie).balance,before+500);
  assert.equal(levelWallet(charlie).claimedLevel,5);
  assert.equal(levelWallet(charlie).claimable,0);
- assert.throws(()=>arcade.houseCoin(charlie,form(10001,{face:'tails'})),e=>e.status===400);
+ for(const wager of [1,10001]){
+  const id=arcade.houseCoin(charlie,form(wager,{face:'tails'}));
+  assert.equal(arcade.getRound(charlie,id,'coinflip').wager,wager);
+ }
  assert.throws(()=>arcade.houseCoin(charlie,form(0,{face:'tails'})),e=>e.status===400);
  const poor='100000000000000006';run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',poor,'poor','Poor',Date.now());
  assert.throws(()=>arcade.houseCoin(poor,form(100,{face:'heads'})),e=>e.status===409);
@@ -800,4 +803,50 @@ test('Crash auto-collect persists through the round ledger and restores without 
  assert.match(show(),/name="auto_at"[^>]*value=""/,
   'latest server round overrides an older enabled auto-collect');
  assert.match(show(),/name="wager"[^>]*value="100"/);
+});
+
+test('Players can send points once through the Arcade and both histories identify the other player',async()=>{
+ const {createServer}=await import('../src/server.js');
+ const sender='100000000000000601',recipient='100000000000000602',pending='100000000000000603';
+ const usernames={[sender]:'gift.sender',[recipient]:'gift.receiver',[pending]:'gift.pending'};
+ for(const id of Object.keys(usernames)){
+  run('INSERT INTO users(id,username,display_name,updated_at) VALUES(?,?,?,?)',id,usernames[id],usernames[id],Date.now());
+ }
+ run('INSERT INTO level_point_wallets(guild_id,user_id,balance,claimed_level) VALUES(?,?,?,?)',guild,sender,20000,20);
+ const server=createServer({testLogin:true,discord:{
+  getGuild:async()=>({id:guild,owner_id:owner}),
+  getGuildMember:async id=>usernames[id]?{user:{id,username:usernames[id]},roles:[],pending:id===pending}:null,
+  getRoles:async()=>[]
+ }});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ const base='http://127.0.0.1:'+server.address().port,path='/arcade/give-points';
+ const login=async id=>(await fetch(base+'/__test/login/'+id,{redirect:'manual'})).headers.get('set-cookie').split(';')[0];
+ try{
+  const cookie=await login(sender);
+  const page=await (await fetch(base+path+'?to='+recipient,{headers:{cookie}})).text();
+  assert.match(page,/Give Points/);
+  assert.match(page,new RegExp('name="recipient" value="'+recipient+'"'));
+  const _csrf=/name="_csrf" value="([^"]+)"/.exec(page)[1];
+  const request_id=/name="request_id" value="([^"]+)"/.exec(page)[1];
+  const post=fields=>fetch(base+path,{method:'POST',redirect:'manual',headers:{cookie,
+   'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields)});
+  const fields={_csrf,request_id,recipient:'@gift.receiver',amount:'15000'};
+  assert.equal((await post({...fields,_csrf:'invalid'})).status,403);
+  assert.equal((await post({...fields,recipient:sender})).status,400);
+  assert.equal((await post({...fields,recipient:pending})).status,403);
+  assert.equal((await post({...fields,amount:'20001'})).status,409);
+  assert.equal(levelWallet(sender).balance,20000);
+  assert.equal(levelWallet(recipient).balance,0);
+  const responses=await Promise.all([post(fields),post(fields)]);
+  for(const response of responses){
+   assert.equal(response.status,303);
+   assert.match(response.headers.get('location'),/^\/arcade\/history/);
+  }
+  assert.equal((await post({...fields,amount:'1'})).status,409);
+  assert.equal(levelWallet(sender).balance,5000);
+  assert.equal(levelWallet(sender).claimedLevel,20);
+  assert.equal(levelWallet(recipient).balance,15000);
+  assert.match(await (await fetch(base+'/arcade/history',{headers:{cookie}})).text(),/Sent to @gift\.receiver/);
+  assert.match(await (await fetch(base+'/arcade/history',{headers:{cookie:await login(recipient)}})).text(),/Received from @gift\.sender/);
+ }finally{await new Promise(resolve=>server.close(resolve));}
 });

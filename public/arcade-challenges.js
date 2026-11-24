@@ -185,13 +185,13 @@
   const saveStake=()=>{
    if(!stake||!/^\d+$/.test(stake.value))return;
    const wager=Number(stake.value);
-   if(!Number.isSafeInteger(wager)||wager<10||wager>10000)return;
+   if(!Number.isSafeInteger(wager)||wager<1)return;
    try{localStorage.setItem(stakeKey,JSON.stringify({wager,at:Date.now()}));}catch{}
   };
   if(stake){
    try{
     const saved=JSON.parse(localStorage.getItem(stakeKey)||'null');
-    if(saved&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=10000&&
+    if(saved&&Number.isSafeInteger(saved.wager)&&saved.wager>=1&&
        Number.isFinite(saved.at)&&saved.at>=Number(stake.dataset.lastRoundAt||0)){
       stake.value=String(saved.wager);
     }

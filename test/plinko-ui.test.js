@@ -77,8 +77,8 @@ test('Plinko disables only when wager times balls exceeds the actual wallet',()=
  assert.equal(mountPlinko({balance:3772,wager:100,balls:10}).action.disabled,false);
 });
 test('Plinko rejects invalid per-ball wagers even when the player has sufficient points',()=>{
- assert.equal(mountPlinko({balance:5000,wager:9,balls:1}).action.disabled,true);
+ assert.equal(mountPlinko({balance:5000,wager:0,balls:1}).action.disabled,true);
  assert.equal(mountPlinko({balance:20000,wager:1001,balls:1}).action.disabled,false);
- assert.equal(mountPlinko({balance:20000,wager:10001,balls:1}).action.disabled,true);
+ assert.equal(mountPlinko({balance:20000,wager:10001,balls:1}).action.disabled,false);
  assert.equal(mountPlinko({balance:20000,wager:10000,balls:1}).action.disabled,false);
 });

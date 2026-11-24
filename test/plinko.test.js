@@ -126,7 +126,7 @@ test('Idempotent request IDs never charge, pay or generate results again',()=>{
 test('Invalid settings and insufficient points cannot debit a user',()=>{
  const before=balance(poor);
  for(const invalid of [
-  form(9),form(10001),form(100,7),form(100,9),form(100,12,'extreme'),
+  form(0),form(Number.MAX_SAFE_INTEGER+1),form(100,7),form(100,9),form(100,12,'extreme'),
   form(100,12,'low',2),form(100,12,'low',0),form(100,12,'low',101),form('1.5')
  ])assert.throws(()=>dropPlinko(poor,invalid),e=>e.status===400);
  assert.throws(()=>dropPlinko(poor,form(10,12,'medium',5)),e=>e.status===409);

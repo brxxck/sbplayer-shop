@@ -99,7 +99,7 @@ test('A bet is debited once, requires membership and rejects reused or invalid f
  const t=3000000,state=begin([alice,bob],t);
  const key=randomUUID();
  assert.throws(()=>globalCrashBet(carol,request(state.roundId,100),t+50),e=>e.status===409);
- assert.throws(()=>globalCrashBet(alice,request(state.roundId,9),t+50),e=>e.status===400);
+ assert.throws(()=>globalCrashBet(alice,request(state.roundId,0),t+50),e=>e.status===400);
  assert.throws(()=>globalCrashBet(alice,request(state.roundId,100,'1.09'),t+50),e=>e.status===400);
  assert.throws(()=>globalCrashBet(alice,request(state.roundId,100,'20.01'),t+50),e=>e.status===400);
  const placed=globalCrashBet(alice,request(state.roundId,225,'2.00',key),t+80);

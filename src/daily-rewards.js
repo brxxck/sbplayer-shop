@@ -69,7 +69,7 @@ function paidRoundCount(user,game,start,end){
  // An accepted, completed paid round is counted once, regardless of Plinko
  // batch size. Exclude free spins, and never count failed/active/refunded play.
  return one("SELECT COUNT(*) AS n FROM arcade_rounds WHERE guild_id=? AND user_id=? "+
-  "AND game=? AND wager>=10 AND status NOT IN ('active','cancelled','refunded') "+
+  "AND game=? AND wager>0 AND status NOT IN ('active','cancelled','refunded') "+
   "AND created_at>=? AND created_at<?",config.guildId,user,game,start,end)?.n||0;
 }
 export function dailyRewardsStatus(userId,at=Date.now()){

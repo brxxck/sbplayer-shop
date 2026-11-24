@@ -67,7 +67,7 @@
    '" aria-label="'+esc(name)+'" title="'+esc(name)+'">'+
    '<div class="poker-seat-cards">'+cards+'</div><span class="poker-avatar">'+avatar+'</span>'+
    '<div class="poker-identity"><b>'+esc(name)+(myself?' (You)':'')+'</b>'+
-   '<small>'+money(p.points===null?(10000-p.wager):p.points)+' pts'+(p.wager?' · '+money(p.wager)+' in pot':'')+'</small></div>'+
+   '<small>'+money(p.points)+' pts'+(p.wager?' · '+money(p.wager)+' in pot':'')+'</small></div>'+
    (p.seat===state.hand.dealerSeat?'<span class="poker-dealer">D</span>':'')+
    (p.turn?'<span class="poker-clock">'+seconds+'s</span>':'')+'</div>';
  }

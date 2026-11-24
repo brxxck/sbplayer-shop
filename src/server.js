@@ -6,7 +6,7 @@ import {preparePointGrant,confirmPointGrant,pointGrantPreview,pointGrantRecent,p
 import {pointAllPage} from './owner-point-grants-views.js';
 import {arcadeSummary,houseCoin,spinSlots,createMines,revealMines,cashMines,startCrash,cashCrash,crashStatus,
  createChallenge,joinChallenge,cancelChallenge,declineChallenge,challengeForUser,incomingChallenges,challengeHistory,lastPvpWager,
- openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sweepArcade} from './arcade.js';
+ openChallenges,recentRounds,getRound,currentRound,previewMinesPayout,arcadePointsLeaderboard,transfersFor,sendPoints,sweepArcade} from './arcade.js';
 import * as arcadeView from './arcade-views.js';
 import {dropPlinko} from './plinko.js';
 import {plinkoPage} from './plinko-views.js';
@@ -527,6 +527,29 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='GET'&&pathname==='/arcade')
         return html(arcadeView.arcadeHome(ctx,summary(),recentRounds(user,null,12)));
+      if(pathname==='/arcade/give-points'&&req.method==='GET'){
+        const id=url.searchParams.get('to');
+        const recipient=idOK(id)?one('SELECT id,username,display_name FROM users WHERE id=?',id):null;
+        return html(arcadeView.givePointsPage(ctx,summary(),recipient));
+      }
+      if(pathname==='/arcade/give-points'&&req.method==='POST'){
+        const {fields}=await form();rate(ctx,'arcade.points.send',12,60000);
+        const recipient=String(fields.recipient||'').trim().replace(/^@/,'');
+        const matches=idOK(recipient)?[{id:recipient}]:/^[a-zA-Z0-9_.]{2,32}$/.test(recipient)?
+          all('SELECT id FROM users WHERE username=? COLLATE NOCASE LIMIT 2',recipient):[];
+        if(matches.length!==1)invalid('Enter an exact Discord username or user ID.');
+        const id=matches[0].id;
+        if(id===user)invalid('Choose another player.');
+        const target=await discord.getGuildMember(id);
+        if(target?.user?.id!==id||target.user.bot||target.pending)
+          forbidden('You can only send points to active server members.');
+        // A cached username may have changed or may have been recycled.
+        if(!idOK(recipient)&&target.user.username.toLowerCase()!==recipient.toLowerCase())
+          invalid('That username changed. Use the player’s current Discord username or ID.');
+        upsertUser(target);
+        const amount=sendPoints(user,id,fields);
+        return success('/arcade/history',amount.toLocaleString('en-GB')+' points sent to @'+target.user.username+'.');
+      }
       if(req.method==='GET'&&pathname==='/arcade/history')
         return html(arcadeView.arcadeHistoryPage(ctx,summary(),recentRounds(user,null,80),transfersFor(user)));
       if(req.method==='GET'&&pathname==='/arcade/leaderboard'){

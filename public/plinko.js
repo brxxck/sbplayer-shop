@@ -137,7 +137,7 @@
   const action=root.querySelector('[data-plinko-submit]');
   if(action){
    action.textContent='🔴 Drop '+count+' ball'+(count===1?'':'s');
-   action.disabled=busy||!Number.isSafeInteger(wager)||wager<10||wager>10000||
+   action.disabled=busy||!Number.isSafeInteger(wager)||wager<1||
     wager*count>availableBalance();
   }
   if(canvas)canvas.setAttribute('aria-label','Plinko board, '+rows+' rows, '+risk+' risk, '+(rows+1)+' multiplier slots');
@@ -159,7 +159,7 @@
   const input=form?.querySelector('[data-plinko-wager]');
   if(!input)return;
   const wager=Number(input.value);
-  if(!Number.isSafeInteger(wager)||wager<10||wager>10000)return;
+  if(!Number.isSafeInteger(wager)||wager<1)return;
   try{localStorage.setItem(wagerKey,JSON.stringify({wager,at:Date.now()}));}catch{}
  }
  function hydrateSettings(){
@@ -180,7 +180,7 @@
   }
   let saved=null;
   try{saved=parseJSON(localStorage.getItem(wagerKey),null);}catch{}
-  if(saved&&Number(saved.at)>stamp&&Number.isSafeInteger(saved.wager)&&saved.wager>=10&&saved.wager<=10000)
+  if(saved&&Number(saved.at)>stamp&&Number.isSafeInteger(saved.wager)&&saved.wager>=1)
    form.querySelector('[data-plinko-wager]').value=String(saved.wager);
  }
  function mount(){
@@ -328,7 +328,7 @@
   if(!form.reportValidity())return;
   const selected=settings();
   const available=availableBalance();
-  if(!Number.isSafeInteger(selected.wager)||selected.wager<10||selected.wager>10000||
+  if(!Number.isSafeInteger(selected.wager)||selected.wager<1||
      selected.wager*selected.count>available){
    message('Not enough points for that batch. Lower your wager or ball count.',true);
    return;

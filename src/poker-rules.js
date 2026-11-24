@@ -1,10 +1,11 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
 // Pure Texas Hold'em rules. Never exposes the secret deck or an opponent's cards.
 import {randomInt} from 'node:crypto';
-export const POKER_MAX_HAND_STAKE=10000;
+export const POKER_SEAT_LIMIT=6;
+// Bound the sum of all contributions as well as any raise calculation.
+export const POKER_SAFE_STACK=Math.floor(Number.MAX_SAFE_INTEGER/(POKER_SEAT_LIMIT+2));
 export const POKER_TURN_MS=30000;
 export const POKER_RESULTS_MS=5500;
-export const POKER_SEAT_LIMIT=6;
 export const RANKS='23456789TJQKA';
 export const SUITS='shdc';
 export const POKER_HAND_NAMES=['High Card','Pair','Two Pair','Three of a Kind','Straight','Flush','Full House','Four of a Kind','Straight Flush'];

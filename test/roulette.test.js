@@ -162,10 +162,10 @@ test('Actual winning number pays every winning selection; settlement is never re
  assert.equal(rouletteSnapshot(alice,t+38002).history[0].number,32);
  assert.equal(ended.cinematic,true);
 });
-test('No bet accepted at 30 seconds, over 10k per round, too many chips or insufficient wallet',()=>{
+test('Roulette accepts large and one-point chips within the wallet, rejects late or invalid bets',()=>{
  const t=4000000,s=begin(t);
- assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',9)]),t+1),e=>e.status===400);
- assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',10001)]),t+1),e=>e.status===400);
+ assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',0)]),t+1),e=>e.status===400);
+ assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('number:9',10001)]),t+1),e=>e.status===409);
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('split:1-3',100)]),t+1),e=>e.status===400);
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('color:red',100),bet('color:black',100)],
   'invalid'),t+1),e=>e.status===400);
@@ -174,8 +174,10 @@ test('No bet accepted at 30 seconds, over 10k per round, too many chips or insuf
  assert.throws(()=>roulettePlace(alice,form(s.roundId,[bet('color:red',1000)]),t+30000),e=>e.status===409);
  assert.equal(balance(alice),10000);
  const next=rouletteSnapshot(alice,t+42000);
- const ten=Array.from({length:10},()=>bet('color:red',1000));
- roulettePlace(alice,form(next.roundId,ten),t+42001);
+ run('UPDATE level_point_wallets SET balance=10002 WHERE user_id=?',alice);
+ roulettePlace(alice,form(next.roundId,[bet('color:red',10001)]),t+42001);
+ const state=roulettePlace(alice,form(next.roundId,[bet('color:black',1)]),t+42002);
+ assert.equal(state.myWager,10002);
  assert.equal(balance(alice),0);
  assert.throws(()=>roulettePlace(alice,form(next.roundId,[bet('color:black',10)]),t+42002),e=>e.status===409);
  assert.equal(balance(alice),0);

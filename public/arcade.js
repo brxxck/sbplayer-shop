@@ -14,7 +14,7 @@
     const key=wagerKey(field);
     if(!key||!/^\d+$/.test(field.value))return;
     const wager=Number(field.value);
-    if(!Number.isSafeInteger(wager)||wager<10||wager>10000)return;
+    if(!Number.isSafeInteger(wager)||wager<1)return;
     try{localStorage.setItem(key,JSON.stringify({wager,at:Date.now()}));}catch{}
   }
   // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
@@ -47,7 +47,7 @@
       try{
         const cached=JSON.parse(localStorage.getItem(key)||'null');
         const roundAt=Number(field.dataset.lastRoundAt||0);
-        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<10||cached.wager>10000||
+        if(!cached||!Number.isSafeInteger(cached.wager)||cached.wager<1||
            !Number.isFinite(cached.at)||cached.at<roundAt)continue;
         field.value=String(cached.wager);
       }catch{}
@@ -143,9 +143,9 @@
     const rounds=Number(panel.querySelector('[data-crash-auto-rounds]')?.value);
     const wager=Number(panel.querySelector('[data-crash-auto-wager]')?.value);
     const autoAt=String(panel.querySelector('[data-crash-auto-at]')?.value||'');
-    if(![5,10,25].includes(rounds)||!Number.isSafeInteger(wager)||wager<10||wager>10000||
+    if(![5,10,25].includes(rounds)||!Number.isSafeInteger(wager)||wager<1||
        !validAutoCollect(autoAt)||autoAt===''){
-      announce('Choose valid Auto Play rounds, wager (10–10,000) and auto-collect (1.10–20×).',true);return;
+      announce('Choose valid Auto Play rounds, a whole-point wager and auto-collect (1.10–20×).',true);return;
     }
     crashAuto.active=true;crashAuto.total=rounds;crashAuto.remaining=rounds;
     crashAuto.wager=wager;crashAuto.autoAt=autoAt;

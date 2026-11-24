@@ -47,7 +47,7 @@
   x:Math.cos(pocketAngle(index))*radius,
   y:Math.sin(pocketAngle(index))*radius
  });
- try{const value=Number(localStorage.getItem(chipKey));if(Number.isSafeInteger(value)&&value>=10&&value<=10000)chip=value;}catch{}
+ try{const value=Number(localStorage.getItem(chipKey));if(Number.isSafeInteger(value)&&value>=1)chip=value;}catch{}
  function announce(text,ms=4000){
   notice={text,until:Date.now()+ms};
   caption.textContent=text;
@@ -117,7 +117,7 @@
   if(pending.length>=30){announce('Maximum 30 chips per confirmation.',5500);return;}
   const total=pending.reduce((sum,item)=>sum+item.stake,0);
   if(total+chip>Math.min(model.remainingBudget,model.balance)){
-   announce('Not enough available points or round wager limit reached.',5500);
+   announce('Not enough points for that chip.',5500);
    return;
   }
   pending.push({key,stake:chip});
@@ -426,11 +426,11 @@
   if(manual&&root.contains(manual)){
    const input=root.querySelector('[data-roulette-custom-chip]');
    if(!input?.reportValidity()||!/^\d+$/.test(input.value)){
-    announce('Enter a whole chip amount between 10 and 10,000 points.',5000);return;
+    announce('Enter a whole chip amount of at least 1 point.',5000);return;
    }
    const amount=Number(input.value);
-   if(!Number.isSafeInteger(amount)||amount<10||amount>10000){
-    announce('Chip amount must be between 10 and 10,000 points.',5000);return;
+   if(!Number.isSafeInteger(amount)||amount<1){
+    announce('Chip amount must be of at least 1 point.',5000);return;
    }
    chip=amount;
    try{localStorage.setItem(chipKey,String(chip));}catch{}
@@ -460,23 +460,7 @@
    if(total>model.remainingBudget||total>model.balance){
     announce('Not enough points to repeat your last confirmed bet slip.',5500);return;
    }
-   const repeated=last.flatMap(b=>{
-    // The database aggregates chips on identical selections. Reconstruct a
-    // valid new slip with each individual chip between 10 and 10000.
-    const items=[];let amount=b.stake;
-    while(amount>0&&items.length<30){
-     let stake=Math.min(10000,amount);
-     if(amount>10000&&amount-10000<10)stake=amount-10;
-     if(stake<10||stake>10000)break;
-     items.push({key:b.key,stake});amount-=stake;
-    }
-    return amount===0?items:[];
-   });
-   if(repeated.length===0||repeated.length>30){
-    announce('The previous combined bet is too large to repeat in one confirmation.',5000);
-    return;
-   }
-   pending=repeated;
+   pending=last.map(({key,stake})=>({key,stake}));
    renderSlip();announce('Previous chip selections loaded. Confirm to place them.',3500);
    experience()?.play('chip');return;
   }

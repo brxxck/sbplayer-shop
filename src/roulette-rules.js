@@ -14,9 +14,9 @@ const reds=new Set(ROULETTE_RED);
 export const ROULETTE_BET_MS=30000;
 export const ROULETTE_SPIN_MS=8000;
 export const ROULETTE_RESULTS_MS=4000;
-export const ROULETTE_MIN_CHIP=10;
-export const ROULETTE_MAX_CHIP=10000;
-export const ROULETTE_MAX_ROUND_STAKE=10000;
+export const ROULETTE_MIN_CHIP=1;
+// The highest possible return is 36 times the stake.
+export const ROULETTE_MAX_ROUND_STAKE=Math.floor(Number.MAX_SAFE_INTEGER/36);
 
 const entries=[];
 const add=(key,type,label,odds,numbers)=>{

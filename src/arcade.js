@@ -4,8 +4,9 @@ import {db,one,all,run,transaction} from './db.js';
 import {config} from './config.js';
 import {slotOutcome,slotTier} from './slots-rules.js';
 
-export const ARCADE_MIN_BET=10;
-export const ARCADE_MAX_BET=10000;
+export const ARCADE_MIN_BET=1;
+// Keep payout arithmetic inside JavaScript's exact integer range.
+export const ARCADE_MAX_BET=Math.floor(Number.MAX_SAFE_INTEGER/10000);
 export const ARCADE_GAMES=['coinflip','coinflip_pvp','slots','mines','crash','plinko','roulette_online','blackjack_solo','poker_solo','poker_live','poker_private'];
 const MAX_BALANCE=Number.MAX_SAFE_INTEGER-1000000;
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
@@ -64,6 +65,23 @@ export function walletChange(userId,delta,reason,eventKey){
  if(n.changes!==1)fail(409,delta<0?'Not enough points in your wallet.':'Wallet balance limit reached.');
  run('INSERT INTO arcade_transfers(guild_id,user_id,event_key,reason,delta,balance_after,created_at) VALUES(?,?,?,?,?,?,?)',
  config.guildId,userId,eventKey,reason,delta,balance(userId),Date.now());
+}
+export function sendPoints(sender,recipient,fields){
+ if(sender===recipient)fail(400,'Choose another player.');
+ const amount=whole(fields.amount,1,MAX_BALANCE,'Amount');
+ const key='player:'+config.guildId+':'+sender+':'+keyOf(fields).toLowerCase();
+ return transaction(()=>{
+  const previous=one('SELECT delta FROM arcade_transfers WHERE event_key=?',key+':sent');
+  if(previous){
+   const credit=one('SELECT user_id FROM arcade_transfers WHERE event_key=?',key+':received');
+   if(previous.delta!==-amount||credit?.user_id!==recipient)
+    fail(409,'This request ID was already used for a different transfer.');
+   return amount;
+  }
+  walletChange(sender,-amount,'player.sent',key+':sent');
+  walletChange(recipient,amount,'player.received',key+':received');
+  return amount;
+ });
 }
 function createRound({userId,game,wager,payout=0,status,details,key}){
  const now=Date.now();
@@ -420,7 +438,14 @@ export function arcadePointsLeaderboard(userId,limit=50){
    self:rows.find(r=>r.user_id===userId)||null,total};
 }
 export function transfersFor(userId){
- return all('SELECT reason,delta,balance_after,created_at FROM arcade_transfers WHERE guild_id=? AND user_id=? ORDER BY id DESC LIMIT 25',config.guildId,userId);
+ return all(`SELECT t.reason,t.delta,t.balance_after,t.created_at,u.username AS counterparty
+ FROM arcade_transfers t
+ LEFT JOIN arcade_transfers other ON other.event_key=CASE t.reason
+  WHEN 'player.sent' THEN substr(t.event_key,1,length(t.event_key)-5)||':received'
+  WHEN 'player.received' THEN substr(t.event_key,1,length(t.event_key)-9)||':sent'
+ END
+ LEFT JOIN users u ON u.id=other.user_id
+ WHERE t.guild_id=? AND t.user_id=? ORDER BY t.id DESC LIMIT 25`,config.guildId,userId);
 }
 export function previewMinesPayout(round){
  if(!round||round.game!=='mines'||round.status!=='active'||!round.details.revealed.length)return 0;

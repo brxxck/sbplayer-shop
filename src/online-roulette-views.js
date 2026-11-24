@@ -97,7 +97,7 @@ export function onlineRoulettePage(ctx,summary,state){
   [10,25,50,100,250,500,1000].map(v=>
    '<button type="button" class="roulette-chip-option'+(v===10?' selected':'')+
    '" data-roulette-chip="'+v+'" aria-pressed="'+(v===10?'true':'false')+'">'+n(v)+'</button>').join(''),
-  '</div><div class="roulette-manual-chip"><label for="roulette-manual-wager">Custom chip amount (10–10,000)<input id="roulette-manual-wager" type="number" inputmode="numeric" min="10" max="10000" step="1" placeholder="Enter amount" data-roulette-custom-chip></label><button type="button" class="btn btn-outline" data-roulette-apply-chip>Use amount</button></div>',bettingTable(),
+  '</div><div class="roulette-manual-chip"><label for="roulette-manual-wager">Custom chip amount<input id="roulette-manual-wager" type="number" inputmode="numeric" min="1" step="1" placeholder="Enter amount" data-roulette-custom-chip></label><button type="button" class="btn btn-outline" data-roulette-apply-chip>Use amount</button></div>',bettingTable(),
   '<div class="roulette-special-bets"><label for="roulette-bet-group">Additional bets</label>',
   '<select id="roulette-bet-group" data-roulette-group>',
   '<option value="split">Split · 17:1</option><option value="street">Street · 11:1</option>',
@@ -116,7 +116,7 @@ export function onlineRoulettePage(ctx,summary,state){
   '<button type="submit" class="btn btn-primary roulette-confirm" data-roulette-confirm disabled>Confirm bets</button></form>',
   '<button type="button" class="btn btn-outline roulette-repeat" data-roulette-repeat',
   state.repeatBets.length?'':' disabled','>↻ Repeat last confirmed bet</button>',
-  '<p class="roulette-hint">10–10,000 points per chip, max 10,000 per player per round. Enter custom chips above 1,000 manually. Confirmed bets cannot be cancelled.</p>',
+  '<p class="roulette-hint">Enter a custom chip amount to wager as little as 1 point. Confirmed bets cannot be cancelled.</p>',
   '</section></div><div class="roulette-my-results"><div class="roulette-section-title">',
   '<h2>My round</h2><span data-roulette-my-status>Watching</span></div>',
   '<div data-roulette-my-bets><p class="muted">No confirmed bets yet.</p></div>',
