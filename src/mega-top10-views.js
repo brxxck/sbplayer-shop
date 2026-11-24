@@ -152,20 +152,23 @@ export function megaProfileLinksPage(ctx,{q='',player='',results=[],links=[],sup
    const global=link.source==='owner';
    const auto=link.source==='inpvp';
    const removable=global||auto;
+   const manual=link.source==='manual_ign';
+   const xbox=link.source==='xbox';
    return '<tr><td>'+esc(link.gamertag)+'</td><td><a href="/u/'+attr(link.discordId)+'">'+
      '@'+esc(link.username||link.displayName||link.discordId)+'</a></td>'+
-     '<td>'+esc(global?'Owner-linked (global)':auto?'Auto-matched · InPvP Discord badge':'Existing season match')+'</td>'+
+     '<td>'+esc(global?'Owner-linked (global)':auto?'Auto-matched · InPvP Discord badge':manual?'Owner-linked IGN connection':xbox?'Microsoft-verified Xbox':'Existing season match')+'</td>'+
      '<td>'+(removable?'<form method="post" action="/mega-team/links">'+token(ctx)+
        '<input type="hidden" name="gamertag" value="'+attr(link.gamertag)+'">'+
        '<input type="hidden" name="mode" value="unlink">'+
        '<button type="submit" class="btn btn-outline btn-sm">Unlink</button></form>':
-       '<a href="/team/mega/matches" class="quiet-link">Manage season match</a>')+'</td></tr>';
+       manual?'<a href="/owner/ign-connections" class="quiet-link">Manage IGN connection</a>':
+       xbox?'':'<a href="/team/mega/matches" class="quiet-link">Manage season match</a>')+'</td></tr>';
  }).join(''):'<tr><td colspan="4">No Minecraft accounts linked to website profiles.</td></tr>';
  return shell(ctx,'Minecraft Profile Links',titlebar('OWNER TOOLS',
    'Minecraft ↔ <span class="gradient">Discord profiles.</span>',
    'Match an in-game username to a verified Discord member. Links do not prove Minecraft ownership or grant roles.')+
    '<div class="mega-top-page"><div class="mega-top-actions">'+
-   '<a class="btn btn-outline" href="/mega-team">'+icon('arrow-left',{size:17})+' MegaSMP dashboard</a></div>'+
+   '<a class="btn btn-outline" href="/mega-team">'+icon('arrow-left',{size:17})+' MegaSMP dashboard</a><a class="btn btn-outline" href="/owner/ign-connections">IGN Connections</a></div>'+
    (error?'<p class="alert alert-error">'+esc(error)+'</p>':'')+
    '<form method="get" action="/mega-team/links" class="panel padded mega-top-link-form">'+
    '<label>In-game name<input name="player" value="'+attr(player)+'" maxlength="32" placeholder="Minecraft Gamertag"></label>'+

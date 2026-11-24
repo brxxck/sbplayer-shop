@@ -7,7 +7,7 @@ const lines=v=>esc(v).replace(/\n/g,'<br>');
 const bankLabel={yes:'Yes',sometimes:'Sometimes',no:'No'};
 const answer=(label,value)=>'<div class="answer"><b>'+esc(label)+'</b><p>'+lines(value)+'</p></div>';
 const requirement=linked=>'<section class="panel padded team-identity-gate"><h2>Verify your accounts</h2>'+
-  '<p>Discord and Microsoft/Xbox verification are required to apply.</p>'+
+  '<p>Connect Microsoft/Xbox, or ask a website owner to link your Minecraft IGN if sign-in fails.</p>'+
   '<p>Discord: <b>Verified and signed in</b></p>'+
   '<p>Microsoft/Xbox: <b>'+esc(linked?.gamertag?'Verified: '+linked.gamertag:'Not linked')+'</b></p>'+
   (linked?.gamertag?'':'<a class="btn btn-primary" href="/profile/microsoft/start">Link Microsoft / Xbox →</a>')+
@@ -25,7 +25,7 @@ export function teamApplyPage(ctx,{xboxLink=null,active=null,history=[],alreadyM
  else if(!identity)body=requirement(xboxLink);
  else body='<form class="panel form team-application-form" action="/team-applications/apply" method="post">'+token(ctx)+
   '<div class="form-heading"><span class="step">01</span><div><h2>Account & team</h2></div></div>'+
-  '<div class="field-grid"><label>Verified IGN<input readonly value="'+esc(xboxLink.gamertag)+'"></label>'+
+  '<div class="field-grid"><label>'+(xboxLink.source==='manual_ign'?'Owner-linked IGN':'Verified IGN')+'<input readonly value="'+esc(xboxLink.gamertag)+'"></label>'+
   '<label>Current team<input name="current_team" maxlength="80" placeholder="None / Team name"></label></div>'+
   '<div class="field-grid"><label>Timezone<input name="timezone" required minlength="2" maxlength="80" placeholder="e.g. UK / GMT"></label>'+
   '<label>Previous teams<input name="previous_teams" maxlength="500" placeholder="Previous teams or experience"></label></div>'+
@@ -94,7 +94,7 @@ export function teamReviewDetail(ctx,{application:a}={}) {
  return shell(ctx,'Review SBs application #'+a.id,titlebar('TEAM LEADERSHIP','Review <span class="gradient">'+esc(a.minecraft_ign)+'</span>','Submitted '+when(a.created_at),tag(a.status))+
  '<div class="review-grid"><section class="panel padded"><h2>Applicant details</h2>'+
  answer('Discord',a.display_name+' (@'+a.username+')')+
- answer('Verified Xbox IGN at submission',a.minecraft_ign)+
+ answer(a.xbox_verified?'Verified Xbox IGN at submission':'Owner-linked IGN at submission',a.minecraft_ign)+
  answer('Current team',a.current_team||'None given')+
  answer('Daily income','MegaSMP $'+displayMoney(a.daily_earnings))+
  answer('Estimated net worth','MegaSMP $'+displayMoney(a.net_worth))+

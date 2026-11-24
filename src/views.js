@@ -67,7 +67,7 @@ const publicLinkPages=Object.freeze({
  '/messages':["Messages | SB's & Cam's Store","Private conversations for verified community members."],
  '/notifications':["Notifications | SB's & Cam's Store","Private social activity notifications for signed-in members."],
  '/suggestions':["Server Suggestions | SB's & Cam's Store","Share your ideas and vote on community suggestions."],
- '/team-applications/apply':["SBs Team Applications | SB's & Cam's Store","Apply to join SBs on MegaSMP after linking Discord and Microsoft/Xbox accounts."],
+ '/team-applications/apply':["SBs Team Applications | SB's & Cam's Store","Apply to join SBs on MegaSMP with a connected Minecraft IGN."],
  '/team-applications/review':["SBs Recruitment Reviews | SB's & Cam's Store","Private recruitment queue for verified team leadership."],
  '/apply':["Staff Applications | SB's & Cam's Store","Apply for a staff role and track your application on the official portal."],
  '/tickets/new':["Support Tickets | SB's & Cam's Store","Create a private report, reward claim or ban appeal in our support portal."],
@@ -146,10 +146,11 @@ function socialHeaderAccount(ctx){
     '</a>').join('');
   const own='/u/'+attr(u.id);
   const menuLink=(href,iconName,label)=>'<a href="'+href+'"><span class="menu-action-icon" aria-hidden="true">'+icon(iconName,{size:19})+'</span><span>'+label+'</span></a>';
-  const xboxLabel=ctx.xboxLink?'Verify Microsoft / Xbox':'Link Microsoft / Xbox';
+  const manualIgn=ctx.xboxLink?.source==='manual_ign';
+  const xboxLabel=ctx.xboxLink&&!manualIgn?'Verify Microsoft / Xbox':'Link Microsoft / Xbox';
   const xboxStatus=ctx.xboxLink?
     '<span class="top-account-menu-xbox-status">'+icon('badge-check',{size:13})+
-    ' Connected: '+esc(ctx.xboxLink.gamertag)+'</span>':'';
+    (manualIgn?' Owner-linked IGN: ':' Connected: ')+esc(ctx.xboxLink.gamertag)+'</span>':'';
   const xboxEntry='<div class="top-account-menu-xbox">'+
     (ctx.xboxConfigured?
       '<a href="/profile/microsoft/start" class="top-account-menu-xbox-button">'+
@@ -201,7 +202,7 @@ export function dashboard(ctx,apps){return shell(ctx,'My Applications',`${titleb
 export function ownTicket(ctx,a,messages=[],attachments=[]){return shell(ctx,'My Application #'+a.id,`${titlebar('PRIVATE APPLICATION',`Your ticket <span class="gradient">#${a.id}</span>`,`Submitted ${when(a.created_at)}`,applicationStatusTag(a))}<div class="detail-column"><div class="panel padded"><h2>My application</h2>${applicationTimeline(a)}<p class="muted tiny">Visible to you and authorized staff.</p>${[['Position',a.position],['Age bracket',a.age_bracket],['Timezone',a.timezone],['Availability',a.availability],['Experience',a.experience],['Motivation',a.motivation],['Scenario',a.scenario]].map(([label,value])=>`<div class="answer"><b>${esc(label)}</b><p>${lines(value)}</p></div>`).join('')}</div><div class="panel padded"><h2>Current status</h2>${applicationStatusTag(a)}${a.status==='accepted'?`<p>Discord role delivery: ${tag(a.role_sync_status)}</p>`:''}<p class="muted tiny">You can reply to the staff team in the private conversation below.</p><a href="/dashboard" class="btn btn-outline">← All my applications</a></div>${ticketThread(ctx,a,messages,false,attachments)}</div>`);}
 export function apply(ctx,{active,cooldown,open,xboxLink=null}){
 const disabled=!open||active||cooldown;return shell(ctx,'Apply for Staff',`${titlebar('STAFF RECRUITMENT','Join our <span class="gradient">staff team.</span>','')}
-${!disabled&&!xboxLink?.gamertag?`<section class="panel padded narrow"><h2>Verify Microsoft/Xbox before applying</h2><p>Discord membership is verified. A linked, verified Microsoft/Xbox account is also required for staff applications.</p><a class="btn btn-primary" href="/profile/microsoft/start">Link Microsoft / Xbox →</a></section>`:''}
+${!disabled&&!xboxLink?.gamertag?`<section class="panel padded narrow"><h2>Connect your Minecraft IGN before applying</h2><p>Link Microsoft/Xbox, or ask a website owner to connect your IGN if sign-in fails.</p><a class="btn btn-primary" href="/profile/microsoft/start">Link Microsoft / Xbox →</a></section>`:''}
 ${disabled?`<div class="panel padded"><h2>${!open?'Applications are currently closed':active?'You already have an active application':'Reapplication cooldown'}</h2><p>${!open?'Please check back later.':active?'Your previous ticket must be decided before you can apply again.':'Please wait 7 days after your most recent application before applying again.'}</p><a class="btn btn-outline" href="/dashboard">My applications</a></div>`:
 xboxLink?.gamertag?`<form class="panel form" method="post" action="/apply">${token(ctx)}<div class="form-heading"><span class="step">01</span><div><h2>About you</h2></div></div><div class="field-grid"><label>Role to apply for<select required name="position"><option value="">Choose a role</option>${ctx.config.applicationRoles.map(x=>`<option value="${attr(x)}">${esc(x)}</option>`).join('')}</select></label><label>Age range<select required name="age_bracket"><option value="">Choose age range</option>${['Under 16','16–17','18+','Prefer not to say'].map(x=>`<option>${esc(x)}</option>`).join('')}</select></label></div><label>Timezone<input name="timezone" required maxlength="80" minlength="2" placeholder="GMT / UTC+1"></label><div class="form-heading spaced"><span class="step">02</span><div><h2>Experience</h2></div></div><label>When can you be active?<textarea name="availability" required minlength="30" maxlength="2500" rows="3"></textarea></label><label>What moderation or community experience do you have?<textarea name="experience" required minlength="30" maxlength="2500" rows="4"></textarea></label><label>Why do you want to be staff?<textarea name="motivation" required minlength="30" maxlength="2500" rows="4"></textarea></label><div class="form-heading spaced"><span class="step">03</span><div><h2>Scenario</h2></div></div><label>Two members accuse each other of scamming in public chat. What would you do?<textarea name="scenario" required minlength="30" maxlength="2500" rows="5"></textarea></label><div class="form-actions"><span class="muted tiny">Two separate admins must agree before an application is accepted or denied.</span><button class="btn btn-primary">Submit application →</button></div></form>`:''}`);}
 export function staff(ctx,{apps,counts}){const admin=['admin','owner'].includes(ctx.role);return shell(ctx,'Staff Reviews',`${titlebar('STAFF WORKSPACE',admin?'Application <span class="gradient">management.</span>':'Your <span class="gradient">review queue.</span>',admin?'Two separate admin votes are needed to decide an application. Reviewer votes are optional.':'All pending applications are available until you cast your optional review vote.')}
@@ -432,7 +433,10 @@ export function xboxLinkResultPage(ctx,{status='verification_failed'}={}){
   '<a class="btn btn-outline" href="/profile/edit">Profile settings</a></div></section>');
 }
 function xboxAccountCard(ctx,link,configured){
- const state=link?
+ const manual=link?.source==='manual_ign';
+ const state=manual?
+  '<p class="muted">Owner-linked Minecraft IGN: <strong>'+esc(link.gamertag)+'</strong></p>'+
+  '<p class="muted tiny">This connection can be used for SBStore applications.</p>':link?
   '<p class="muted">Verified Xbox gamertag: <strong>'+esc(link.gamertag)+'</strong></p>'+
   '<p class="muted tiny">Verified through Microsoft/Xbox on '+
     esc(new Date(link.verifiedAt).toLocaleDateString('en-GB'))+
@@ -440,19 +444,19 @@ function xboxAccountCard(ctx,link,configured){
   '<p class="muted">No Xbox gamertag linked.</p>';
  const linkButton=configured?
   '<a href="/profile/microsoft/start" class="btn btn-primary">'+
-  icon('gamepad-2',{size:17})+' '+(link?'Verify again':'Link Microsoft / Xbox')+'</a>':
+  icon('gamepad-2',{size:17})+' '+(link&&!manual?'Verify again':'Link Microsoft / Xbox')+'</a>':
   '<p class="muted tiny">Xbox linking is not configured yet. The website owner must add the Xbox app credentials to Railway.</p>';
- const unlink=link?
+ const unlink=link&&!manual?
   '<form method="post" action="/profile/microsoft/unlink">'+token(ctx)+
   '<button type="submit" class="btn btn-outline btn-sm">Unlink Xbox gamertag</button></form>':'';
  return '<section class="panel padded profile-xbox-card" id="connections"><h2>'+icon('gamepad-2',{size:19})+
   ' Connected Accounts</h2>'+state+
-  (link?'<details><summary>Manage Xbox connection</summary><div class="actions">'+linkButton+unlink+'</div></details>':'<div class="actions">'+linkButton+'</div>')+
+  (link&&!manual?'<details><summary>Manage Xbox connection</summary><div class="actions">'+linkButton+unlink+'</div></details>':'<div class="actions">'+linkButton+'</div>')+
   '</section>';
 }
 export function profile(ctx,{person,profile,sections=[],posts=[],pinnedPost=null,comments=[],counts={},self=false,following=false,privateProfile=false,discordRoles={state:'unavailable',roles:[]},sbsMember=false,tab='posts',activityReplies=[],challengeHistory=[],pendingChallenges=[],pvpWager={value:50,at:0},xboxLink=null,xboxConfigured=false}){
 const canView=!privateProfile,u={...person,...(canView?profile:{})};
-const xboxBadge=canView&&xboxLink?'<span class="verified">'+icon('badge-check',{size:16})+' Xbox: '+esc(xboxLink.gamertag)+'</span>':'';
+const xboxBadge=canView&&xboxLink?'<span class="verified">'+icon('badge-check',{size:16})+(xboxLink.source==='manual_ign'?' Minecraft IGN (owner-linked): ':' Xbox: ')+esc(xboxLink.gamertag)+'</span>':'';
 const xboxTools=self?xboxAccountCard(ctx,xboxLink,xboxConfigured):'';
 const tabNames={posts:'Posts',replies:'Replies',media:'Media',likes:'Liked Posts'};
 const challengeButton=!self?`<button type="button" class="btn btn-outline" data-open-coin-challenge>🪙 Challenge to Coin Flip</button>`:'';
