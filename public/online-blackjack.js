@@ -14,11 +14,11 @@
  const table=root.querySelector('[data-bj-table]'),panel=root.querySelector('[data-bj-action-panel]');
  try{
   const old=JSON.parse(localStorage.getItem(wagerKey)||'null');
-  if(Number.isSafeInteger(old?.wager)&&old.wager>=10&&old.wager<=10000)wagerDraft=old.wager;
+  if(Number.isSafeInteger(old?.wager)&&old.wager>=1)wagerDraft=old.wager;
  }catch{}
  function saveWager(value){
   const n=Number(value);
-  if(!Number.isSafeInteger(n)||n<10||n>10000)return;
+  if(!Number.isSafeInteger(n)||n<1)return;
   wagerDraft=n;
   try{localStorage.setItem(wagerKey,JSON.stringify({wager:n,at:Date.now()}));}catch{}
  }
@@ -102,14 +102,14 @@
   if(oldInput&&oldInput.value)saveWager(oldInput.value);
   let form='';
   if(model.canBet){
-   const wager=Math.min(10000,Math.max(10,wagerDraft||model.lastWager||50));
+   const wager=Math.max(1,wagerDraft||model.lastWager||50);
    form='<form method="post" action="/arcade/online/blackjack/bet" data-blackjack-form data-bj-bet class="bj-bet-form">'+
     '<input type="hidden" name="_csrf" value="'+escape(csrf)+'">'+
     '<input type="hidden" name="round_id" value="'+escape(model.roundId)+'">'+
     '<input type="hidden" name="request_id" value="'+crypto.randomUUID()+'">'+
-    '<label>Wager in points <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="10" max="10000" step="1" value="'+wager+'" required></label>'+
+    '<label>Wager in points <input type="number" name="wager" data-blackjack-wager data-arcade-wager="blackjack" min="1" step="1" value="'+wager+'" required></label>'+
     '<div class="bj-quick-bets">'+[10,50,100,500,1000].map(n=>'<button type="button" data-bj-wager="'+n+'">'+format(n)+'</button>').join('')+'</div>'+
-    '<button type="submit" class="btn btn-primary" '+(model.balance<10?'disabled':'')+'>Place Wager</button></form>';
+    '<button type="submit" class="btn btn-primary" '+(model.balance<1?'disabled':'')+'>Place Wager</button></form>';
   }
   if(!model.joined){
    form='<form method="post" action="/arcade/online/join" class="bj-join-direct" data-online-join-direct>'+

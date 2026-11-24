@@ -13,7 +13,7 @@ export function pokerLobbyPage(ctx,data){
  return shell(ctx,'Poker','<div class="poker-root poker-lobby" data-poker-root>'+
   '<div class="poker-hero"><span class="poker-eyebrow">SB ARCADE · POINTS ARE YOUR CHIPS</span><h1>♠ Poker</h1>'+
   '<p>No-Limit Texas Hold\'em. Solo against medium bots, Live against players or invite friends to a Private table. No buy-ins or separate chip wallets.</p>'+
-  '<div class="poker-hero-meta"><span>50 / 100 default blinds</span><span>10–10,000 pts per hand</span><span>30 seconds per turn</span></div>'+
+  '<div class="poker-hero-meta"><span>50 / 100 default blinds</span><span>30 seconds per turn</span></div>'+
   '<strong>Your points: '+n(data.balance)+'</strong>'+active+'</div>'+
   '<div class="poker-mode-cards">'+
   '<section class="poker-setup"><div class="poker-mode-icon">♠</div><h2>Solo Poker</h2><p>Play instantly against 1–5 medium bots.</p>'+
@@ -25,8 +25,8 @@ export function pokerLobbyPage(ctx,data){
   '<section class="poker-setup"><div class="poker-mode-icon">♦</div><h2>Private Poker</h2><p>Invite friends with a private code. Host controls blinds and seats.</p>'+
   '<form method="post" action="/arcade/poker/create">'+token(ctx)+'<input type="hidden" name="mode" value="private">'+
   '<label>Seats '+select('seats',[2,3,4,5,6],6)+'</label>'+
-  '<label>Small blind <input name="small_blind" type="number" min="10" max="1000" value="50" required></label>'+
-  '<label>Big blind <input name="big_blind" type="number" min="20" max="2000" value="100" required></label>'+
+  '<label>Small blind <input name="small_blind" type="number" min="1" value="50" required></label>'+
+  '<label>Big blind <input name="big_blind" type="number" min="2" value="100" required></label>'+
   '<button class="btn btn-primary">Create Private Table →</button></form></section>'+
   '</div><section class="poker-public-rooms"><h2>Live tables</h2>'+tables+'</section>'+
   '<div class="poker-back"><a href="/arcade">← Solo Arcade</a><a href="/arcade/online">Online Games →</a></div></div>');

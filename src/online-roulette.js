@@ -9,7 +9,7 @@ import {walletChange} from './arcade.js';
 import {isCinematicWin} from './arcade-cinematic-rules.js';
 import {
  ROULETTE_BET_MS,ROULETTE_SPIN_MS,ROULETTE_RESULTS_MS,
- ROULETTE_MIN_CHIP,ROULETTE_MAX_CHIP,ROULETTE_MAX_ROUND_STAKE,
+ ROULETTE_MIN_CHIP,ROULETTE_MAX_ROUND_STAKE,
  rouletteSelection,roulettePayout,rouletteOutcome,rouletteCommitment,rouletteColor
 } from './roulette-rules.js';
 
@@ -47,11 +47,11 @@ const stakesOf=raw=>{
   if(!item||typeof item!=='object'||Array.isArray(item))invalid('Invalid chip selection.');
   const key=String(item.key||''),selection=rouletteSelection(key);
   if(!selection)invalid('Unsupported Roulette selection.');
-  if(!Number.isSafeInteger(item.stake)||item.stake<ROULETTE_MIN_CHIP||item.stake>ROULETTE_MAX_CHIP)
-   invalid('Each chip must wager between 10 and 10,000 points.');
+  if(!Number.isSafeInteger(item.stake)||item.stake<ROULETTE_MIN_CHIP)
+   invalid('Each chip must wager a positive whole number of points.');
   aggregate.set(key,(aggregate.get(key)||0)+item.stake);
   total+=item.stake;
-  if(total>ROULETTE_MAX_ROUND_STAKE)invalid('Maximum combined Roulette wager is 10,000 points per round.');
+  if(total>ROULETTE_MAX_ROUND_STAKE)invalid('The wager exceeds the supported point range.');
  }
  return {bets:[...aggregate].sort(([a],[b])=>a.localeCompare(b)).map(([key,stake])=>({key,stake})),total};
 };
@@ -181,8 +181,8 @@ function publicState(round,user,now){
   roundPayout:isResults?stats.payout:null,
   myBets:bets,myWager,myPayout:isResults?myPayout:null,
   myProfit:isResults?myPayout-myWager:null,
-  canBet:round.status==='betting'&&now<round.bet_closes_at&&myWager<ROULETTE_MAX_ROUND_STAKE,
-  remainingBudget:Math.max(0,ROULETTE_MAX_ROUND_STAKE-myWager),
+  canBet:round.status==='betting'&&now<round.bet_closes_at&&balance>=ROULETTE_MIN_CHIP&&myWager<ROULETTE_MAX_ROUND_STAKE,
+  remainingBudget:Math.min(balance,Math.max(0,ROULETTE_MAX_ROUND_STAKE-myWager)),
   cinematic:isResults&&isCinematicWin({
    status:myPayout>myWager?'won':'lost',wager:myWager,payout:myPayout
   }),
@@ -240,7 +240,7 @@ export function roulettePlace(userId,fields,now=Date.now()){
   const existing=one('SELECT COALESCE(SUM(stake),0) AS total FROM online_roulette_bets WHERE round_id=? AND user_id=?',
    roundId,user)?.total||0;
   if(existing+total>ROULETTE_MAX_ROUND_STAKE)
-   invalid('You have reached the 10,000-point limit for this round.',409);
+   invalid('The combined wager exceeds the supported point range.',409);
   walletChange(user,-total,'roulette.online.wager','roulette:wager:'+key);
   for(const bet of bets){
    run('INSERT INTO online_roulette_bets(round_id,user_id,selection_key,stake,payout) VALUES(?,?,?,?,0) '+

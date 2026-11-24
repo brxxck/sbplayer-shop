@@ -94,8 +94,10 @@ test('bets are transactional, per-seat, idempotent and never double-debit',()=>{
  assert.equal(balance(alice),before-100);
  assert.throws(()=>bet(alice,state.roundId,200,t+11),e=>e.status===409);
  assert.throws(()=>bet(bob,state.roundId,0,t+12),e=>e.status===400);
- assert.throws(()=>bet(bob,state.roundId,10001,t+12),e=>e.status===400);
+ assert.throws(()=>bet(bob,state.roundId,10001,t+12),e=>e.status===409);
  assert.throws(()=>blackjackBet(bob,{round_id:String(state.roundId),wager:'100',request_id:key},t+12),e=>e.status===409);
+ run('UPDATE level_point_wallets SET balance=12000 WHERE user_id=?',bob);
+ assert.equal(bet(bob,state.roundId,10001,t+13).placedBet,10001);
 });
 test('dealer hole and six-deck shoe remain invisible during play and after settlement',()=>{
  const t=3000000,state=start([alice],t);

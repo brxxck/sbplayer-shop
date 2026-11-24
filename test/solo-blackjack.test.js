@@ -234,7 +234,7 @@ test('Stale revisions and request replay cannot double charge or draw in two tab
 test('Invalid wagers, action names and UUID values are rejected without any point changes',()=>{
  reset();
  const before=balance(alice);
- for(const wager of ['0','9','10001','100.5','2e2','-1','NaN',''])
+ for(const wager of ['0','9007199254740992','100.5','2e2','-1','NaN',''])
   assert.throws(()=>soloBlackjackStart(alice,{wager,request_id:randomUUID()}),
    e=>e.status===400);
  assert.throws(()=>soloBlackjackStart(alice,{wager:'100',request_id:'invalid'}),e=>e.status===400);

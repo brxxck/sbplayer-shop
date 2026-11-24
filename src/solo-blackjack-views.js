@@ -59,14 +59,14 @@ const resultMarkup=state=>{
    'The dealer has finished playing. Your result has been saved to history.')+'</p></section>';
 };
 function wagerForm(ctx,state){
- const wager=Math.min(10000,Math.max(10,Number(state.lastWager)||50));
+ const wager=Math.max(1,Number(state.lastWager)||50);
  return '<form action="/arcade/blackjack/start" method="post" class="sbj-wager-form" data-sbj-form data-sbj-start>'+
   token(ctx)+'<input type="hidden" name="request_id" value="'+randomUUID()+'">'+
-  '<label>YOUR WAGER <input type="number" name="wager" min="10" max="10000" step="1" required'+
+  '<label>YOUR WAGER <input type="number" name="wager" min="1" step="1" required'+
    ' data-sbj-wager data-arcade-wager="blackjack_solo" data-last-round-at="'+String(Number(state.lastWagerAt)||0)+'" value="'+wager+'"></label>'+
   '<div class="sbj-chip-values" role="group" aria-label="Quick wager amounts">'+
   [50,100,250,500,1000].map(v=>'<button type="button" data-sbj-quick="'+v+'">'+fmt(v)+'</button>').join('')+
-  '</div><button class="btn btn-primary sbj-deal" type="submit" '+(state.balance<10?'disabled':'')+
+  '</div><button class="btn btn-primary sbj-deal" type="submit" '+(state.balance<1?'disabled':'')+
   '>♠ Deal Cards</button></form>';
 }
 function actionsMarkup(ctx,state){
@@ -93,7 +93,7 @@ export function soloControlsMarkup(ctx,state){
   '<p class="sbj-message" data-sbj-message>'+esc(stateLabel)+'</p>'+
   (state.canBet?wagerForm(ctx,state):'')+
   (state.activeRoundId&&state.activeRoundId!==state.roundId?'<a class="btn btn-primary sbj-resume" href="/arcade/blackjack?round='+state.activeRoundId+'">♠ Resume your active hand</a>':'')+
-  (state.balance<10&&!state.activeRoundId?'<p class="sbj-message">You need at least 10 points to start. <a href="/points">Claim Level Points →</a></p>':'')+
+  (state.balance<1&&!state.activeRoundId?'<p class="sbj-message">You need at least 1 point to start. <a href="/points">Claim Level Points →</a></p>':'')+
   actionsMarkup(ctx,state)+resultMarkup(state)+
   '<p class="sbj-safe-note">Your hand is saved on the server. Closing the page does not discard it or risk a duplicate wager.</p>'+
   '</div>';
@@ -113,7 +113,7 @@ export function soloBlackjackPage(ctx,summary,state,rounds){
   '<section class="sbj-controls" data-sbj-controls>'+soloControlsMarkup(ctx,state)+'</section>'+
   cinematic+
   '<details class="sbj-lower-details sbj-rules-disclosure" data-sbj-mobile-disclosure open><summary>How Solo Blackjack works <span>Rules &amp; payouts</span></summary><section class="panel padded sbj-rules"><h2>How Solo Blackjack works</h2>'+
-  '<p>Start with 10–10,000 Level Points. Hit, Stand, Double Down (one additional card) or Split a matching pair once. Split aces draw one extra card each. Doubling and splitting each reserve an additional equal wager. Dealer stands on every 17, including soft 17. A natural Blackjack pays 3:2, a normal win 1:1 and a tie returns the wager. Fractional payouts round down to whole points.</p>'+
+  '<p>Start with at least 1 Level Point. Hit, Stand, Double Down (one additional card) or Split a matching pair once. Split aces draw one extra card each. Doubling and splitting each reserve an additional equal wager. Dealer stands on every 17, including soft 17. A natural Blackjack pays 3:2, a normal win 1:1 and a tie returns the wager. Fractional payouts round down to whole points.</p>'+
   '<p class="muted tiny">Only virtual community points are used. All cards, balances and payouts are confirmed by the server. Your current hand resumes after refresh.</p></section></details>'+
   '<details class="sbj-lower-details sbj-history-disclosure" data-sbj-mobile-disclosure open><summary>Recent games <span>View history</span></summary>'+historyList(rounds)+'</details></div>');
 }
