@@ -273,11 +273,11 @@ test('Xbox account menu navigates to Microsoft via GET, bypassing form-action re
  }
 });
 
-test('staff and SBs application submissions require Discord AND Microsoft/Xbox verification',async()=>{
+test('staff and SBs application submissions require Discord membership and an IGN connection',async()=>{
   const staff=await get('/apply','member');
   assert.equal(staff.status,200);
   const page=await staff.text();
-  assert.match(page,/Verify Microsoft\/Xbox before applying/);
+  assert.match(page,/Connect your Minecraft IGN before applying/);
   assert.doesNotMatch(page,/action="\/apply"/,'unverified member must not see staff application form');
   const denied=await post('/apply','member',answers);
   assert.equal(denied.status,403,'server must reject unverified staff submission');
@@ -1458,4 +1458,42 @@ test('final suggestion voting is locked on HTTP routes, including vote removal',
  assert.equal((await post('/suggestions/'+id+'/vote','member',{choice:'yes'})).status,409);
  assert.equal((await post('/suggestions/'+id+'/vote','member2',{choice:'no'})).status,409);
  assert.equal(one('SELECT COUNT(*) n FROM suggestion_votes WHERE suggestion_id=?',id).n,1);
+});
+
+test('Owners can manage an IGN connection that qualifies for staff and team applications',async()=>{
+ const memberId='100000000000000901';
+ ids.manualIgn=memberId;
+ memberMap.set(memberId,{user:{id:memberId,username:'manual-ign'},roles:[],pending:false});
+ await login('manualIgn');
+ const path='/owner/ign-connections',gamertag='Manual Tester';
+ const link={action:'link',discord_user_id:memberId,gamertag};
+ assert.equal((await get(path,'adminA')).status,403);
+ assert.equal((await post(path,'adminA',link)).status,403);
+ assert.equal((await post(path,'manualIgn',link)).status,403);
+ assert.equal((await post(path,'owner',{...link,_csrf:'wrong'})).status,403);
+ assert.equal((await post(path,'owner',{...link,discord_user_id:ids.bot})).status,400);
+ assert.equal((await post(path,'owner',link)).status,303);
+ assert.match(await (await get(path,'owner')).text(),/Manual Tester/);
+ const profile=await (await get('/profile/edit','manualIgn')).text();
+ assert.match(profile,/Owner-linked Minecraft IGN: <strong>Manual Tester/);
+ assert.doesNotMatch(profile,/Verified Xbox gamertag:|Unlink Xbox gamertag/);
+ assert.equal((await post(path,'owner',{...link,discord_user_id:ids.member6,gamertag:'manual tester'})).status,409);
+ assert.match(await (await get('/apply','manualIgn')).text(),/action="\/apply"/);
+ assert.equal((await post('/apply','manualIgn',answers)).status,303);
+ assert.match(await (await get('/team-applications/apply','manualIgn')).text(),/Owner-linked IGN<input readonly value="Manual Tester"/);
+ const submitted=await post('/team-applications/apply','manualIgn',{
+  minecraft_ign:'Ignored',daily_earnings:'500',net_worth:'1000',play_days:'5',play_hours:'3',timezone:'GMT',
+  skill_pvp:'on',bank_contribution:'yes',income_method:'I farm crops each day',
+  motivation:'I want to join the SBs team.',contribution:'I can contribute money and farms.'
+ });
+ assert.equal(submitted.status,303);
+ const application=one('SELECT id,minecraft_ign,xbox_verified FROM team_applications WHERE user_id=?',memberId);
+ assert.equal(application.minecraft_ign,gamertag);
+ assert.equal(application.xbox_verified,0);
+ assert.match(await (await get('/team-applications/review/'+application.id,'adminA')).text(),/Owner-linked IGN at submission/);
+ assert.equal((await post(path,'owner',{...link,action:'remove'})).status,303);
+ assert.equal(one('SELECT 1 FROM manual_ign_connections WHERE user_id=?',memberId),undefined);
+ assert.equal((await post('/apply','manualIgn',answers)).status,403);
+ const audit=all("SELECT action,actor_id AS actor FROM owner_audit_log WHERE target=? AND action IN ('profile.ign.link','profile.ign.unlink') ORDER BY id",'profile:'+memberId);
+ assert.deepEqual(audit.map(row=>[row.action,row.actor]),[['profile.ign.link',ids.owner],['profile.ign.unlink',ids.owner]]);
 });

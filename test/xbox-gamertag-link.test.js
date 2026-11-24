@@ -11,7 +11,7 @@ process.env.DB_PATH=join(dir,'xbox-test.sqlite');
 const {db,run,one}=await import('../src/db.js');
 const {verifyAudit}=await import('../src/audit.js');
 const {createXboxLinkAuth}=await import('../src/xbox-link-auth.js');
-const {saveXboxLink,unlinkXboxLink,xboxLinkForUser,allVerifiedXboxGamertags}=
+const {saveXboxLink,unlinkXboxLink,xboxLinkForUser,allVerifiedXboxGamertags,gameConnectionForUser,saveManualIgn}=
  await import('../src/xbox-gamertag-links.js');
 const {allMegaPlayerProfileLinks,linkMegaPlayerProfile}=
  await import('../src/mega-player-profile-links.js');
@@ -218,4 +218,26 @@ test('profiles show verified Xbox names only to permitted viewers, and self-mana
  const disabled=profileEdit(ctx,{profile:{},xboxLink:null,xboxConfigured:false});
  assert.match(disabled,/not configured yet/);
  assert.doesNotMatch(disabled,/href="\/profile\/microsoft\/start"/);
+});
+
+test('Microsoft verification supersedes manual connections for the member and verified IGN',()=>{
+ saveManualIgn({userId:other,gamertag:'FallbackIGN',actorId:userId});
+ saveManualIgn({userId,gamertag:'OldIGN',actorId:userId});
+ assert.equal(gameConnectionForUser(other).source,'manual_ign');
+ assert.equal(xboxLinkForUser(other),null);
+ assert.equal(megaConnection('FallbackIGN').discordId,other);
+ saveXboxLink({userId,gamertag:'fallbackIGN',identityKey:'a'.repeat(64)});
+ assert.equal(gameConnectionForUser(userId).gamertag,'fallbackIGN');
+ assert.equal(megaConnection('FallbackIGN').source,'xbox');
+ assert.equal(gameConnectionForUser(other),null);
+ assert.equal(megaConnection('OldIGN'),undefined);
+ assert.throws(()=>saveManualIgn({userId:other,gamertag:'FallbackIGN',actorId:userId}),/Xbox verification/);
+ assert.throws(()=>saveManualIgn({userId,gamertag:'OldIGN',actorId:userId}),/already has a Microsoft-verified/);
+ unlinkXboxLink({userId});
+ assert.equal(gameConnectionForUser(userId),null);
+ assert.equal(verifyAudit(db).ok,true);
+
+ function megaConnection(name){
+  return allMegaPlayerProfileLinks().find(link=>link.gamertag.toLowerCase()===name.toLowerCase());
+ }
 });

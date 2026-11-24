@@ -23,8 +23,8 @@ const values={
  bank_contribution:'sometimes',motivation:'I want to help SBs grow each season.',
  contribution:'I can provide consistent daily deposits and PvP help.'
 };
-test('applicant MUST supply server-verified Xbox identity; form IGN is not trusted',()=>{
- assert.throws(()=>validateTeamApplication({...values,minecraft_ign:'FakeIGN'}),/verified Microsoft/);
+test('team application requires a stored IGN connection; form IGN is not trusted',()=>{
+ assert.throws(()=>validateTeamApplication({...values,minecraft_ign:'FakeIGN'}),/connected Minecraft IGN/);
  const data=validateTeamApplication({...values,minecraft_ign:'FakeIGN'}, {linkedGamertag:'RealXboxIGN'});
  assert.equal(data.minecraft_ign,'RealXboxIGN');
  assert.equal(data.xbox_verified,1);

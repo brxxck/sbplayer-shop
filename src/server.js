@@ -46,8 +46,9 @@ import {megaSessionPage} from './mega-session-views.js';
 import {createMegaSessionVault} from './mega-session-vault.js';
 import {createMegaSessionPairing} from './mega-session-pairing.js';
 import {createOwnerMicrosoftAuth} from './owner-microsoft.js';
+import {ownerIgnConnectionsPage} from './owner-ign-views.js';
 import {createXboxLinkAuth} from './xbox-link-auth.js';
-import {xboxLinkForUser,saveXboxLink,unlinkXboxLink} from './xbox-gamertag-links.js';
+import {gameConnectionForUser,saveXboxLink,unlinkXboxLink,manualIgnConnections,saveManualIgn,removeManualIgn} from './xbox-gamertag-links.js';
 import * as supportView from './support-views.js';
 import * as promotionView from './promotion-views.js';
 import {promotionEligibility,promotionTicket,promotionDecisions,promotionMessages,ownPromotions,queuePromotions,createPromotion,writePromotionMessage,decidePromotion,deliverPromotion} from './promotions.js';
@@ -269,7 +270,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         Object.assign(ctx,cached.context);
         ctx.notificationCount=notificationCount(ctx.user.id);
         ctx.xboxConfigured=xboxLinkAuth.configured;
-        ctx.xboxLink=xboxLinkForUser(ctx.user.id);
+        ctx.xboxLink=gameConnectionForUser(ctx.user.id);
         return;
       }
       const [guild,actual]=await Promise.all([discord.getGuild(),discord.getGuildMember(ctx.user.id)]);
@@ -311,7 +312,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       ctx.notificationCount=notificationCount(ctx.user.id);
       // Xbox menu status is available on every authenticated page, including Home.
       ctx.xboxConfigured=xboxLinkAuth.configured;
-      ctx.xboxLink=xboxLinkForUser(ctx.user.id);
+      ctx.xboxLink=gameConnectionForUser(ctx.user.id);
       if(arcadeKey&&ctx.member&&ctx.role!=='appeal-only'){
         if(arcadeMembers.size>900){
           const stamp=now();
@@ -986,6 +987,33 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         'Xbox gamertag unlinked.':'No Xbox gamertag was linked.');
     }
 
+    if(pathname==='/owner/ign-connections'&&req.method==='GET'){
+      await authorize('owner');
+      return html(ownerIgnConnectionsPage(ctx,manualIgnConnections()));
+    }
+    if(pathname==='/owner/ign-connections'&&req.method==='POST'){
+      await authorize('owner');
+      const {fields}=await form();rate(ctx,'owner.ign.connection',20,3600000);
+      const discordId=String(fields.discord_user_id||'').trim();
+      const gamertag=validGamertag(fields.gamertag);
+      if(!idOK(discordId))invalid('Enter a valid Discord user ID.');
+      if(!gamertag)invalid('Enter a valid Minecraft IGN.');
+      const change={userId:discordId,gamertag,actorId:ctx.user.id,ip:ctx.ip};
+      if(fields.action==='remove'){
+        const removed=removeManualIgn(change);
+        return success(pathname,removed?'Manual IGN connection removed.':'That connection has already changed.');
+      }
+      if(fields.action!=='link')invalid('Unknown IGN connection action.');
+      let actual;
+      try{actual=await discord.getGuildMember(discordId);}
+      catch{throw new HttpError(503,'Discord membership verification unavailable.');}
+      if(actual?.user?.id!==discordId||actual.user.bot||actual.pending)
+        invalid('This account is not a verified Discord member.');
+      upsertUser(actual);
+      ensureProfile(discordId);
+      saveManualIgn(change);
+      return success(pathname,'Linked Minecraft IGN '+gamertag+' to @'+actual.user.username+'.');
+    }
     // Private Microsoft Graph OAuth utility: no public navigation or persistent tokens.
     // Callback must be processed before the generic server-member routes.
     if(pathname==='/owner/microsoft/callback'&&req.method==='GET'){
@@ -1272,12 +1300,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         'content-disposition':'inline; filename="mega-bank-private-diagnostic.png"'
       });
     }
-    // Both Discord guild membership and verified Microsoft/Xbox linking are required.
+    // Application eligibility requires Discord membership and a stored IGN connection.
     // Never accept a gamertag from the submitted form as identity proof.
-    function linkedXboxOrReject() {
+    function gameConnectionOrReject() {
       if(ctx.role==='appeal-only'||!ctx.member||ctx.member.pending)forbidden('Verified Discord server membership is required to apply.');
-      const linked=xboxLinkForUser(ctx.user.id);
-      if(!linked?.gamertag)forbidden('Link and verify your Microsoft/Xbox account before submitting an application. Open Customize Profile to connect it.');
+      const linked=gameConnectionForUser(ctx.user.id);
+      if(!linked?.gamertag)forbidden('Connect Microsoft/Xbox in Profile Settings or ask a website owner to link your Minecraft IGN before applying.');
       return linked;
     }
     function canReviewTeam() {
@@ -1290,7 +1318,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/team-applications/apply'&&req.method==='GET'){
       if(!ctx.teamApplicationEligible)forbidden('SBsxScam applications are only available to non-staff members who are not already on the team.');
       return html(teamApplicationViews.teamApplyPage(ctx,{
-        xboxLink:xboxLinkForUser(ctx.user.id),
+        xboxLink:gameConnectionForUser(ctx.user.id),
         active:activeTeamApplication(ctx.user.id),
         history:myTeamApplications(ctx.user.id),
         alreadyMember:sbsTeamMembership(ctx.member?.roles||[]).member||sbsTeamMembership(ctx.member?.roles||[]).leader,
@@ -1301,12 +1329,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(!ctx.teamApplicationEligible)forbidden('SBsxScam applications are only available to non-staff members who are not already on the team.');
       rate(ctx,'team.application.submit',3,3600000);
       const {fields}=await form();
-      const linked=linkedXboxOrReject();
+      const linked=gameConnectionOrReject();
       if(getSetting('team_applications_open','true')!=='true')return warn('/team-applications/apply','Team applications are closed.');
       const membership=sbsTeamMembership(ctx.member?.roles||[]);
       if(membership.leader||membership.member)return warn('/team-applications/apply','You are already an SBs team member.');
       let data;
-      try{data=validateTeamApplication(fields,{linkedGamertag:linked.gamertag});}
+      try{data=validateTeamApplication(fields,{linkedGamertag:linked.gamertag,xboxVerified:linked.source!=='manual_ign'});}
       catch(error){invalid(error.message);}
       let id;
       try{id=submitTeamApplication({userId:ctx.user.id,data,actorRole:ctx.role,ip:ctx.ip});}
@@ -1314,7 +1342,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       // A private link only: never send the applicant's financial data to Discord.
       try{
         const notified=await discord.notify({title:'New SBs Team Application #'+id,
-          description:'Verified applicant: '+data.minecraft_ign+' (self-reported activity and earnings).',
+          description:'Applicant IGN: '+data.minecraft_ign+' (self-reported activity and earnings).',
           fields:[{name:'Review privately',value:config.baseUrl+'/team-applications/review/'+id}],
           pingHere:false});
         logAction(ctx,'team_application.webhook','team_application:'+id,{delivered:!!notified});
@@ -1998,12 +2026,12 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/apply'&&req.method==='GET'){
       const recent=latestApplication(ctx.user.id);
-      return html(view.apply(ctx,{active:activeApplication(ctx.user.id),cooldown:recent&&now()-recent.created_at<7*86400000,open:getSetting('applications_open','true')==='true',xboxLink:xboxLinkForUser(ctx.user.id)}));
+      return html(view.apply(ctx,{active:activeApplication(ctx.user.id),cooldown:recent&&now()-recent.created_at<7*86400000,open:getSetting('applications_open','true')==='true',xboxLink:gameConnectionForUser(ctx.user.id)}));
     }
     if(pathname==='/apply'&&req.method==='POST'){
       rate(ctx,'application.submit',3,3600000);
       const {fields}=await form();
-      linkedXboxOrReject();
+      const connection=gameConnectionOrReject();
       if(getSetting('applications_open','true')!=='true')return warn('/dashboard','Applications are currently closed.');
       const position=formValue(fields,'position',80,1);
       if(!config.applicationRoles.includes(position))invalid('Unknown staff position');
@@ -2017,7 +2045,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const stamp=now();
       const id=transaction(()=>{
         const result=run('INSERT INTO applications(user_id,position,age_bracket,timezone,availability,experience,motivation,scenario,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)',ctx.user.id,position,age,timezone,availability,experience,motivation,scenario,stamp,stamp);
-        appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.submitted',target:'application:'+result.lastInsertRowid,details:{position},ip:ctx.ip});return Number(result.lastInsertRowid);
+        appendAudit(db,{actor:ctx.user.id,role:ctx.role,action:'application.submitted',target:'application:'+result.lastInsertRowid,details:{position,gamertag:connection.gamertag,xboxVerified:connection.source!=='manual_ign'},ip:ctx.ip});return Number(result.lastInsertRowid);
       });
       // Reserve the initial staff ping so rapid follow-up messages cannot flood the staff-only channel.
       run('UPDATE applications SET last_staff_ping_at=? WHERE id=?',stamp,id);
@@ -2363,7 +2391,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         await getProfileRoles(id,self?ctx.member:null);
       const sbsMember=discordRoles.state==='loaded'&&sbsTeamMembership(discordRoles.roles.map(role=>role.id)).member;
       return html(view.profile(ctx,{person,profile,posts:related,pinnedPost,sections,comments,counts,self,following:!!one('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',ctx.user.id,id),privateProfile,discordRoles,sbsMember,tab,activityReplies,
-        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],pvpWager:lastPvpWager(ctx.user.id),xboxLink:xboxLinkForUser(id),xboxConfigured:xboxLinkAuth.configured}));
+        challengeHistory:self?challengeHistory(id):[],pendingChallenges:self?openChallenges(id).filter(c=>c.creator_id===id):[],pvpWager:lastPvpWager(ctx.user.id),xboxLink:gameConnectionForUser(id),xboxConfigured:xboxLinkAuth.configured}));
     }
     userMatch=/^\/u\/(\d{15,22})\/(followers|following)$/.exec(pathname);
     if(userMatch&&req.method==='GET'){
@@ -2398,7 +2426,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/profile/edit'&&req.method==='GET'){
       ensureProfile(ctx.user.id);
-      return html(view.profileEdit(ctx,{profile:userProfile(ctx.user.id),sections:profileSections(ctx.user.id),posts:loadPosts(ctx.user.id,0,ctx.user.id,100).filter(p=>!p.repost_of),xboxLink:xboxLinkForUser(ctx.user.id),xboxConfigured:xboxLinkAuth.configured}));
+      return html(view.profileEdit(ctx,{profile:userProfile(ctx.user.id),sections:profileSections(ctx.user.id),posts:loadPosts(ctx.user.id,0,ctx.user.id,100).filter(p=>!p.repost_of),xboxLink:gameConnectionForUser(ctx.user.id),xboxConfigured:xboxLinkAuth.configured}));
     }
     if(pathname==='/profile/edit'&&req.method==='POST'){
       rate(ctx,'profile.edit',30,3600000);const {fields}=await form();

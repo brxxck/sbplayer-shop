@@ -104,10 +104,10 @@ function money(fields,key) {
  return n;
 }
 
-export function validateTeamApplication(fields,{linkedGamertag=''}={}) {
- // The body is NEVER an identity source. Discord sign-in and Xbox linking are checked by the server route.
- const verified=validGamertag(linkedGamertag);
- if(!verified)throw new Error('A verified Microsoft/Xbox gamertag is required.');
+export function validateTeamApplication(fields,{linkedGamertag='',xboxVerified=true}={}) {
+ // The route supplies the stored IGN connection. The submitted body cannot set it.
+ const gamertag=validGamertag(linkedGamertag);
+ if(!gamertag)throw new Error('A connected Minecraft IGN is required.');
  const days=Number(fields?.play_days),hours=Number(fields?.play_hours);
  if(!Number.isSafeInteger(days)||days<1||days>7)throw new Error('Choose 1 to 7 active days per week.');
  if(!Number.isFinite(hours)||hours<0.5||hours>24||!Number.isInteger(hours*2))
@@ -117,7 +117,7 @@ export function validateTeamApplication(fields,{linkedGamertag=''}={}) {
  const bank=requiredText(fields,'bank_contribution',20);
  if(!['yes','sometimes','no'].includes(bank))throw new Error('Choose your team-bank contribution preference.');
  return {
-  minecraft_ign:verified,xbox_verified:1,
+  minecraft_ign:gamertag,xbox_verified:xboxVerified?1:0,
   current_team:optionalText(fields,'current_team',80),
   daily_earnings:money(fields,'daily_earnings'),net_worth:money(fields,'net_worth'),
   play_days:days,play_hours:hours,timezone:requiredText(fields,'timezone',80,2),
@@ -170,7 +170,7 @@ export function submitTeamApplication({userId,data,actorRole='member',ip=''}) {
   const row=one('SELECT * FROM team_applications WHERE id=?',id);
   saveTeamTicketArchive(row);
   appendAudit(db,{actor:userId,role:actorRole,action:'team_application.submitted',
-   target:'team_application:'+id,details:{minecraftIgn:data.minecraft_ign,xboxVerified:true},ip});
+   target:'team_application:'+id,details:{minecraftIgn:data.minecraft_ign,xboxVerified:!!data.xbox_verified},ip});
   return id;
  });
 }
