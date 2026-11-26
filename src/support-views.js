@@ -101,22 +101,29 @@ function fieldList(ticket){
  };
  return (pairs[ticket.category]||[]).filter(([,v])=>v).map(([label,v])=>`<div class="answer"><b>${label}</b><p>${text(v)}</p></div>`).join('');
 }
+function workflowForm(ctx,ticket,embedded,inner){
+ return `<form method="post" action="/staff/tickets/${ticket.id}/workflow" class="staff-ticket-action">${token(ctx)}${embedded}${inner}</form>`;
+}
+function escalationActions(ctx,ticket,escalation,embedded){
+ const form=inner=>workflowForm(ctx,ticket,embedded,inner);
+ const clear=escalation&&(ctx.role==='owner'||(ctx.role==='admin'&&escalation==='admins'));
+ return `<section><h3>Escalation</h3><p>${escalation?'Waiting for '+(escalation==='owners'?'owners':'admins'):'No escalation'}</p>
+   ${escalation!=='owners'?form(`<input type="hidden" name="action" value="escalate"><div class="staff-ticket-buttons">
+    ${ticket.visibility==='owner'?'':'<button class="btn btn-outline btn-sm" name="target" value="admins">Escalate to admins</button>'}
+    <button class="btn btn-outline btn-sm" name="target" value="owners">Escalate to owners</button></div>`):''}
+   ${clear?form('<button class="btn btn-outline btn-sm" name="action" value="clear_escalation">Clear escalation</button>'):''}
+  </section>`;
+}
+
 function staffActions(ctx,ticket,state,history,embedded){
- const base='/staff/tickets/'+ticket.id;
- const form=(inner)=>`<form method="post" action="${base}/workflow" class="staff-ticket-action">${token(ctx)}${embedded}${inner}</form>`;
+ const form=inner=>workflowForm(ctx,ticket,embedded,inner);
  const assignee=state.assignee||state.assignee_id;
  const toggle=state.assignee_id?
   ((state.assignee_id===ctx.user.id||['admin','owner'].includes(ctx.role))?form('<button class="btn btn-outline btn-sm" name="action" value="unassign">Unassign</button>'):''):
   form('<button class="btn btn-primary btn-sm" name="action" value="claim">Claim ticket</button>');
- const clear=state.escalation&&(ctx.role==='owner'||(ctx.role==='admin'&&state.escalation==='admins'));
  return `<div class="staff-ticket-tools">
   <section><h3>Assignment</h3><p>${esc(assignee||'Unassigned')}</p>${toggle}</section>
-  <section><h3>Escalation</h3><p>${state.escalation?'Waiting for '+(state.escalation==='owners'?'owners':'admins'):'No escalation'}</p>
-   ${state.escalation!=='owners'?form(`<input type="hidden" name="action" value="escalate"><div class="staff-ticket-buttons">
-    ${ticket.visibility==='owner'?'':'<button class="btn btn-outline btn-sm" name="target" value="admins">Escalate to admins</button>'}
-    <button class="btn btn-outline btn-sm" name="target" value="owners">Escalate to owners</button></div>`):''}
-   ${clear?form('<button class="btn btn-outline btn-sm" name="action" value="clear_escalation">Clear escalation</button>'):''}
-  </section>
+  ${escalationActions(ctx,ticket,state.escalation,embedded)}
   <section><h3>My private tag</h3>${form(`<label><span class="sr-only">Private tag</span><input name="label" value="${esc(state.privateTag||'')}" maxlength="32" placeholder="Add a tag"></label>
     <button class="btn btn-outline btn-sm" name="action" value="tag">Save tag</button>`)}</section>
   ${history.length?`<section><h3>Other tickets by this member</h3><ul>${history.map(t=>
@@ -134,6 +141,7 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
  const initialFiles=attachments.filter(f=>!f.message_id);
  const firstResponse=messages.find(m=>m.author_id!==ticket.user_id);
  const canModerate=['admin','owner'].includes(ctx.role);
+ const fullStaff=staff&&ctx.role!=='trial-mod';
  return `<div class="ticket-view staff-ticket-detail" id="selected-ticket">
  <div class="staff-ticket-top"><div>
  <h2>Ticket <span class="gradient">#${ticket.id}</span></h2>
@@ -165,27 +173,27 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
    <input type="file" name="evidence" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"></label>
    <small class="muted">Max 5 files · 12 MB each</small><button class="btn btn-primary btn-sm" type="submit">Send reply</button></div>
  </form>
- ${staff?`<details class="staff-ticket-notes"><summary>Internal notes · ${notes.length}</summary>
+ ${fullStaff?`<details class="staff-ticket-notes"><summary>Internal notes · ${notes.length}</summary>
   ${notes.map(note=>`<article><b>${esc(note.display_name)}</b> <small>${date(note.created_at)}</small><p>${text(note.body)}</p></article>`).join('')}
   <form method="post" action="${staffPath}/workflow">${token(ctx)}${returnField}
   <label>Staff-only note<textarea name="note" rows="3" maxlength="2000" required></textarea></label>
   <button class="btn btn-outline btn-sm" name="action" value="note">Save internal note</button></form></details>`:
-  (ticket.user_id===ctx.user.id?ticketFeedback(ctx,'support',ticket,feedback,embedded):'')}
+  (!staff&&ticket.user_id===ctx.user.id?ticketFeedback(ctx,'support',ticket,feedback,embedded):'')}
  </section>
  <aside class="panel padded staff-ticket-sidebar">
  <h3>Discord member</h3><div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)}</small></span></div>
  ${staff?`<div class="staff-ticket-buttons"><a href="/u/${esc(ticket.user_id)}">View profile</a> <button type="button" class="btn btn-outline btn-sm" data-copy-discord-id="${esc(ticket.user_id)}">Copy Discord ID</button>
  ${canModerate?`<a href="/staff/discord-moderation?member=${esc(ticket.user_id)}">Moderation history</a>`:''}</div>
- ${staffActions(ctx,ticket,workflow||{},history,returnField)}`:''}
+ ${fullStaff?staffActions(ctx,ticket,workflow||{},history,returnField):ticket.status!=='resolved'?escalationActions(ctx,ticket,workflow?.escalation,returnField):''}`:''}
  <h3>Timeline</h3><dl class="staff-ticket-timeline"><dt>Opened</dt><dd>${date(ticket.created_at)}</dd>
  ${firstResponse?`<dt>First staff reply</dt><dd>${date(firstResponse.created_at)}</dd>`:''}
  ${ticket.resolved_at?`<dt>Resolved</dt><dd>${date(ticket.resolved_at)}</dd>`:''}</dl>
- ${staff?`<form method="post" action="${staffPath}/status" class="ticket-status-form">${token(ctx)}${returnField}
+ ${fullStaff?`<form method="post" action="${staffPath}/status" class="ticket-status-form">${token(ctx)}${returnField}
  <label>Status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
- <button class="btn btn-outline btn-sm">Update status</button></form>
- ${ticket.status!=='resolved'?`<form method="post" action="${staffPath}/status">${token(ctx)}${returnField}
- <button class="btn btn-outline btn-sm" name="status" value="resolved">Mark as resolved</button></form>`:''}`:''}
+ <button class="btn btn-outline btn-sm">Update status</button></form>`:''}
+ ${staff&&ticket.status!=='resolved'?`<form method="post" action="${staffPath}/status">${token(ctx)}${returnField}
+ <button class="btn btn-outline btn-sm" name="status" value="resolved">Mark as resolved</button></form>`:''}
  </aside></div></div>`;
 }
 export function supportTicketPage(ctx,props){

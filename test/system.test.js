@@ -1536,12 +1536,12 @@ test('Staff Workspace filters visible cases and keeps Discord moderation restric
 });
 
 test('Ticket workflow keeps staff notes and personal tags private and accepts one final rating from the requester',async()=>{
- const id=createSupportTicket({userId:ids.member,category:'bug_report',fields:{description:'Workflow fixture'}}),
+ const id=createSupportTicket({userId:ids.member2,category:'bug_report',fields:{description:'Workflow fixture'}}),
   staff='/staff/tickets/'+id,own='/tickets/'+id,workspace='/staff/tickets?ticket='+id;
  const manage=(who,action,fields={})=>post(staff+'/workflow',who,{...fields,action});
  const rating=(who,value)=>post('/tickets/feedback',who,{id,kind:'support',rating:value});
- assert.equal((await get(workspace,'member')).status,403);
- assert.equal((await manage('member','claim')).status,403);
+ assert.equal((await get(workspace,'member2')).status,403);
+ assert.equal((await manage('member2','claim')).status,403);
  const attempts=await Promise.all([manage('reviewer','claim',{workspace:'1'}),manage('adminA','claim')]);
  assert.deepEqual(attempts.map(r=>r.status).sort(),[303,409]);
  const assignee=attempts[0].status===303?'reviewer':'adminA';
@@ -1558,16 +1558,16 @@ test('Ticket workflow keeps staff notes and personal tags private and accepts on
  const ownerQueue=await (await get('/staff/tickets?view=escalated','owner')).text();
  assert.ok(ownerQueue.includes('href="'+staff+'"'));
  assert.doesNotMatch(await (await get(staff,'owner')).text(),/Just for me/);
- assert.doesNotMatch(await (await get(own,'member')).text(),/Internal only fixture|Just for me|How was this ticket handled/);
- assert.equal((await rating('member','satisfied')).status,409);
+ assert.doesNotMatch(await (await get(own,'member2')).text(),/Internal only fixture|Just for me|How was this ticket handled/);
+ assert.equal((await rating('member2','satisfied')).status,409);
  assert.equal((await post(staff+'/status',assignee,{status:'resolved'})).status,303);
- assert.equal((await rating('member2','satisfied')).status,404);
- assert.equal((await get('/tickets/mine?ticket='+id,'member2')).status,404);
- const resolved=await (await get('/tickets/mine?view=resolved&ticket='+id,'member')).text();
+ assert.equal((await rating('member4','satisfied')).status,404);
+ assert.equal((await get('/tickets/mine?ticket='+id,'member4')).status,404);
+ const resolved=await (await get('/tickets/mine?view=resolved&ticket='+id,'member2')).text();
  assert.match(resolved,/How was this ticket handled/);
- assert.equal((await rating('member','satisfied')).status,303);
- assert.equal((await rating('member','not_satisfied')).status,303);
- assert.match(await (await get(own,'member')).text(),/You rated this <strong>Satisfied/);
+ assert.equal((await rating('member2','satisfied')).status,303);
+ assert.equal((await rating('member2','not_satisfied')).status,303);
+ assert.match(await (await get(own,'member2')).text(),/You rated this <strong>Satisfied/);
  assert.match(await (await get('/staff/tickets?view=analytics','owner')).text(),/Satisfied ratings/);
  assert.equal(one("SELECT rating FROM ticket_feedback WHERE kind='support' AND ticket_id=?",id).rating,'satisfied');
 });
@@ -1582,4 +1582,44 @@ test('A finalized staff application can receive feedback on the applicant page',
  assert.equal((await post('/tickets/feedback',applicant,fields)).status,303);
  assert.match(await (await get(path,applicant)).text(),/You rated this <strong>Not satisfied/);
  assert.equal(one("SELECT rating FROM ticket_feedback WHERE kind='application' AND ticket_id=?",app.id).rating,'not_satisfied');
+});
+
+test('Trial Mods can answer and resolve regular support tickets with limited workspace access',async()=>{
+ const id='100000000000000902';
+ ids.trialOnly=id;
+ memberMap.set(id,{user:{id,username:'trial-only'},roles:[roles.tempMod],pending:false});
+ await login('trialOnly');
+ const regular=createSupportTicket({userId:ids.member3,category:'bug_report',fields:{description:'Trial workflow fixture'}});
+ const restricted=createSupportTicket({userId:ids.member3,category:'staff_report',visibility:'owner',fields:{description:'Owner confidential fixture'}});
+ const base='/staff/tickets/'+regular;
+ const queue=await (await get('/staff/tickets','trialOnly')).text();
+ assert.match(queue,/Trial Mod/);
+ assert.ok(queue.includes('href="'+base+'"'));
+ assert.ok(!queue.includes('href="/staff/tickets/'+restricted+'"'));
+ assert.doesNotMatch(queue,/Staff Requests|Team applications:|Ticket analytics/);
+ const selected=await (await get('/staff/tickets?ticket='+regular,'trialOnly')).text();
+ assert.match(selected,/Mark as resolved/);
+ assert.match(selected,/Escalate to admins/);
+ assert.match(selected,/Escalate to owners/);
+ assert.doesNotMatch(selected,/Internal notes|Claim ticket|Clear escalation|Update status/);
+ for(const path of ['/staff','/staff/chat/messages?after=0','/staff/discord-moderation','/staff/tickets?view=analytics','/staff/tickets?view=requests']){
+  assert.equal((await get(path,'trialOnly')).status,403);
+ }
+ assert.equal((await get('/staff/tickets?ticket='+restricted,'trialOnly')).status,404);
+ assert.equal((await post('/staff/tickets/'+restricted+'/reply','trialOnly',{body:'Denied'})).status,404);
+ const escalate=(path,target)=>post(path+'/workflow','trialOnly',{action:'escalate',target});
+ assert.equal((await escalate('/staff/tickets/'+restricted,'owners')).status,404);
+ assert.equal((await escalate(base,'admins')).status,303);
+ assert.match(await (await get('/staff/tickets?view=escalated','adminA')).text(),new RegExp('href="'+base+'"'));
+ assert.equal((await escalate(base,'owners')).status,303);
+ assert.match(await (await get('/staff/tickets?view=escalated','owner')).text(),new RegExp('href="'+base+'"'));
+ assert.equal((await escalate(base,'admins')).status,403);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'clear_escalation'})).status,403);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'note',note:'Denied'})).status,403);
+ assert.equal((await post(base+'/reply','trialOnly',{body:'Thanks, we looked into this.'})).status,303);
+ assert.equal((await post(base+'/status','trialOnly',{status:'resolved'})).status,303);
+ assert.equal(one('SELECT status,resolved_by FROM support_tickets WHERE id=?',regular).resolved_by,id);
+ assert.equal((await post(base+'/status','trialOnly',{status:'open'})).status,403);
+ memberMap.get(id).roles=[];
+ assert.equal((await get('/staff/tickets','trialOnly')).status,403);
 });

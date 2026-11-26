@@ -20,12 +20,12 @@ const options=(values,selected)=>values.map(([key,label])=>`<option value="${esc
 function workspace(ctx,section,body){
  return shell(ctx,'Staff Workspace',`<div class="staff-workspace">
   <header class="staff-workspace-header"><span class="staff-workspace-icon">${icon('shield-check',{size:26})}</span>
-   <div><h1>Staff Workspace</h1><p>SB’s &amp; Cam’s Store Discord</p></div>
+   <div><h1>Staff Workspace</h1><p>SB’s &amp; Cam’s Store Discord${ctx.role==='trial-mod'?' · Trial Mod':''}</p></div>
   </header>
   <nav class="staff-workspace-tabs" aria-label="Staff workspace">
    ${item(queue,'Tickets',section==='tickets','tickets')}
    ${canModerate(ctx)?item(moderation,'Discord Moderation',section==='moderation','gavel'):''}
-   ${item(queue+'?view=requests','Staff Requests',section==='requests','file-pen-line')}
+   ${ctx.role==='trial-mod'?'':item(queue+'?view=requests','Staff Requests',section==='requests','file-pen-line')}
   </nav>
   ${body}
  </div>`);
@@ -120,9 +120,9 @@ export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts})
  return workspace(ctx,view==='requests'?'requests':'tickets',`<section class="staff-workspace-panel">
   <nav class="staff-workspace-subtabs" aria-label="Ticket views">
    ${item(queue,'All Tickets',current==='all')}${item(queue+'?status=active','Active Queue',current==='active')}
-   ${item(queue+'?view=assigned','Assigned to me',current==='assigned')}
+   ${ctx.role==='trial-mod'?'':item(queue+'?view=assigned','Assigned to me',current==='assigned')}
    ${canModerate(ctx)?item(queue+'?view=escalated','Escalated',current==='escalated'):''}
-   ${item(queue+'?view=unread','Unread',current==='unread')}${item(queue+'?view=analytics','Analytics',current==='analytics')}
+   ${item(queue+'?view=unread','Unread',current==='unread')}${ctx.role==='trial-mod'?'':item(queue+'?view=analytics','Analytics',current==='analytics')}
    <a class="staff-personal-tickets" href="/tickets/mine">My submitted tickets</a>
   </nav>
   ${view==='analytics'?ticketAnalytics(tickets):`${filters}${teamNote}

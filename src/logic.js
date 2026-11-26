@@ -1,4 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+import {TEMP_MOD_ROLE_ID} from './team-categories.js';
+
 export const DISCORD_ADMIN = 1n << 3n;
 export const MANAGE_GUILD = 1n << 5n;
 export const MANAGE_ROLES = 1n << 28n;
@@ -12,7 +14,7 @@ export const isFinal = status => status === 'accepted' || status === 'denied';
 export function hasVerifiedAdministratorPermission(member,guildRoles=[]){
   const owned=new Set(member?.roles||[]);
   return Array.isArray(guildRoles)&&guildRoles.some(role=>{
-    if(!role||!owned.has(role.id))return false;
+    if(!role||role.id===TEMP_MOD_ROLE_ID||!owned.has(role.id))return false;
     try{return (BigInt(role.permissions||'0')&DISCORD_ADMIN)!==0n;}catch{return false;}
   });
 }
@@ -20,9 +22,9 @@ export function classify(member, ownerId, userId, cfg, dynamicOwners=new Set()) 
   if (!member || member.pending) return 'none';
   if (userId===ownerId || cfg.ownerIds.has(userId) || dynamicOwners.has(userId)) return 'owner';
   const roles=new Set(member.roles||[]);
-  if ([...cfg.adminIds].some(id=>roles.has(id))) return 'admin';
-  if ([...cfg.reviewerIds].some(id=>roles.has(id))) return 'reviewer';
-  return 'member';
+  if ([...cfg.adminIds].some(id=>id!==TEMP_MOD_ROLE_ID&&roles.has(id))) return 'admin';
+  if ([...cfg.reviewerIds].some(id=>id!==TEMP_MOD_ROLE_ID&&roles.has(id))) return 'reviewer';
+  return roles.has(TEMP_MOD_ROLE_ID)?'trial-mod':'member';
 }
 export function protectedRole(role,cfg) {
   if (!role || role.id===cfg.guildId || role.managed || cfg.adminIds.has(role.id) || cfg.ownerRoleIds.has(role.id) || cfg.protectedIds?.has(role.id) || /(^|\W)(co.?owner|owner|admin|administrator|management)(\W|$)/i.test(role.name||'')) return true;

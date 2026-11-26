@@ -29,8 +29,12 @@ export async function resolveStaffReport(discord,search,config,guildOwnerId,coow
  return {visibility:'owner',reportedId:id,reason:'unrecognized staff role'};
 }
 
+export const canWorkSupport=role=>['trial-mod','reviewer','admin','owner'].includes(role);
+
 export async function accessibleSupportTicket(ctx,t,discord,config,{staffView=false}={}){
  if(!t)return false;
+ if(ctx.role==='trial-mod')return staffView?t.visibility==='staff'&&t.category!=='staff_report'&&t.category!=='team_application':
+   t.user_id===ctx.user?.id;
  // Recruitment answers contain private financial and identity details.
  // Team leaders retain their separate, Discord-role-checked review route.
  if(t.category==='team_application')return staffView?['admin','owner'].includes(ctx.role):
