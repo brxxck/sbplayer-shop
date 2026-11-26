@@ -1591,17 +1591,40 @@ test('Trial Mods can answer and resolve regular support tickets with limited wor
  await login('trialOnly');
  const regular=createSupportTicket({userId:ids.member3,category:'bug_report',fields:{description:'Trial workflow fixture'}});
  const restricted=createSupportTicket({userId:ids.member3,category:'staff_report',visibility:'owner',fields:{description:'Owner confidential fixture'}});
+ const appeal=createSupportTicket({userId:ids.member3,category:'ban_appeal',fields:{appeal_reason:'Restricted appeal fixture'}});
  const base='/staff/tickets/'+regular;
  const queue=await (await get('/staff/tickets','trialOnly')).text();
  assert.match(queue,/Trial Mod/);
  assert.ok(queue.includes('href="'+base+'"'));
  assert.ok(!queue.includes('href="/staff/tickets/'+restricted+'"'));
- assert.doesNotMatch(queue,/Staff Requests|Team applications:|Ticket analytics/);
+ assert.doesNotMatch(queue,/Staff Requests|Team applications:|Ticket analytics|Ban Appeal/);
+ assert.match(queue,/Assigned to me/);
+ assert.ok(!queue.includes('href="/staff/tickets/'+appeal+'"'));
  const selected=await (await get('/staff/tickets?ticket='+regular,'trialOnly')).text();
  assert.match(selected,/Mark as resolved/);
  assert.match(selected,/Escalate to admins/);
  assert.match(selected,/Escalate to owners/);
- assert.doesNotMatch(selected,/Internal notes|Claim ticket|Clear escalation|Update status/);
+ assert.doesNotMatch(selected,/Internal notes|Clear escalation|Update status|Restricted appeal fixture/);
+ assert.match(selected,/Claim ticket/);
+ assert.match(selected,/My private tag/);
+ assert.equal((await get('/staff/tickets/'+appeal,'trialOnly')).status,404);
+ assert.equal((await get('/staff/tickets?ticket='+appeal,'trialOnly')).status,404);
+ assert.equal((await get('/tickets/'+appeal,'trialOnly')).status,404);
+ for(const [suffix,fields] of [['/reply',{body:'Denied'}],['/workflow',{action:'claim'}],['/status',{status:'resolved'}]]){
+  assert.equal((await post('/staff/tickets/'+appeal+suffix,'trialOnly',fields)).status,404);
+ }
+ assert.equal((await post(base+'/workflow','adminA',{action:'claim'})).status,303);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'unassign'})).status,403);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'claim'})).status,409);
+ assert.equal((await post(base+'/workflow','adminA',{action:'unassign'})).status,303);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'claim'})).status,303);
+ assert.equal(one('SELECT assignee_id FROM support_ticket_workflow WHERE ticket_id=?',regular).assignee_id,id);
+ assert.match(await (await get('/staff/tickets?view=assigned','trialOnly')).text(),new RegExp('href="'+base+'"'));
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'tag',label:'Trial follow-up'})).status,303);
+ assert.match(await (await get('/staff/tickets?view=assigned','trialOnly')).text(),/Trial follow-up/);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'unassign'})).status,303);
+ assert.equal(one('SELECT assignee_id FROM support_ticket_workflow WHERE ticket_id=?',regular).assignee_id,null);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'claim'})).status,303);
  for(const path of ['/staff','/staff/chat/messages?after=0','/staff/discord-moderation','/staff/tickets?view=analytics','/staff/tickets?view=requests']){
   assert.equal((await get(path,'trialOnly')).status,403);
  }
@@ -1620,6 +1643,8 @@ test('Trial Mods can answer and resolve regular support tickets with limited wor
  assert.equal((await post(base+'/status','trialOnly',{status:'resolved'})).status,303);
  assert.equal(one('SELECT status,resolved_by FROM support_tickets WHERE id=?',regular).resolved_by,id);
  assert.equal((await post(base+'/status','trialOnly',{status:'open'})).status,403);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'unassign'})).status,303);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'claim'})).status,400);
  memberMap.get(id).roles=[];
  assert.equal((await get('/staff/tickets','trialOnly')).status,403);
 });

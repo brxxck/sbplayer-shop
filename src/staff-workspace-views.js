@@ -128,7 +128,7 @@ export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts,s
  return workspace(ctx,view==='requests'?'requests':'tickets',`<section class="staff-workspace-panel">
   <nav class="staff-workspace-subtabs" aria-label="Ticket views">
    ${item(queue,'All Tickets',current==='all')}${item(queue+'?status=active','Active Queue',current==='active')}
-   ${ctx.role==='trial-mod'?'':item(queue+'?view=assigned','Assigned to me',current==='assigned')}
+   ${item(queue+'?view=assigned','Assigned to me',current==='assigned')}
    ${canModerate(ctx)?item(queue+'?view=escalated','Escalated',current==='escalated'):''}
    ${item(queue+'?view=unread','Unread',current==='unread')}${ctx.role==='trial-mod'?'':item(queue+'?view=analytics','Analytics',current==='analytics')}
    <a class="staff-personal-tickets" href="/tickets/mine">My submitted tickets</a>

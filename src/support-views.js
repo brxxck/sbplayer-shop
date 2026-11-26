@@ -120,10 +120,10 @@ function staffActions(ctx,ticket,state,history,embedded){
  const assignee=state.assignee||state.assignee_id;
  const toggle=state.assignee_id?
   ((state.assignee_id===ctx.user.id||['admin','owner'].includes(ctx.role))?form('<button class="btn btn-outline btn-sm" name="action" value="unassign">Unassign</button>'):''):
-  form('<button class="btn btn-primary btn-sm" name="action" value="claim">Claim ticket</button>');
+  (ctx.role==='trial-mod'&&ticket.status==='resolved'?'':form('<button class="btn btn-primary btn-sm" name="action" value="claim">Claim ticket</button>'));
  return `<div class="staff-ticket-tools">
   <section><h3>Assignment</h3><p>${esc(assignee||'Unassigned')}</p>${toggle}</section>
-  ${escalationActions(ctx,ticket,state.escalation,embedded)}
+  ${ctx.role==='trial-mod'&&ticket.status==='resolved'?'':escalationActions(ctx,ticket,state.escalation,embedded)}
   <section><h3>My private tag</h3>${form(`<label><span class="sr-only">Private tag</span><input name="label" value="${esc(state.privateTag||'')}" maxlength="32" placeholder="Add a tag"></label>
     <button class="btn btn-outline btn-sm" name="action" value="tag">Save tag</button>`)}</section>
   ${history.length?`<section><h3>Other tickets by this member</h3><ul>${history.map(t=>
@@ -185,7 +185,7 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)}</small></span></div>
  ${staff?`<div class="staff-ticket-buttons"><a href="/u/${esc(ticket.user_id)}">View profile</a> <button type="button" class="btn btn-outline btn-sm" data-copy-discord-id="${esc(ticket.user_id)}">Copy Discord ID</button>
  ${canModerate?`<a href="/staff/discord-moderation?member=${esc(ticket.user_id)}">Moderation history</a>`:''}</div>
- ${fullStaff?staffActions(ctx,ticket,workflow||{},history,returnField):ticket.status!=='resolved'?escalationActions(ctx,ticket,workflow?.escalation,returnField):''}`:''}
+ ${staffActions(ctx,ticket,workflow||{},history,returnField)}`:''}
  <h3>Timeline</h3><dl class="staff-ticket-timeline"><dt>Opened</dt><dd>${date(ticket.created_at)}</dd>
  ${firstResponse?`<dt>First staff reply</dt><dd>${date(firstResponse.created_at)}</dd>`:''}
  ${ticket.resolved_at?`<dt>Resolved</dt><dd>${date(ticket.resolved_at)}</dd>`:''}</dl>
