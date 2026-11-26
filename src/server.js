@@ -1,4 +1,6 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+import {createDiscordModerationReader} from './discord-moderation.js';
+import {staffTicketWorkspace,discordModerationWorkspace} from './staff-workspace-views.js';
 import http from 'node:http';
 import {levelConnection,rotateLevelKey,revokeLevelKey,authenticateLevelSync,syncLevelSnapshot,levelWallet,claimLevelPoints,readLevelSyncJson} from './level-points.js';
 import {levelPointsPage,levelConnectionPage} from './level-points-views.js';
@@ -174,7 +176,7 @@ const safeStatic={'.css':'text/css; charset=utf-8','.js':'text/javascript; chars
 async function serveStatic(res,path,requestedAssetVersion='') {
   let file;
   if(path.startsWith('/uploads/'))file=safeImageFile(path);
-  else if(['/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/poker.js','/static/poker.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/daily-rewards.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
+  else if(['/static/staff-workspace.css','/static/upgrade.css','/static/upgrade.js','/static/style.css','/static/polish.css','/static/app.js','/static/evidence.js','/static/mega-team.js','/static/mega-top10.js','/static/community.js','/static/arcade.css','/static/arcade.js','/static/plinko.js','/static/plinko.css','/static/poker.js','/static/poker.css','/static/online-games.js','/static/online-games.css','/static/online-blackjack.js','/static/online-blackjack.css','/static/solo-blackjack.js','/static/solo-blackjack.css','/static/online-roulette.js','/static/online-roulette.css','/static/arcade-cinematics.js','/static/arcade-cinematics.css','/static/arcade-challenges.css','/static/arcade-challenges.js','/static/point-all.css','/static/daily-rewards.css','/static/daily-rewards.js','/static/mobile.css','/static/mobile.js','/static/sb-logo.png'].includes(path))file=resolve(root,'public',basename(path));
   else return false;
   if(!file)throw new HttpError(404,'Image not found');
   const stat=statSync(file);if(stat.size>10*1024*1024)throw new HttpError(413,'File too large');
@@ -213,6 +215,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   const megaBrowser=createMegaBrowserRunner();
   const microsoftAuth=createOwnerMicrosoftAuth({baseUrl:config.baseUrl});
   const xboxLinkAuth=createXboxLinkAuth({baseUrl:config.baseUrl});
+  const loadDiscordModeration=createDiscordModerationReader(discord);
   const megaSessionVault=createMegaSessionVault({dbPath:config.dbPath});
   const megaSessionPairing=createMegaSessionPairing({vault:megaSessionVault});
   const getProfileRoles=createProfileRoleLookup(discord,config.guildId);
@@ -809,7 +812,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       // Use the same permission filter for the homepage, full staff queue and ticket URLs.
       const supports=await supportQueueVisible(ctx,openSupportTickets(),discord,config);
-       const promotions=isAdminRole(ctx.role)?queuePromotions():[];
+      const promotions=isAdminRole(ctx.role)?queuePromotions():[];
       const applications=all("SELECT a.*,u.display_name,u.username,"+
         "EXISTS(SELECT 1 FROM admin_decisions d WHERE d.application_id=a.id GROUP BY d.choice HAVING COUNT(*)>=2) AS awaiting_owner "+
         "FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
@@ -1939,11 +1942,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       return success(forStaff?'/staff/tickets/'+id:'/tickets/'+id,'Reply sent.');
     }
+    if(pathname==='/staff/discord-moderation'&&req.method==='GET'){
+      await authorize('admin');
+      rate(ctx,'staff.discord_moderation',25,60000);
+      const activity=await loadDiscordModeration();
+      return html(discordModerationWorkspace(ctx,{...activity,query:url.searchParams}));
+    }
     if(pathname==='/staff/tickets'&&req.method==='GET'){
       await authorize('staff');
-      const scope=url.searchParams.get('status')==='active'?'active':'all';
-      const available=await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
-       const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
+      const scope=url.searchParams.get('status')==='active'&&!['unread','analytics','requests'].includes(url.searchParams.get('view'))?'active':'all';
+      const available=url.searchParams.get('view')==='requests'?[]:
+        await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
+      const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
       const apps=scope==='all'
         ?all('SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.updated_at DESC LIMIT 150')
         :all("SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
@@ -1955,7 +1965,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
         ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(supportView.staffTicketQueue(ctx,{tickets:decorateCases(tickets,ctx.user.id),status:scope,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null,type:ctx.teamRecruiter&&url.searchParams.get('type')==='team_application'?'team_application':''}));
+      return html(staffTicketWorkspace(ctx,{tickets:decorateCases(tickets,ctx.user.id),query:url.searchParams,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){

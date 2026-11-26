@@ -11,7 +11,7 @@ export function navigationGroups(ctx){
  groups.push({label:'People',items:[['/members','Members'],['/team','Teams']]},
   {label:'MegaSMP',items:[['/mega-team','Overview'],['/mega-team/leaderboard','Top 10'],['/mega-team/transactions','Transactions']]},
   {label:'Support',items:[['/tickets/new','New Ticket'],['/tickets/mine','My Tickets'],['/applications','Applications']]});
- if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','All Tickets'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[])]});
+ if(staff)groups.push({label:'Staff',collapsible:true,items:[['/staff/tickets','Staff Workspace'],['/staff','Staff Applications'],...(admin?[['/staff/promotions','Promotions']]:[])]});
  else if(ctx.teamRecruiter)groups.push({label:'Recruitment',collapsible:true,items:[['/team-applications/review','Team Recruitment']]});
  if(admin)groups.push({label:'Administration',collapsible:true,items:[['/admin/roles','Roles'],['/admin/moderation','Moderation'],['/admin/dm-reports','Message Reports'],['/admin/settings','Settings']]});
  if(ctx.role==='owner')groups.push({label:'Owner',collapsible:true,items:[['/owner/approvals','Final Approvals'],['/owner/audit','Audit Log'],['/owner/level-points','BotGhost Connection'],['/owner/point-all','Point All'],['/owner/blackjack-events','Blackjack Events'],['/owner/owners','Owner Access'],['/owner/ign-connections','IGN Connections'],['/mega-team/links','Link Profiles'],['/team/mega/matches','Match Accounts']]});

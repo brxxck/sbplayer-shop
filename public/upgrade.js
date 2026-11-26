@@ -54,14 +54,6 @@
   const minutes=Math.max(0,Math.floor((Date.now()-Number(el.dataset.waitSince))/60000));
   el.textContent=minutes<60?minutes+'m waiting':minutes<1440?Math.floor(minutes/60)+'h waiting':Math.floor(minutes/1440)+'d waiting';
  }
- const filters=document.querySelector('[data-case-filters]');
- if(filters){
-  const rows=[...document.querySelectorAll('tr[data-case-type]')];
-  const sort=filters.querySelector('[data-case-sort]');
-  const query=filters.querySelector('[data-case-search]'),type=filters.querySelector('[data-case-type]'),status=filters.querySelector('[data-case-status]');
-  const update=()=>{const rank=s=>s==='awaiting_owner'?0:s==='awaiting_staff'?1:s==='open'?2:3;const sorted=[...rows].sort((a,b)=>sort.value==='attention'?rank(a.dataset.caseStatus)-rank(b.dataset.caseStatus):sort.value==='waiting'?Number(a.dataset.updated)-Number(b.dataset.updated):Number(b.dataset.updated)-Number(a.dataset.updated));for(const row of sorted)row.parentElement.append(row);let count=0;for(const row of rows){row.hidden=!!((query.value&&!row.textContent.toLowerCase().includes(query.value.toLowerCase()))||(type.value&&row.dataset.caseType!==type.value)||(status.value&&row.dataset.caseStatus!==status.value));if(!row.hidden)count++;}document.querySelector('[data-case-result]').textContent=count+' of '+rows.length+' cases'+(!count?' · No results. Reset Filters to see all cases.':'');};
-  filters.addEventListener('input',update);filters.addEventListener('change',update);filters.querySelector('[data-case-reset]').addEventListener('click',()=>{query.value=type.value=status.value='';update();});update();
- }
  // Accessible local filtering for authorized, already-rendered lists only.
  for(const [selector,label] of [['.member-grid','Search people'],['.role-grid','Search roles'],['.social-notifications-list','Filter notifications']]){
   const containers=[...document.querySelectorAll(selector)];if(!containers.length)continue;

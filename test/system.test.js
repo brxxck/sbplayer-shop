@@ -54,6 +54,16 @@ const fake={
   getBotIdentity:async()=>({id:ids.bot,username:'sb-bot'}),
   getGuildMember:async id=>memberMap.get(id)||null,
   getRoles:async()=>structuredClone(fakeRoles),
+  getModerationAuditLog:async kind=>({
+   users:[{id:ids.owner,username:'workspaceowner'},{id:ids.member,username:'moderatedmember'}],
+   audit_log_entries:kind===22?[{id:'120000000000000001',action_type:22,target_id:ids.member,user_id:ids.owner,reason:'Repeated spam'}]:
+    kind===24?[
+     {id:'120000000000000002',action_type:24,target_id:ids.member,user_id:ids.owner,
+      changes:[{key:'communication_disabled_until',new_value:'2026-12-01T18:00:00Z'}]},
+     {id:'120000000000000003',action_type:24,target_id:ids.member,user_id:ids.owner,
+      changes:[{key:'nick',old_value:'Previous',new_value:'Nickname change'}]}
+    ]:[]
+  }),
   searchMembers:async q=>[...memberMap.values()].filter(x=>x.user.username.startsWith(q.toLowerCase())),
   listMembers:async()=>[...memberMap.values()],
   addRole:async(id,role)=>{if(failNextRole){failNextRole=false;throw new Error('Mock Discord temporary failure');}const m=memberMap.get(id);if(!m)throw new Error('Unknown test user');if(!m.roles.includes(role))m.roles.push(role);additions++;},
@@ -1496,4 +1506,31 @@ test('Owners can manage an IGN connection that qualifies for staff and team appl
  assert.equal((await post('/apply','manualIgn',answers)).status,403);
  const audit=all("SELECT action,actor_id AS actor FROM owner_audit_log WHERE target=? AND action IN ('profile.ign.link','profile.ign.unlink') ORDER BY id",'profile:'+memberId);
  assert.deepEqual(audit.map(row=>[row.action,row.actor]),[['profile.ign.link',ids.owner],['profile.ign.unlink',ids.owner]]);
+});
+
+test('Staff Workspace filters visible cases and keeps Discord moderation restricted to admins',async()=>{
+ const queue='/staff/tickets',mod='/staff/discord-moderation';
+ const workspace=await (await get(queue,'owner')).text();
+ assert.match(workspace,/<h1>Staff Workspace<\/h1>/);
+ assert.match(workspace,/staff-workspace\.css/);
+ const stylesheet=await get('/static/staff-workspace.css');
+ assert.equal(stylesheet.status,200);
+ assert.match(stylesheet.headers.get('content-type'),/text\/css/);
+ const requests=await (await get(queue+'?view=requests','owner')).text();
+ assert.match(requests,/<h2>Staff Requests<\/h2>/);
+ assert.match(requests,/href="\/staff\/applications\/\d+"/);
+ assert.doesNotMatch(requests,/href="\/staff\/tickets\/\d+"/);
+ const analytics=await (await get(queue+'?view=analytics','reviewer')).text();
+ assert.match(analytics,/Cases by type/);
+ assert.doesNotMatch(analytics,/SBsxScam Team Application|Discord Moderation/);
+ const filtered=await (await get(queue+'?q=does-not-exist','owner')).text();
+ assert.match(filtered,/No cases match this view/);
+ assert.equal((await get(mod,'reviewer')).status,403);
+ const activity=await (await get(mod,'adminA')).text();
+ assert.match(activity,/Repeated spam/);
+ assert.match(activity,/>Timeout<\/span>/);
+ assert.doesNotMatch(activity,/Nickname change/);
+ const banView=await (await get(mod+'?type=ban&member=moderatedmember&moderator=workspaceowner','adminA')).text();
+ assert.match(banView,/Repeated spam/);
+ assert.doesNotMatch(banView,/>Timeout<\/span>/);
 });
