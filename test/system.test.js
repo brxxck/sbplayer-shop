@@ -1599,12 +1599,22 @@ test('Trial Mods can answer and resolve regular support tickets with limited wor
  assert.doesNotMatch(queue,/Staff Requests|Team applications:|Ticket analytics/);
  const selected=await (await get('/staff/tickets?ticket='+regular,'trialOnly')).text();
  assert.match(selected,/Mark as resolved/);
- assert.doesNotMatch(selected,/Internal notes|Claim ticket|Escalate to admins|Update status/);
+ assert.match(selected,/Escalate to admins/);
+ assert.match(selected,/Escalate to owners/);
+ assert.doesNotMatch(selected,/Internal notes|Claim ticket|Clear escalation|Update status/);
  for(const path of ['/staff','/staff/chat/messages?after=0','/staff/discord-moderation','/staff/tickets?view=analytics','/staff/tickets?view=requests']){
   assert.equal((await get(path,'trialOnly')).status,403);
  }
  assert.equal((await get('/staff/tickets?ticket='+restricted,'trialOnly')).status,404);
  assert.equal((await post('/staff/tickets/'+restricted+'/reply','trialOnly',{body:'Denied'})).status,404);
+ const escalate=(path,target)=>post(path+'/workflow','trialOnly',{action:'escalate',target});
+ assert.equal((await escalate('/staff/tickets/'+restricted,'owners')).status,404);
+ assert.equal((await escalate(base,'admins')).status,303);
+ assert.match(await (await get('/staff/tickets?view=escalated','adminA')).text(),new RegExp('href="'+base+'"'));
+ assert.equal((await escalate(base,'owners')).status,303);
+ assert.match(await (await get('/staff/tickets?view=escalated','owner')).text(),new RegExp('href="'+base+'"'));
+ assert.equal((await escalate(base,'admins')).status,403);
+ assert.equal((await post(base+'/workflow','trialOnly',{action:'clear_escalation'})).status,403);
  assert.equal((await post(base+'/workflow','trialOnly',{action:'note',note:'Denied'})).status,403);
  assert.equal((await post(base+'/reply','trialOnly',{body:'Thanks, we looked into this.'})).status,303);
  assert.equal((await post(base+'/status','trialOnly',{status:'resolved'})).status,303);

@@ -1921,7 +1921,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const recent=all("SELECT * FROM support_tickets WHERE user_id=? AND id!=? AND category!='team_application' ORDER BY updated_at DESC LIMIT 12",ticket.user_id,ticket.id);
       const history=await supportQueueVisible(ctx,recent,discord,config);
       return {ticket,messages:supportMessages(ticket.id),attachments:supportAttachments(ticket.id),staff:true,
-        embedded,...(ctx.role==='trial-mod'?{}:{workflow:ticketStaffState(ticket.id,ctx.user.id),notes:ticketInternalNotes(ticket.id)}),history:history.slice(0,5)};
+        embedded,workflow:ticketStaffState(ticket.id,ctx.user.id),notes:ctx.role==='trial-mod'?[]:ticketInternalNotes(ticket.id),history:history.slice(0,5)};
     }
     if((supportTicketMatch||staffSupportMatch)&&req.method==='GET'){
       const forStaff=!!staffSupportMatch;
@@ -2012,12 +2012,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     const staffWorkflowMatch=/^\/staff\/tickets\/(\d+)\/workflow$/.exec(pathname);
     if(staffWorkflowMatch&&req.method==='POST'){
-      await authorize('staff');rate(ctx,'support.workflow',40,3600000);
+      await authorize('support');rate(ctx,'support.workflow',40,3600000);
       const {fields}=await form();
       const id=idFrom(staffWorkflowMatch[1]),ticket=supportTicket(id);
       await requireSupportAccess(ticket,true);
       if(ticket.category==='team_application')missing();
       const action=String(fields.action||'');
+      if(ctx.role==='trial-mod'&&action!=='escalate')forbidden();
+      if(ctx.role==='trial-mod'&&ticket.status==='resolved')invalid('Only open tickets can be escalated.');
       const value=action==='note'?formValue(fields,'note',2000,1):
         action==='tag'?formValue({...fields,label:fields.label||''},'label',32,0):String(fields.target||'');
       if(action==='escalate'&&ticket.visibility==='owner'&&value!=='owners')forbidden('This ticket is restricted to owners.');
