@@ -52,7 +52,7 @@ function caseRows(tickets,previewLink){
    <td data-label="Updated"><time datetime="${new Date(t.updated_at).toISOString()}">${esc(formatDate(t.updated_at))}</time></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
-function ticketAnalytics(tickets){
+function ticketAnalytics(tickets,staffActivity){
  const closed=tickets.filter(t=>finalStates.has(t.status)).length;
  const rated=tickets.filter(t=>t.rating).length;
  const satisfied=tickets.filter(t=>t.rating==='satisfied').length;
@@ -69,10 +69,18 @@ function ticketAnalytics(tickets){
   ${counts.length?`<div class="staff-breakdown">${counts.map(([type,rows])=>
    `<div><span>${esc(categoryLabel(type))}</span><meter aria-label="${esc(categoryLabel(type))}" min="0" max="${tickets.length}" value="${rows.length}"></meter><strong>${rows.length}</strong></div>`).join('')}</div>`:
    '<p class="muted">No cases to summarize.</p>'}
+  <h3 class="staff-activity-heading">Ticket activity by staff member</h3>
+  <p class="muted">All recorded support tickets you can access. Each ticket counts once per staff member in each column.</p>
+  ${staffActivity.length?`<div class="table-wrap staff-workspace-table"><table><thead><tr>
+   <th scope="col">Staff member</th><th scope="col">Claimed</th><th scope="col">Resolved</th>
+  </tr></thead><tbody>${staffActivity.map(row=>`<tr>
+   <td><strong>${esc(row.name)}</strong>${row.username?`<small>@${esc(row.username)}</small>`:''}</td>
+   <td data-label="Claimed">${row.claimed}</td><td data-label="Resolved">${row.resolved}</td>
+  </tr>`).join('')}</tbody></table></div>`:'<p class="muted">No ticket claims or resolutions recorded yet.</p>'}
  </section>`;
 }
 
-export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts}){
+export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts,staffActivity=[]}){
  const requestedView=query.get('view');
  const view=['unread','analytics','requests','assigned','escalated'].includes(requestedView)?requestedView:'all';
  const active=view==='all'&&query.get('status')==='active';
@@ -125,7 +133,7 @@ export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts})
    ${item(queue+'?view=unread','Unread',current==='unread')}${ctx.role==='trial-mod'?'':item(queue+'?view=analytics','Analytics',current==='analytics')}
    <a class="staff-personal-tickets" href="/tickets/mine">My submitted tickets</a>
   </nav>
-  ${view==='analytics'?ticketAnalytics(tickets):`${filters}${teamNote}
+  ${view==='analytics'?ticketAnalytics(tickets,staffActivity):`${filters}${teamNote}
    <div class="staff-results-heading"><h2>${labels[current]}</h2><span>${rows.length} ${rows.length===1?'case':'cases'}</span></div>
    ${selected}${caseRows(rows.slice((page-1)*pageSize,page*pageSize),previewLink)}${pager}`}
  </section>`);

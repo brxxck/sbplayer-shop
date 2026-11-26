@@ -74,7 +74,7 @@ import {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unl
 import {megaHistoryPage,megaMatchesPage} from './mega-team-history-views.js';
 import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
-import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible,canWorkSupport} from './support-access.js';
+import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible,canWorkSupport,supportActivityStats} from './support-access.js';
 import {createProfileRoleLookup} from './profile-roles.js';
 import {SBS_TEAM_LEADER_ROLE_ID,SBS_TEAM_MEMBER_ROLE_ID,sbsTeamMembership} from './sbs-team.js';
 import {STORE_TEAM_GROUP_ORDER,externalStaffKind,storeTeamGroup} from './team-categories.js';
@@ -2008,7 +2008,9 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...(!trial&&ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
         ...(url.searchParams.get('view')==='analytics'?{rating:feedbackFor(feedbackCaseKind(ticket.category),ticket.id)}:{})
       }));
-      return html(staffTicketWorkspace(ctx,{tickets:cases,selected,query:url.searchParams,teamCounts:!trial&&ctx.teamRecruiter?teamApplicationCounts():null}));
+      const staffActivity=url.searchParams.get('view')==='analytics'?await supportActivityStats(ctx,discord,config):[];
+      return html(staffTicketWorkspace(ctx,{tickets:cases,selected,query:url.searchParams,staffActivity,
+        teamCounts:!trial&&ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     const staffWorkflowMatch=/^\/staff\/tickets\/(\d+)\/workflow$/.exec(pathname);
     if(staffWorkflowMatch&&req.method==='POST'){

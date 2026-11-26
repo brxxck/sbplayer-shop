@@ -1623,3 +1623,33 @@ test('Trial Mods can answer and resolve regular support tickets with limited wor
  memberMap.get(id).roles=[];
  assert.equal((await get('/staff/tickets','trialOnly')).status,403);
 });
+
+test('Staff ticket activity counts distinct historical claims and resolutions within the viewer’s access',async()=>{
+ for(const [key,id] of [['claimstaff','100000000000000903'],['resolvestaff','100000000000000904']]){
+  ids[key]=id;
+  memberMap.set(id,{user:{id,username:key},roles:[roles.reviewer],pending:false});
+  await login(key);
+ }
+ const analytics='/staff/tickets?view=analytics';
+ const read=async who=>(await get(analytics,who)).text();
+ const counts=(page,name)=>Array.from(
+  new RegExp('<small>@'+name+'</small></td>\\s*<td data-label="Claimed">(\\d+)</td><td data-label="Resolved">(\\d+)</td>').exec(page)||[]
+ ).slice(1).map(Number);
+ const ticket=createSupportTicket({userId:ids.member2,category:'bug_report',fields:{description:'Staff activity fixture'}});
+ const base='/staff/tickets/'+ticket;
+ assert.equal((await post(base+'/workflow','claimstaff',{action:'claim'})).status,303);
+ assert.equal((await post(base+'/workflow','claimstaff',{action:'unassign'})).status,303);
+ assert.equal((await post(base+'/workflow','claimstaff',{action:'claim'})).status,303);
+ assert.equal((await post(base+'/status','resolvestaff',{status:'resolved'})).status,303);
+ assert.equal((await post(base+'/status','resolvestaff',{status:'open'})).status,303);
+ assert.equal((await post(base+'/status','resolvestaff',{status:'resolved'})).status,303);
+ assert.equal((await post(base+'/status','claimstaff',{status:'resolved'})).status,303);
+ const staffView=await read('claimstaff');
+ assert.deepEqual(counts(staffView,'claimstaff'),[1,0]);
+ assert.deepEqual(counts(staffView,'resolvestaff'),[0,1]);
+ const ownerBefore=counts(await read('owner'),'owner');
+ const hidden=createSupportTicket({userId:ids.member2,category:'staff_report',visibility:'owner',fields:{description:'Confidential activity fixture'}});
+ assert.equal((await post('/staff/tickets/'+hidden+'/workflow','owner',{action:'claim'})).status,303);
+ assert.deepEqual(counts(await read('claimstaff'),'owner'),counts(staffView,'owner'));
+ assert.deepEqual(counts(await read('owner'),'owner'),[(ownerBefore[0]||0)+1,ownerBefore[1]||0]);
+});
