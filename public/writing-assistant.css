@@ -1,0 +1,14 @@
+/* BUILT BY SB — browser-only writing tools */
+.sb-writing-assistant { border: 1px solid #345473; background: #10253c; padding: .75rem; border-radius: .65rem; min-width: 0; }
+.sb-writing-assistant summary { cursor: pointer; font-weight: 650; color: #c8e5ff; }
+.sb-writing-assistant summary small { font-weight: 400; color: #a8bdd7; margin-inline-start: .6rem; white-space: nowrap; }
+.sb-writing-assistant p { font-size: .85rem; margin: .55rem 0; }
+.sb-writing-tools { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.sb-writing-tools .btn { white-space: normal; min-height: 36px; }
+.sb-writing-tools .btn:disabled { opacity: .5; cursor: not-allowed; }
+.sb-writing-status:empty { display: none; }
+.sb-writing-preview { background: #0b192c; padding: .65rem; border: 1px solid #345473; border-radius: .5rem; margin-top: .65rem; }
+.sb-writing-preview[hidden] { display: none; }
+.sb-writing-preview textarea { width: 100%; resize: vertical; box-sizing: border-box; }
+.sb-writing-preview label { display: block; margin-bottom: .5rem; }
+@media(max-width: 600px) { .sb-writing-tools { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .sb-writing-tools .btn { width: 100%; min-height: 44px; } }
