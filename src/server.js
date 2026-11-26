@@ -74,7 +74,7 @@ import {megaDiscordMatches,megaDiscordMatchCandidates,linkMegaDiscordAccount,unl
 import {megaHistoryPage,megaMatchesPage} from './mega-team-history-views.js';
 import {notifySocial,notificationCount,notificationsFor,markNotificationsRead,connectionsFor,repliesFor,allowedProfileTabs} from './social.js';
 import {SUPPORT_CATEGORIES,categoryLabel,categoryExists,supportTicket,supportMessages,supportAttachments,mySupportTickets,openSupportTickets,allSupportTickets,staffChatRecent,staffChatAfter,staffChatRow,createSupportTicket,writeSupportMessage,updateSupportStatus,reserveSupportPing,sendStaffChat} from './support.js';
-import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible} from './support-access.js';
+import {resolveStaffReport,accessibleSupportTicket,supportQueueVisible,canWorkSupport} from './support-access.js';
 import {createProfileRoleLookup} from './profile-roles.js';
 import {SBS_TEAM_LEADER_ROLE_ID,SBS_TEAM_MEMBER_ROLE_ID,sbsTeamMembership} from './sbs-team.js';
 import {STORE_TEAM_GROUP_ORDER,externalStaffKind,storeTeamGroup} from './team-categories.js';
@@ -299,7 +299,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
          ctx.promotionEligible=!!promotionEligibility(actual,guildRoles,config);
          const owned=new Set(actual.roles||[]);
          // Non-admin team roles affect navigation only, never privileged access.
-         ctx.staffNavigation=isStaffRole(ctx.role)||ctx.promotionEligible||
+         ctx.staffNavigation=canWorkSupport(ctx.role)||ctx.promotionEligible||
            guildRoles.some(r=>owned.has(r.id)&&['Ownership','Administration','Staff','Mod','Temp Mod'].includes(storeTeamGroup(r,config)));
          const sbsMembership=sbsTeamMembership(actual.roles||[]);
          // No recruitment for existing SBs players or existing SB Store staff.
@@ -308,7 +308,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
        }catch{
          // Bot role lookup failure must never grant additional permissions.
          ctx.promotionEligible=false;
-         ctx.staffNavigation=isStaffRole(ctx.role);
+         ctx.staffNavigation=canWorkSupport(ctx.role);
          ctx.teamApplicationEligible=false;
        }
       if(ctx.role==='none')forbidden('Complete Discord membership screening before using the website.');
@@ -334,7 +334,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     async function authorize(level){
       await member();
-      const okay=level==='staff'?isStaffRole(ctx.role):level==='admin'?isAdminRole(ctx.role):level==='owner'?ctx.role==='owner':true;
+      const okay=level==='staff'?isStaffRole(ctx.role):level==='support'?canWorkSupport(ctx.role):level==='admin'?isAdminRole(ctx.role):level==='owner'?ctx.role==='owner':true;
       if(!okay){logAction(ctx,'security.access.denied',pathname,{required:level},'denied');forbidden();}
     }
     async function form(){
@@ -1720,7 +1720,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     const attachmentMatch=/^\/tickets\/attachments\/(\d+)$/.exec(pathname);
     async function requireSupportAccess(t,forStaff=false) {
       if(!t)missing();
-      if(forStaff&&!isStaffRole(ctx.role))forbidden();
+      if(forStaff&&!canWorkSupport(ctx.role))forbidden();
       if(ctx.role==='appeal-only' && (t.category!=='ban_appeal'||t.user_id!==ctx.user.id))missing();
       if(!await accessibleSupportTicket(ctx,t,discord,config,{staffView:forStaff}))missing();
     }
@@ -1908,7 +1908,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const att=one('SELECT * FROM support_ticket_attachments WHERE id=?',idFrom(attachmentMatch[1]));
       if(!att)missing();
       const t=supportTicket(att.ticket_id);
-      await requireSupportAccess(t);
+      await requireSupportAccess(t,ctx.role==='trial-mod'&&t?.user_id!==ctx.user.id);
       const file=safeTicketFile(att.stored_path);
       if(!file)missing();
       logAction(ctx,'support_ticket.attachment.access','support_ticket:'+t.id,{attachmentId:att.id});
@@ -1921,11 +1921,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const recent=all("SELECT * FROM support_tickets WHERE user_id=? AND id!=? AND category!='team_application' ORDER BY updated_at DESC LIMIT 12",ticket.user_id,ticket.id);
       const history=await supportQueueVisible(ctx,recent,discord,config);
       return {ticket,messages:supportMessages(ticket.id),attachments:supportAttachments(ticket.id),staff:true,
-        embedded,workflow:ticketStaffState(ticket.id,ctx.user.id),notes:ticketInternalNotes(ticket.id),history:history.slice(0,5)};
+        embedded,...(ctx.role==='trial-mod'?{}:{workflow:ticketStaffState(ticket.id,ctx.user.id),notes:ticketInternalNotes(ticket.id)}),history:history.slice(0,5)};
     }
     if((supportTicketMatch||staffSupportMatch)&&req.method==='GET'){
       const forStaff=!!staffSupportMatch;
-      if(forStaff)await authorize('staff');
+      if(forStaff)await authorize('support');
       const id=idFrom((staffSupportMatch||supportTicketMatch)[1]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
       if(t.category==='team_application'){
@@ -1943,7 +1943,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(supportReplyMatch&&req.method==='POST'){
       const forStaff=!!supportReplyMatch[1];
-      if(forStaff)await authorize('staff');
+      if(forStaff)await authorize('support');
       rate(ctx,'support.reply',12,60000);
       const id=idFrom(supportReplyMatch[2]),t=supportTicket(id);
       await requireSupportAccess(t,forStaff);
@@ -1978,16 +1978,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       return html(discordModerationWorkspace(ctx,{...activity,query:url.searchParams}));
     }
     if(pathname==='/staff/tickets'&&req.method==='GET'){
-      await authorize('staff');
+      await authorize('support');
+      const trial=ctx.role==='trial-mod';
+      if(trial&&!['','unread'].includes(url.searchParams.get('view')||''))forbidden();
       const scope=url.searchParams.get('status')==='active'&&!['unread','analytics','requests','assigned','escalated'].includes(url.searchParams.get('view'))?'active':'all';
       const available=url.searchParams.get('view')==='requests'?[]:
         await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
       const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
-      const apps=scope==='all'
+      const apps=trial?[]:scope==='all'
         ?all('SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.updated_at DESC LIMIT 150')
         :all("SELECT a.*,u.username,u.display_name FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status NOT IN ('accepted','denied') ORDER BY a.updated_at DESC LIMIT 150");
       // Other staff must not discover private team applications in the shared queue.
-      const recruitment=ctx.teamRecruiter?teamApplicationQueue({status:scope}):[];
+      const recruitment=!trial&&ctx.teamRecruiter?teamApplicationQueue({status:scope}):[];
       const tickets=[
         ...available.map(t=>({...t,href:'/staff/tickets/'+t.id,displayId:'T-'+t.id})),
         ...promotions.map(t=>({...t,category:'promotion',href:'/staff/promotions/'+t.id,displayId:'P-'+t.id})),
@@ -2003,10 +2005,10 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       const cases=decorateCases(tickets,ctx.user.id).map(ticket=>({
         ...ticket,
-        ...(ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
+        ...(!trial&&ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
         ...(url.searchParams.get('view')==='analytics'?{rating:feedbackFor(feedbackCaseKind(ticket.category),ticket.id)}:{})
       }));
-      return html(staffTicketWorkspace(ctx,{tickets:cases,selected,query:url.searchParams,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
+      return html(staffTicketWorkspace(ctx,{tickets:cases,selected,query:url.searchParams,teamCounts:!trial&&ctx.teamRecruiter?teamApplicationCounts():null}));
     }
     const staffWorkflowMatch=/^\/staff\/tickets\/(\d+)\/workflow$/.exec(pathname);
     if(staffWorkflowMatch&&req.method==='POST'){
@@ -2024,12 +2026,13 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
-      await authorize('staff');rate(ctx,'support.status',20,3600000);
+      await authorize('support');rate(ctx,'support.status',20,3600000);
       const id=idFrom(staffStatusMatch[1]),t=supportTicket(id);
       await requireSupportAccess(t,true);
       if(t.category==='team_application')invalid('Use the team application review page for recruitment decisions.');
       const {fields}=await form();
       if(!['open','reviewing','resolved'].includes(fields.status))invalid('Invalid status');
+      if(ctx.role==='trial-mod'&&fields.status!=='resolved')forbidden('Trial Mods can only resolve tickets.');
       updateSupportStatus({ticketId:id,userId:ctx.user.id,role:ctx.role,ip:ctx.ip,status:fields.status});
       return success(staffTicketBack(id,fields),'Ticket status updated.');
     }

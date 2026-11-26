@@ -134,6 +134,7 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
  const initialFiles=attachments.filter(f=>!f.message_id);
  const firstResponse=messages.find(m=>m.author_id!==ticket.user_id);
  const canModerate=['admin','owner'].includes(ctx.role);
+ const fullStaff=staff&&ctx.role!=='trial-mod';
  return `<div class="ticket-view staff-ticket-detail" id="selected-ticket">
  <div class="staff-ticket-top"><div>
  <h2>Ticket <span class="gradient">#${ticket.id}</span></h2>
@@ -165,27 +166,27 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
    <input type="file" name="evidence" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"></label>
    <small class="muted">Max 5 files · 12 MB each</small><button class="btn btn-primary btn-sm" type="submit">Send reply</button></div>
  </form>
- ${staff?`<details class="staff-ticket-notes"><summary>Internal notes · ${notes.length}</summary>
+ ${fullStaff?`<details class="staff-ticket-notes"><summary>Internal notes · ${notes.length}</summary>
   ${notes.map(note=>`<article><b>${esc(note.display_name)}</b> <small>${date(note.created_at)}</small><p>${text(note.body)}</p></article>`).join('')}
   <form method="post" action="${staffPath}/workflow">${token(ctx)}${returnField}
   <label>Staff-only note<textarea name="note" rows="3" maxlength="2000" required></textarea></label>
   <button class="btn btn-outline btn-sm" name="action" value="note">Save internal note</button></form></details>`:
-  (ticket.user_id===ctx.user.id?ticketFeedback(ctx,'support',ticket,feedback,embedded):'')}
+  (!staff&&ticket.user_id===ctx.user.id?ticketFeedback(ctx,'support',ticket,feedback,embedded):'')}
  </section>
  <aside class="panel padded staff-ticket-sidebar">
  <h3>Discord member</h3><div class="ticket-reporter">${avatar({id:ticket.user_id,avatar:ticket.avatar,display_name:ticket.display_name},'sm')}
  <span><b>${val(ticket.display_name)}</b><small>@${val(ticket.username)}</small></span></div>
  ${staff?`<div class="staff-ticket-buttons"><a href="/u/${esc(ticket.user_id)}">View profile</a> <button type="button" class="btn btn-outline btn-sm" data-copy-discord-id="${esc(ticket.user_id)}">Copy Discord ID</button>
  ${canModerate?`<a href="/staff/discord-moderation?member=${esc(ticket.user_id)}">Moderation history</a>`:''}</div>
- ${staffActions(ctx,ticket,workflow||{},history,returnField)}`:''}
+ ${fullStaff?staffActions(ctx,ticket,workflow||{},history,returnField):''}`:''}
  <h3>Timeline</h3><dl class="staff-ticket-timeline"><dt>Opened</dt><dd>${date(ticket.created_at)}</dd>
  ${firstResponse?`<dt>First staff reply</dt><dd>${date(firstResponse.created_at)}</dd>`:''}
  ${ticket.resolved_at?`<dt>Resolved</dt><dd>${date(ticket.resolved_at)}</dd>`:''}</dl>
- ${staff?`<form method="post" action="${staffPath}/status" class="ticket-status-form">${token(ctx)}${returnField}
+ ${fullStaff?`<form method="post" action="${staffPath}/status" class="ticket-status-form">${token(ctx)}${returnField}
  <label>Status<select name="status">${['open','reviewing','resolved'].map(x=>`<option value="${x}" ${ticket.status===x?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></label>
- <button class="btn btn-outline btn-sm">Update status</button></form>
- ${ticket.status!=='resolved'?`<form method="post" action="${staffPath}/status">${token(ctx)}${returnField}
- <button class="btn btn-outline btn-sm" name="status" value="resolved">Mark as resolved</button></form>`:''}`:''}
+ <button class="btn btn-outline btn-sm">Update status</button></form>`:''}
+ ${staff&&ticket.status!=='resolved'?`<form method="post" action="${staffPath}/status">${token(ctx)}${returnField}
+ <button class="btn btn-outline btn-sm" name="status" value="resolved">Mark as resolved</button></form>`:''}
  </aside></div></div>`;
 }
 export function supportTicketPage(ctx,props){
