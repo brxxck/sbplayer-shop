@@ -33,7 +33,7 @@ export const canWorkSupport=role=>['trial-mod','reviewer','admin','owner'].inclu
 
 export async function accessibleSupportTicket(ctx,t,discord,config,{staffView=false}={}){
  if(!t)return false;
- if(ctx.role==='trial-mod')return staffView?t.visibility==='staff'&&t.category!=='staff_report'&&t.category!=='team_application':
+ if(ctx.role==='trial-mod')return staffView?t.visibility==='staff'&&['bug_report','player_report','reward_claim'].includes(t.category):
    t.user_id===ctx.user?.id;
  // Recruitment answers contain private financial and identity details.
  // Team leaders retain their separate, Discord-role-checked review route.

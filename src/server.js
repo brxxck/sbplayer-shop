@@ -1980,7 +1980,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     if(pathname==='/staff/tickets'&&req.method==='GET'){
       await authorize('support');
       const trial=ctx.role==='trial-mod';
-      if(trial&&!['','unread'].includes(url.searchParams.get('view')||''))forbidden();
+      if(trial&&!['','unread','assigned'].includes(url.searchParams.get('view')||''))forbidden();
       const scope=url.searchParams.get('status')==='active'&&!['unread','analytics','requests','assigned','escalated'].includes(url.searchParams.get('view'))?'active':'all';
       const available=url.searchParams.get('view')==='requests'?[]:
         await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
@@ -2005,7 +2005,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       const cases=decorateCases(tickets,ctx.user.id).map(ticket=>({
         ...ticket,
-        ...(!trial&&ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
+        ...(ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
         ...(url.searchParams.get('view')==='analytics'?{rating:feedbackFor(feedbackCaseKind(ticket.category),ticket.id)}:{})
       }));
       const staffActivity=url.searchParams.get('view')==='analytics'?await supportActivityStats(ctx,discord,config):[];
@@ -2020,8 +2020,8 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       await requireSupportAccess(ticket,true);
       if(ticket.category==='team_application')missing();
       const action=String(fields.action||'');
-      if(ctx.role==='trial-mod'&&action!=='escalate')forbidden();
-      if(ctx.role==='trial-mod'&&ticket.status==='resolved')invalid('Only open tickets can be escalated.');
+      if(ctx.role==='trial-mod'&&!['claim','unassign','tag','escalate'].includes(action))forbidden();
+      if(ctx.role==='trial-mod'&&ticket.status==='resolved'&&['claim','escalate'].includes(action))invalid('Only active tickets can be claimed or escalated.');
       const value=action==='note'?formValue(fields,'note',2000,1):
         action==='tag'?formValue({...fields,label:fields.label||''},'label',32,0):String(fields.target||'');
       if(action==='escalate'&&ticket.visibility==='owner'&&value!=='owners')forbidden('This ticket is restricted to owners.');
