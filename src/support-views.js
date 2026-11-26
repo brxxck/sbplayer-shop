@@ -163,7 +163,27 @@ export function supportTicketContent(ctx,{ticket,messages=[],attachments=[],staf
      </div></article>`).join('')}</div>
  <form method="post" action="${submit}" enctype="multipart/form-data" class="ticket-chat-composer">
   ${token(ctx)}${returnField}
-  <label>Public reply<textarea name="body" rows="3" maxlength="2000" minlength="1" required placeholder="Write your reply…"></textarea></label>
+  <label>Public reply<textarea name="body" rows="3" maxlength="2000" minlength="1" required placeholder="Write your reply…" ${staff?'spellcheck="true" lang="en-GB"':''}></textarea></label>
+  ${staff?`<details class="sb-writing-assistant" data-writing-assistant>
+   <summary><span>SB Writing Assistant</span><small>Free · On-device</small></summary>
+   <p class="muted">Rule-based suggestions. Review before applying; nothing is sent automatically.</p>
+   <div class="sb-writing-tools" role="group" aria-label="Writing tools">
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="grammar">Fix grammar</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="spelling">Spelling</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="punctuation">Punctuation</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="professional">Professional</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="friendly">Friendly</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="concise">Shorten</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-tool="format">Formatting</button>
+    <button type="button" class="btn btn-outline btn-sm" data-writing-undo disabled>Undo</button>
+   </div>
+   <p class="sb-writing-status" data-writing-status role="status" aria-live="polite"></p>
+   <div class="sb-writing-preview" data-writing-preview hidden>
+    <label>Suggested reply<textarea data-writing-suggestion rows="4" maxlength="2000" readonly aria-label="Suggested reply"></textarea></label>
+    <div class="sb-writing-tools"><button type="button" class="btn btn-primary btn-sm" data-writing-apply>Apply suggestion</button>
+     <button type="button" class="btn btn-outline btn-sm" data-writing-discard>Discard</button></div>
+   </div>
+  </details>`:''}
   ${staff?`<label>Quick replies<select data-ticket-quick-reply><option value="">Choose a template</option>
    <option value="Thanks for reaching out. We’re reviewing your ticket and will update you here.">Acknowledge ticket</option>
    <option value="Could you share a screenshot or clip, plus the Discord channel and approximate time this happened?">Request evidence</option>

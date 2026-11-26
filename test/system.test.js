@@ -1678,3 +1678,19 @@ test('Staff ticket activity counts distinct historical claims and resolutions wi
  assert.deepEqual(counts(await read('claimstaff'),'owner'),counts(staffView,'owner'));
  assert.deepEqual(counts(await read('owner'),'owner'),[(ownerBefore[0]||0)+1,ownerBefore[1]||0]);
 });
+
+test('Free writing assistant is available only in the staff ticket composer',async()=>{
+ const id=createSupportTicket({userId:ids.member2,category:'bug_report',fields:{description:'Writing assistant fixture'}});
+ const staff=await (await get('/staff/tickets/'+id,'reviewer')).text();
+ assert.match(staff,/data-writing-assistant/);
+ assert.match(staff,/data-writing-tool="professional"/);
+ assert.match(staff,/data-writing-apply/);
+ assert.match(staff,/data-writing-undo disabled/);
+ assert.match(staff,/writing-assistant\.js\?v=sb-writing-v1/);
+ const own=await (await get('/tickets/'+id,'member2')).text();
+ assert.doesNotMatch(own,/data-writing-assistant|writing-assistant\.js/);
+ for(const asset of ['writing-assistant.js','writing-assistant.css']){
+  const response=await get('/static/'+asset);
+  assert.equal(response.status,200);
+ }
+});
