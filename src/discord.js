@@ -32,6 +32,7 @@ export async function exchangeCode(code,verifier) {
 export const getDiscordUser=accessToken=>request(api+'/users/@me',{headers:{authorization:'Bearer '+accessToken}});
 export const getOAuthGuildMember=token=>request(`${api}/users/@me/guilds/${config.guildId}/member`,{headers:{authorization:'Bearer '+token}});
 export const getGuild=()=>bot(`/guilds/${config.guildId}`);
+export const getModerationAuditLog=actionType=>bot(`/guilds/${config.guildId}/audit-logs?action_type=${actionType}&limit=25`);
 export const getRoles=()=>bot(`/guilds/${config.guildId}/roles`);
 export const getGuildMember=id=>bot(`/guilds/${config.guildId}/members/${encodeURIComponent(id)}`);
 export const getBotIdentity=()=>bot('/users/@me');

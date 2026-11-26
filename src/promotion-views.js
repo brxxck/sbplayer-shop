@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-import {shell,esc,token,titlebar,tag,avatar} from './views.js';
+import {ticketFeedback,shell,esc,token,titlebar,tag,avatar} from './views.js';
 import {icon} from './icons.js';
 const when=v=>v?new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—';
 const html=v=>esc(v||'').replace(/\n/g,'<br>');
@@ -28,7 +28,7 @@ export function promotionQueue(ctx,{tickets=[]}={}){
  return shell(ctx,'Promotion Reviews','<div class="support-container">'+titlebar('ADMIN REVIEWS','Promotion <span class="gradient">queue.</span>','Two admins required.')+
  '<div class="panel"><div class="panel-heading"><h2>Promotion requests</h2></div>'+rows(tickets,staff)+'</div></div>');
 }
-export function promotionDetails(ctx,{ticket,decisions=[],messages=[],staffView=false}){
+export function promotionDetails(ctx,{ticket,decisions=[],messages=[],staffView=false,feedback}){
  const canVote=staffView&&['open','reviewing'].includes(ticket.status)&&ctx.user.id!==ticket.user_id&&!decisions.some(d=>d.admin_id===ctx.user.id);
  const retry=staffView&&ticket.status==='accepted'&&ticket.role_sync_status!=='assigned';
  const path=staffView?staff(ticket.id):own(ticket.id);
@@ -44,5 +44,5 @@ export function promotionDetails(ctx,{ticket,decisions=[],messages=[],staffView=
  (ticket.status==='accepted'?'<div class="notice-box">Discord role delivery: <b>'+esc(ticket.role_sync_status)+'</b><p>'+esc(ticket.role_sync_error)+'</p></div>':'')+votes+'</section>'+
  '<section class="panel padded ticket-conversation chat-ticket"><h2>Private conversation</h2><div class="ticket-chat-log">'+(chat||'<p class="muted">No messages yet.</p>')+'</div>'+
  '<form method="post" action="'+path+'/reply" class="ticket-chat-composer">'+token(ctx)+'<textarea name="body" rows="3" minlength="1" maxlength="2000" required placeholder="Write your reply..."></textarea><button class="btn btn-primary btn-sm">'+icon('send',{size:17})+' Send Reply</button></form>'+
- '</section></div></div>');
+ '</section></div>'+(!staffView?ticketFeedback(ctx,'promotion',ticket,feedback):'')+'</div>');
 }

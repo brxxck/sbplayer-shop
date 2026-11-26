@@ -1,5 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
-import {shell,esc,tag,token,titlebar,avatar} from './views.js';
+import {ticketFeedback,shell,esc,tag,token,titlebar,avatar} from './views.js';
 import {TEAM_SKILLS} from './team-applications.js';
 const displayMoney=n=>Number(n||0).toLocaleString('en-GB');
 const when=v=>new Date(v).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});
@@ -49,10 +49,11 @@ export function teamApplyPage(ctx,{xboxLink=null,active=null,history=[],alreadyM
  return shell(ctx,'Apply to SBs',titlebar('MEGASMP RECRUITMENT','Join <span class="gradient">SBs.</span>','')+
   '<div class="stack narrow">'+body+historyHtml+'</div>');
 }
-export function myTeamApplicationPage(ctx,{application:a}={}) {
+export function myTeamApplicationPage(ctx,{application:a,feedback}={}) {
  return shell(ctx,'Team application #'+a.id,titlebar('PRIVATE TEAM APPLICATION','Team application <span class="gradient">#'+a.id+'</span>','Submitted '+when(a.created_at),tag(a.status))+
  '<div class="stack narrow"><section class="panel padded"><h2>Details</h2><p class="muted">Private to you and team leadership.</p>'+
  '<p><b>Minecraft IGN:</b> '+esc(a.minecraft_ign)+'</p><p><b>Daily income:</b> $'+displayMoney(a.daily_earnings)+'</p><p><b>Net worth:</b> $'+displayMoney(a.net_worth)+'</p><p><b>Activity:</b> '+esc(a.play_days)+' days/week, '+esc(a.play_hours)+' hours/active day</p></section>'+
+ ticketFeedback(ctx,'team_application',a,feedback)+
  '<a class="btn btn-outline" href="/team-applications/apply">Back to applications</a></div>');
 }
 export function teamReviewQueue(ctx,{items=[],status='all',sort='newest',q='',counts=null}={}) {
