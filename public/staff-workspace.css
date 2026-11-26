@@ -136,3 +136,50 @@
   .staff-workspace-table td[data-label]::before { display: block; content: attr(data-label); color: #a8bdd7; font-size: .8rem; }
   .staff-workspace-table td time { white-space: normal; }
 }
+
+/* Ticket conversation and member sidebar */
+.staff-ticket-detail { padding: .9rem; scroll-margin-top: 5.5rem; }
+.staff-ticket-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  margin-bottom: .8rem;
+}
+.staff-ticket-top h2 { margin: 0 0 .35rem; }
+.staff-ticket-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.25fr) minmax(16rem, 1fr);
+  gap: .85rem;
+  align-items: start;
+}
+.staff-ticket-grid h3 { margin: 0 0 .55rem; font-size: 1rem; }
+.staff-ticket-original { padding: .8rem; margin-top: .7rem; background: #10253c; border: 1px solid #345473; border-radius: .65rem; }
+.staff-ticket-original h4 { margin: 0 0 .55rem; }
+.staff-ticket-sidebar section, .staff-ticket-sidebar > h3:not(:first-child) { margin-top: 1.05rem; }
+.staff-ticket-sidebar section { border-top: 1px solid var(--workspace-line); padding-top: .85rem; }
+.staff-ticket-sidebar p { margin: .25rem 0 .55rem; }
+.staff-ticket-sidebar ul { padding-inline-start: 1.2rem; }
+.staff-ticket-sidebar li + li { margin-top: .4rem; }
+.staff-ticket-sidebar a, .staff-case-direct { color: var(--workspace-accent); text-decoration: underline; }
+.staff-case-direct { font-size: .8rem; }
+.staff-ticket-buttons { display: flex; flex-wrap: wrap; gap: .45rem .7rem; align-items: center; }
+.staff-ticket-action { display: grid; gap: .45rem; justify-items: start; }
+.staff-ticket-action input, .staff-ticket-action label { width: 100%; }
+.staff-ticket-sidebar form { margin-block: .45rem; }
+.staff-ticket-timeline { display: grid; grid-template-columns: auto minmax(0,1fr); gap: .35rem .65rem; font-size: .875rem; }
+.staff-ticket-timeline dd { margin: 0; color: #b4c9e1; }
+.staff-ticket-notes { border-top: 1px solid var(--workspace-line); margin-top: 1rem; padding-top: .8rem; }
+.staff-ticket-notes summary { cursor: pointer; font-weight: 650; padding: .55rem 0; }
+.staff-ticket-notes article { padding: .65rem; border-radius: .5rem; background: #122740; margin-bottom: .5rem; }
+.staff-ticket-notes article p { overflow-wrap: anywhere; margin: .35rem 0 0; }
+.staff-ticket-notes form { display: grid; gap: .6rem; justify-items: start; }
+.staff-ticket-notes form label { width: 100%; }
+.staff-ticket-notes textarea { width: 100%; }
+.staff-ticket-grid .ticket-feedback { margin-top: 1rem; }
+.my-ticket-list details { padding: .8rem 1rem; border-bottom: 1px solid var(--workspace-line); }
+.my-ticket-list summary { padding-block: .35rem; cursor: pointer; }
+.my-ticket-list summary span { margin-inline-end: .4rem; }
+.my-ticket-list p { color: #b4c9e1; }
+@media(max-width: 850px) { .staff-ticket-grid { grid-template-columns: 1fr; } }

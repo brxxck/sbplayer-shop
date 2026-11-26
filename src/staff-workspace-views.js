@@ -36,20 +36,26 @@ function caseSubject(ticket){
   ticket.position||ticket.minecraft_ign||ticket.to_label;
  return title?String(title).slice(0,120):categoryLabel(ticket.category);
 }
-function caseRows(tickets){
+function caseRows(tickets,previewLink){
  if(!tickets.length)return '<div class="staff-workspace-empty">No cases match this view.</div>';
  return `<div class="table-wrap staff-workspace-table"><table><thead><tr>
  <th scope="col">Case</th><th scope="col">Discord member</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Updated</th>
  </tr></thead><tbody>${tickets.map(t=>`<tr${t.unread?' class="staff-workspace-unread"':''}>
-   <td><a class="staff-case-link" href="${esc(t.href)}"><small>#${esc(t.displayId)}</small><strong>${esc(caseSubject(t))}</strong></a></td>
+   <td><a class="staff-case-link" href="${esc(t.displayId.startsWith('T-')?previewLink(t.id):t.href)}"><small>#${esc(t.displayId)}</small><strong>${esc(caseSubject(t))}</strong></a>
+    ${t.displayId.startsWith('T-')?`<a class="staff-case-direct" href="${esc(t.href)}">Open full page</a>`:''}</td>
    <td data-label="Discord member"><strong>${esc(t.display_name||t.username||'Member')}</strong>${t.username?`<small>@${esc(t.username)}</small>`:''}</td>
    <td><span class="staff-case-type">${esc(categoryLabel(t.category))}</span></td>
-   <td>${tag(t.queue_status||t.status)}${t.unread?`<small class="staff-case-unread">${t.unread} unread</small>`:''}</td>
+   <td>${tag(t.queue_status||t.status)}${t.unread?`<small class="staff-case-unread">${t.unread} unread</small>`:''}
+    ${t.assignee?`<small>Assigned to ${esc(t.assignee)}</small>`:''}
+    ${t.escalation?`<small>Escalated to ${esc(t.escalation)}</small>`:''}
+    ${t.privateTag?`<small>Your tag · ${esc(t.privateTag)}</small>`:''}</td>
    <td data-label="Updated"><time datetime="${new Date(t.updated_at).toISOString()}">${esc(formatDate(t.updated_at))}</time></td>
   </tr>`).join('')}</tbody></table></div>`;
 }
 function ticketAnalytics(tickets){
  const closed=tickets.filter(t=>finalStates.has(t.status)).length;
+ const rated=tickets.filter(t=>t.rating).length;
+ const satisfied=tickets.filter(t=>t.rating==='satisfied').length;
  const unread=tickets.filter(t=>t.unread>0).length;
  const waiting=tickets.filter(t=>t.queue_status==='awaiting_member').length;
  const byType=Map.groupBy(tickets,t=>t.category);
@@ -57,7 +63,7 @@ function ticketAnalytics(tickets){
  return `<section class="staff-analytics">
   <h2>Ticket analytics</h2><p class="muted">Based on the recent cases you can access in this workspace.</p>
   <div class="staff-stat-grid">
-  ${[['Cases',tickets.length],['Active',tickets.length-closed],['Closed',closed],['With unread replies',unread],['Waiting on member',waiting]].map(([name,count])=>
+  ${[['Cases',tickets.length],['Active',tickets.length-closed],['Closed',closed],['With unread replies',unread],['Waiting on member',waiting],['Satisfied ratings',rated?`${satisfied}/${rated}`:'—']].map(([name,count])=>
    `<div><span>${name}</span><strong>${count}</strong></div>`).join('')}</div>
   <h3>Cases by type</h3>
   ${counts.length?`<div class="staff-breakdown">${counts.map(([type,rows])=>
@@ -66,12 +72,18 @@ function ticketAnalytics(tickets){
  </section>`;
 }
 
-export function staffTicketWorkspace(ctx,{tickets,query,teamCounts}){
+export function staffTicketWorkspace(ctx,{tickets,selected='',query,teamCounts}){
  const requestedView=query.get('view');
- const view=['unread','analytics','requests'].includes(requestedView)?requestedView:'all';
+ const view=['unread','analytics','requests','assigned','escalated'].includes(requestedView)?requestedView:'all';
  const active=view==='all'&&query.get('status')==='active';
  const current=view==='all'?(active?'active':'all'):view;
- const candidates=tickets.filter(t=>view==='requests'?requestTypes.has(t.category):view==='unread'?t.unread>0:true);
+ const candidates=tickets.filter(t=>{
+  if(view==='requests')return requestTypes.has(t.category);
+  if(view==='unread')return t.unread>0;
+  if(view==='assigned')return t.assignee_id===ctx.user.id;
+  if(view==='escalated')return !finalStates.has(t.status)&&t.escalation&&(ctx.role==='owner'||(ctx.role==='admin'&&t.escalation==='admins'));
+  return true;
+ });
  const categories=[...new Set([...candidates.map(t=>t.category),...(teamCounts!==null&&['all','requests'].includes(view)?['team_application']:[])])];
  const statuses=[...new Set(candidates.map(t=>t.queue_status||t.status))];
  const type=categories.includes(query.get('type'))?query.get('type'):'';
@@ -80,7 +92,7 @@ export function staffTicketWorkspace(ctx,{tickets,query,teamCounts}){
  const q=readQuery(query,'q'),term=q.toLowerCase();
  const rank=t=>{const i=attentionOrder.indexOf(t.queue_status||t.status);return i<0?attentionOrder.length:i;};
  const rows=candidates.filter(t=>(!type||t.category===type)&&(!state||(t.queue_status||t.status)===state)&&
-  (!term||[t.displayId,t.user_id,t.username,t.display_name,caseSubject(t),categoryLabel(t.category)]
+  (!term||[t.displayId,t.user_id,t.username,t.display_name,t.assignee,t.privateTag,caseSubject(t),categoryLabel(t.category)]
    .some(value=>String(value||'').toLowerCase().includes(term))));
  if(sort==='oldest')rows.sort((a,b)=>a.updated_at-b.updated_at);
  if(sort==='attention')rows.sort((a,b)=>rank(a)-rank(b)||a.updated_at-b.updated_at);
@@ -103,16 +115,19 @@ export function staffTicketWorkspace(ctx,{tickets,query,teamCounts}){
  </form>`;
  const teamNote=teamCounts===null?'':`<div class="staff-queue-note"><span><b>Team applications:</b> ${Number(teamCounts.total||0)} stored · ${Number(teamCounts.active||0)} active</span>
   <a href="${queue}?type=team_application">Filter team applications</a>${ctx.role==='owner'?'<a href="/owner/recruitment-diagnostics">Check stored submissions</a>':''}</div>`;
- const labels={all:'All Tickets',active:'Active Queue',unread:'Unread',requests:'Staff Requests'};
+ const labels={all:'All Tickets',active:'Active Queue',unread:'Unread',requests:'Staff Requests',assigned:'Assigned to me',escalated:'Escalated'};
+ const previewLink=id=>link(page)+'&ticket='+id+'#selected-ticket';
  return workspace(ctx,view==='requests'?'requests':'tickets',`<section class="staff-workspace-panel">
   <nav class="staff-workspace-subtabs" aria-label="Ticket views">
    ${item(queue,'All Tickets',current==='all')}${item(queue+'?status=active','Active Queue',current==='active')}
+   ${item(queue+'?view=assigned','Assigned to me',current==='assigned')}
+   ${canModerate(ctx)?item(queue+'?view=escalated','Escalated',current==='escalated'):''}
    ${item(queue+'?view=unread','Unread',current==='unread')}${item(queue+'?view=analytics','Analytics',current==='analytics')}
    <a class="staff-personal-tickets" href="/tickets/mine">My submitted tickets</a>
   </nav>
   ${view==='analytics'?ticketAnalytics(tickets):`${filters}${teamNote}
    <div class="staff-results-heading"><h2>${labels[current]}</h2><span>${rows.length} ${rows.length===1?'case':'cases'}</span></div>
-   ${caseRows(rows.slice((page-1)*pageSize,page*pageSize))}${pager}`}
+   ${selected}${caseRows(rows.slice((page-1)*pageSize,page*pageSize),previewLink)}${pager}`}
  </section>`);
 }
 

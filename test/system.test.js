@@ -1534,3 +1534,52 @@ test('Staff Workspace filters visible cases and keeps Discord moderation restric
  assert.match(banView,/Repeated spam/);
  assert.doesNotMatch(banView,/>Timeout<\/span>/);
 });
+
+test('Ticket workflow keeps staff notes and personal tags private and accepts one final rating from the requester',async()=>{
+ const id=createSupportTicket({userId:ids.member,category:'bug_report',fields:{description:'Workflow fixture'}}),
+  staff='/staff/tickets/'+id,own='/tickets/'+id,workspace='/staff/tickets?ticket='+id;
+ const manage=(who,action,fields={})=>post(staff+'/workflow',who,{...fields,action});
+ const rating=(who,value)=>post('/tickets/feedback',who,{id,kind:'support',rating:value});
+ assert.equal((await get(workspace,'member')).status,403);
+ assert.equal((await manage('member','claim')).status,403);
+ const attempts=await Promise.all([manage('reviewer','claim',{workspace:'1'}),manage('adminA','claim')]);
+ assert.deepEqual(attempts.map(r=>r.status).sort(),[303,409]);
+ const assignee=attempts[0].status===303?'reviewer':'adminA';
+ const assigned=await (await get('/staff/tickets?view=assigned',assignee)).text();
+ assert.ok(assigned.includes('href="'+staff+'"'));
+ assert.equal((await manage(assignee,'tag',{label:'Just for me'})).status,303);
+ assert.equal((await manage(assignee,'note',{note:'Internal only fixture'})).status,303);
+ const selected=await (await get(workspace,assignee)).text();
+ assert.match(selected,/Internal only fixture/);
+ assert.match(selected,/Just for me/);
+ assert.match(selected,/data-ticket-quick-reply/);
+ assert.equal((await manage(assignee,'escalate',{target:'owners'})).status,303);
+ assert.equal((await manage('adminA','clear_escalation')).status,403);
+ const ownerQueue=await (await get('/staff/tickets?view=escalated','owner')).text();
+ assert.ok(ownerQueue.includes('href="'+staff+'"'));
+ assert.doesNotMatch(await (await get(staff,'owner')).text(),/Just for me/);
+ assert.doesNotMatch(await (await get(own,'member')).text(),/Internal only fixture|Just for me|How was this ticket handled/);
+ assert.equal((await rating('member','satisfied')).status,409);
+ assert.equal((await post(staff+'/status',assignee,{status:'resolved'})).status,303);
+ assert.equal((await rating('member2','satisfied')).status,404);
+ assert.equal((await get('/tickets/mine?ticket='+id,'member2')).status,404);
+ const resolved=await (await get('/tickets/mine?view=resolved&ticket='+id,'member')).text();
+ assert.match(resolved,/How was this ticket handled/);
+ assert.equal((await rating('member','satisfied')).status,303);
+ assert.equal((await rating('member','not_satisfied')).status,303);
+ assert.match(await (await get(own,'member')).text(),/You rated this <strong>Satisfied/);
+ assert.match(await (await get('/staff/tickets?view=analytics','owner')).text(),/Satisfied ratings/);
+ assert.equal(one("SELECT rating FROM ticket_feedback WHERE kind='support' AND ticket_id=?",id).rating,'satisfied');
+});
+
+test('A finalized staff application can receive feedback on the applicant page',async()=>{
+ const app=one("SELECT id,user_id FROM applications WHERE status='accepted' ORDER BY id LIMIT 1");
+ assert.ok(app);
+ const applicant=Object.keys(ids).find(key=>ids[key]===app.user_id);
+ const path='/dashboard/applications/'+app.id;
+ const fields={id:app.id,kind:'application',rating:'not_satisfied'};
+ assert.match(await (await get(path,applicant)).text(),/How was this ticket handled/);
+ assert.equal((await post('/tickets/feedback',applicant,fields)).status,303);
+ assert.match(await (await get(path,applicant)).text(),/You rated this <strong>Not satisfied/);
+ assert.equal(one("SELECT rating FROM ticket_feedback WHERE kind='application' AND ticket_id=?",app.id).rating,'not_satisfied');
+});

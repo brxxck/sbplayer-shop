@@ -1,4 +1,5 @@
 // BUILT BY SB // RUNING ON WEED AND CAFFEINE
+import {ticketStaffState,ticketInternalNotes,updateTicketWorkflow,feedbackFor,saveTicketFeedback,feedbackCaseKind} from './ticket-workflow.js';
 import {createDiscordModerationReader} from './discord-moderation.js';
 import {staffTicketWorkspace,discordModerationWorkspace} from './staff-workspace-views.js';
 import http from 'node:http';
@@ -1439,7 +1440,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const a=teamApplication(idFrom(myTeamApplicationMatch[1]));
       if(!a||a.user_id!==ctx.user.id)missing();
       logAction(ctx,'team_application.access','team_application:'+a.id,{access:'applicant'});
-      return html(teamApplicationViews.myTeamApplicationPage(ctx,{application:a}));
+      return html(teamApplicationViews.myTeamApplicationPage(ctx,{application:a,feedback:feedbackFor('team_application',a.id)}));
     }
 
     // V1.8: standalone MegaSMP home, current Top 10 and per-team details.
@@ -1764,7 +1765,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(staffView)markCaseRead(ctx.user.id,'promotion',id);
       if(!staffView)run('UPDATE promotion_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'promotion.access','promotion:'+id,{staffView});
-      return html(promotionView.promotionDetails(ctx,{ticket,staffView,decisions:staffView?promotionDecisions(id):[],messages:promotionMessages(id)}));
+      return html(promotionView.promotionDetails(ctx,{ticket,staffView,decisions:staffView?promotionDecisions(id):[],messages:promotionMessages(id),feedback:staffView?undefined:feedbackFor('promotion',id)}));
     }
     if(promotionActionMatch&&req.method==='POST'){
       const staffView=!!promotionActionMatch[1],id=idFrom(promotionActionMatch[2]),action=promotionActionMatch[3];
@@ -1862,6 +1863,14 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       logAction(ctx,'support_ticket.webhook','support_ticket:'+id,{category,visibility,reportReason:privateReport?reportReason:undefined,delivered});
       return success('/tickets/'+id,'Ticket #'+id+' submitted. Status: Open. Staff replies appear in the private conversation below and in My Tickets.');
     }
+    const feedbackBack={support:'/tickets/',application:'/dashboard/applications/',promotion:'/promotions/',team_application:'/team-applications/'};
+    if(pathname==='/tickets/feedback'&&req.method==='POST'){
+      const {fields}=await form();rate(ctx,'tickets.feedback',15,3600000);
+      const kind=String(fields.kind||''),id=idFrom(fields.id);
+      if(!id)invalid('Invalid ticket ID.');
+      const saved=saveTicketFeedback({kind,id,userId:ctx.user.id,rating:fields.rating,role:ctx.role,ip:ctx.ip});
+      return success(kind==='support'&&fields.workspace==='1'?'/tickets/mine?view=resolved&ticket='+id:feedbackBack[kind]+id,saved?'Feedback recorded.':'You already rated this ticket.');
+    }
     if(pathname==='/tickets/mine'&&req.method==='GET'){
       const supports=mySupportTickets(ctx.user.id)
         .filter(t=>ctx.role!=='appeal-only'||t.category==='ban_appeal')
@@ -1871,7 +1880,18 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         .map(a=>({...a,category:'application',unread:a.unread_replies||0,href:'/dashboard/applications/'+a.id}));
       const teamApps=ctx.role==='appeal-only'?[]:myTeamApplications(ctx.user.id)
         .map(a=>({...a,category:'team_application',href:'/team-applications/'+a.id}));
-      return html(supportView.myTickets(ctx,{tickets:[...supports,...apps,...promotions,...teamApps].sort((a,b)=>b.updated_at-a.updated_at)}));
+      const view=['pending','resolved'].includes(url.searchParams.get('view'))?url.searchParams.get('view'):'all';
+      const selectedId=url.searchParams.get('ticket');
+      let selectedTicket=null;
+      if(selectedId){
+        const id=idFrom(selectedId),ticket=supportTicket(id);
+        if(!ticket||ticket.user_id!==ctx.user.id||ticket.category==='team_application')missing();
+        await requireSupportAccess(ticket);
+        run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
+        logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:'member'});
+        selectedTicket={ticket,messages:supportMessages(id),attachments:supportAttachments(id),feedback:feedbackFor('support',id),embedded:true};
+      }
+      return html(supportView.myTickets(ctx,{view,selectedTicket,tickets:[...supports,...apps,...promotions,...teamApps].sort((a,b)=>b.updated_at-a.updated_at)}));
     }
     const applicationAttachmentMatch=/^\/applications\/attachments\/(\d+)$/.exec(pathname);
     if(applicationAttachmentMatch&&req.method==='GET'){
@@ -1894,6 +1914,15 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       logAction(ctx,'support_ticket.attachment.access','support_ticket:'+t.id,{attachmentId:att.id});
       return sendTicketEvidence(req,res,file,{preview:url.searchParams.get('preview')==='1'});
     }
+    const staffTicketBack=(id,fields)=>fields.workspace==='1'?'/staff/tickets?ticket='+id:'/staff/tickets/'+id;
+    async function staffTicketProps(ticket,embedded=false){
+      markCaseRead(ctx.user.id,ticket.category,ticket.id);
+      logAction(ctx,'support_ticket.access','support_ticket:'+ticket.id,{access:'staff'});
+      const recent=all("SELECT * FROM support_tickets WHERE user_id=? AND id!=? AND category!='team_application' ORDER BY updated_at DESC LIMIT 12",ticket.user_id,ticket.id);
+      const history=await supportQueueVisible(ctx,recent,discord,config);
+      return {ticket,messages:supportMessages(ticket.id),attachments:supportAttachments(ticket.id),staff:true,
+        embedded,workflow:ticketStaffState(ticket.id,ctx.user.id),notes:ticketInternalNotes(ticket.id),history:history.slice(0,5)};
+    }
     if((supportTicketMatch||staffSupportMatch)&&req.method==='GET'){
       const forStaff=!!staffSupportMatch;
       if(forStaff)await authorize('staff');
@@ -1905,11 +1934,11 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         return redirect(res,forStaff||(t.user_id!==ctx.user.id)
           ?'/team-applications/review/'+applicationId:'/team-applications/'+applicationId);
       }
-      if(forStaff)markCaseRead(ctx.user.id,t.category,id);
+      if(forStaff)return html(supportView.supportTicketPage(ctx,await staffTicketProps(t)));
       if(!forStaff&&t.user_id===ctx.user.id)run('UPDATE support_tickets SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'support_ticket.access','support_ticket:'+id,{access:forStaff?'staff':'member'});
       return html(supportView.supportTicketPage(ctx,{
-        ticket:t,messages:supportMessages(id),attachments:supportAttachments(id),staff:forStaff
+        ticket:t,messages:supportMessages(id),attachments:supportAttachments(id),feedback:t.user_id===ctx.user.id?feedbackFor('support',id):undefined
       }));
     }
     if(supportReplyMatch&&req.method==='POST'){
@@ -1940,7 +1969,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         });
         logAction(ctx,'support_ticket.reply_webhook','support_ticket:'+id,{delivered,pingHere});
       }
-      return success(forStaff?'/staff/tickets/'+id:'/tickets/'+id,'Reply sent.');
+      return success(forStaff?staffTicketBack(id,fields):fields.workspace==='1'?'/tickets/mine?ticket='+id:'/tickets/'+id,'Reply sent.');
     }
     if(pathname==='/staff/discord-moderation'&&req.method==='GET'){
       await authorize('admin');
@@ -1950,7 +1979,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
     }
     if(pathname==='/staff/tickets'&&req.method==='GET'){
       await authorize('staff');
-      const scope=url.searchParams.get('status')==='active'&&!['unread','analytics','requests'].includes(url.searchParams.get('view'))?'active':'all';
+      const scope=url.searchParams.get('status')==='active'&&!['unread','analytics','requests','assigned','escalated'].includes(url.searchParams.get('view'))?'active':'all';
       const available=url.searchParams.get('view')==='requests'?[]:
         await supportQueueVisible(ctx,scope==='all'?allSupportTickets():openSupportTickets(),discord,config);
       const promotions=isAdminRole(ctx.role)?queuePromotions(scope==='all'):[];
@@ -1965,7 +1994,33 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
         ...apps.map(a=>({...a,category:'application',href:'/staff/applications/'+a.id,displayId:'A-'+a.id})),
         ...recruitment.map(a=>({...a,category:'team_application',href:'/team-applications/review/'+a.id,displayId:'TA-'+a.id}))
       ].sort((a,b)=>b.updated_at-a.updated_at);
-      return html(staffTicketWorkspace(ctx,{tickets:decorateCases(tickets,ctx.user.id),query:url.searchParams,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
+      let selected='';
+      if(url.searchParams.has('ticket')&&url.searchParams.get('view')!=='analytics'){
+        const ticket=supportTicket(idFrom(url.searchParams.get('ticket')));
+        await requireSupportAccess(ticket,true);
+        if(ticket.category==='team_application')missing();
+        selected=supportView.supportTicketContent(ctx,await staffTicketProps(ticket,true));
+      }
+      const cases=decorateCases(tickets,ctx.user.id).map(ticket=>({
+        ...ticket,
+        ...(ticket.displayId.startsWith('T-')?ticketStaffState(ticket.id,ctx.user.id):{}),
+        ...(url.searchParams.get('view')==='analytics'?{rating:feedbackFor(feedbackCaseKind(ticket.category),ticket.id)}:{})
+      }));
+      return html(staffTicketWorkspace(ctx,{tickets:cases,selected,query:url.searchParams,teamCounts:ctx.teamRecruiter?teamApplicationCounts():null}));
+    }
+    const staffWorkflowMatch=/^\/staff\/tickets\/(\d+)\/workflow$/.exec(pathname);
+    if(staffWorkflowMatch&&req.method==='POST'){
+      await authorize('staff');rate(ctx,'support.workflow',40,3600000);
+      const {fields}=await form();
+      const id=idFrom(staffWorkflowMatch[1]),ticket=supportTicket(id);
+      await requireSupportAccess(ticket,true);
+      if(ticket.category==='team_application')missing();
+      const action=String(fields.action||'');
+      const value=action==='note'?formValue(fields,'note',2000,1):
+        action==='tag'?formValue({...fields,label:fields.label||''},'label',32,0):String(fields.target||'');
+      if(action==='escalate'&&ticket.visibility==='owner'&&value!=='owners')forbidden('This ticket is restricted to owners.');
+      updateTicketWorkflow({id,actorId:ctx.user.id,role:ctx.role,ip:ctx.ip,action,value});
+      return success(staffTicketBack(id,fields),'Ticket updated.');
     }
     const staffStatusMatch=/^\/staff\/tickets\/(\d+)\/status$/.exec(pathname);
     if(staffStatusMatch&&req.method==='POST'){
@@ -1976,7 +2031,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const {fields}=await form();
       if(!['open','reviewing','resolved'].includes(fields.status))invalid('Invalid status');
       updateSupportStatus({ticketId:id,userId:ctx.user.id,role:ctx.role,ip:ctx.ip,status:fields.status});
-      return success('/staff/tickets/'+id,'Ticket status updated.');
+      return success(staffTicketBack(id,fields),'Ticket status updated.');
     }
     if(pathname==='/staff/chat/messages'&&req.method==='GET'){
       await authorize('staff');rate(ctx,'staff.chat.read',45,60000);
@@ -2005,7 +2060,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       const messages=ticketMessages(id);
       run('UPDATE applications SET applicant_seen_at=? WHERE id=?',now(),id);
       logAction(ctx,'application.access','application:'+id,{access:'applicant'});
-      return html(view.ownTicket(ctx,ticket,messages,applicationAttachments(id)));
+      return html(view.ownTicket(ctx,ticket,messages,applicationAttachments(id),feedbackFor('application',id)));
     }
     // One private reply route for applicants and for staff; never accept a ticket ID as proof of access.
     const ticketReplyMatch=/^\/(dashboard|staff)\/applications\/(\d+)\/reply$/.exec(pathname);

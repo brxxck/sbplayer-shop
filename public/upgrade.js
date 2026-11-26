@@ -155,3 +155,34 @@
  const sortLabel=document.createElement('label');sortLabel.textContent='Order';const sort=document.createElement('select');for(const [v,l] of [['default','Recent website activity'],['name','Name A–Z'],['online','Online first']]){const option=document.createElement('option');option.value=v;option.textContent=l;sort.append(option);}sortLabel.append(sort);controls.append(statusLabel,sortLabel);grid.before(controls);
  const update=()=>{const q=document.querySelector('.list-search')?.value.toLowerCase()||'';const sorted=[...cards];if(sort.value==='name')sorted.sort((a,b)=>a.querySelector('b').textContent.localeCompare(b.querySelector('b').textContent));if(sort.value==='online')sorted.sort((a,b)=>(a.querySelector('[data-status]')?.dataset.status!=='online')-(b.querySelector('[data-status]')?.dataset.status!=='online'));for(const card of sorted){const state=card.querySelector('[data-status]')?.dataset.status;card.hidden=!!((presence.value&&state!==presence.value)||(q&&!card.textContent.toLowerCase().includes(q)));grid.append(card);}};presence.addEventListener('change',update);sort.addEventListener('change',update);document.querySelector('.list-search')?.addEventListener('input',update);
 })();
+
+document.addEventListener('change',event=>{
+ const select=event.target.closest?.('[data-ticket-quick-reply]');
+ if(!select?.value)return;
+ const input=select.form?.elements.namedItem('body');
+ if(!input)return;
+ const separator=input.value?'\n\n':'';
+ const draft=input.value+separator+select.value;
+ if(draft.length<=input.maxLength){
+  input.value=draft;
+  input.focus();
+ }else input.reportValidity();
+ select.value='';
+});
+document.addEventListener('click',async event=>{
+ const button=event.target.closest?.('[data-copy-ticket], [data-copy-discord-id]');
+ if(!button)return;
+ const value=button.dataset.copyDiscordId||new URL(button.dataset.copyTicket,location.origin).href;
+ const label=button.dataset.copyTicket?'Ticket link':'Discord ID';
+ try{
+  await navigator.clipboard.writeText(value);
+  button.textContent='Copied';
+ }catch{
+  const link=document.createElement('input');
+  link.value=value;
+  link.readOnly=true;
+  link.setAttribute('aria-label',label);
+  button.replaceWith(link);
+  link.select();
+ }
+});
