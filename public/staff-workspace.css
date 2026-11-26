@@ -112,6 +112,7 @@
 .staff-workspace-pager { padding: .65rem 1rem; display: flex; gap: .6rem; align-items: center; justify-content: center; }
 .staff-analytics { padding: 1rem; }
 .staff-analytics h2, .staff-analytics h3 { margin: 0 0 .55rem; }
+.staff-analytics .staff-activity-heading { margin-top: 1.5rem; }
 .staff-stat-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(8rem,1fr)); gap: .65rem; margin: 1rem 0 1.5rem; }
 .staff-stat-grid > div { display: grid; gap: .4rem; padding: .85rem; background: #112740; border: 1px solid var(--workspace-line); border-radius: .6rem; }
 .staff-stat-grid span { color: #c3d9f1; }

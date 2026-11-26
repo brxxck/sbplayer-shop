@@ -66,3 +66,36 @@ export async function supportQueueVisible(ctx,tickets,discord,config){
  }
  return list;
 }
+
+export async function supportActivityStats(ctx,discord,config){
+ const activity=all(`WITH recorded AS (
+  SELECT target,actor_id,
+   CASE
+    WHEN action='support_ticket.claim' THEN 'claimed'
+    WHEN json_valid(details) THEN CASE
+     WHEN json_extract(details,'$.after')='resolved' AND json_extract(details,'$.before')<>'resolved' THEN 'resolved'
+    END
+   END AS kind
+  FROM owner_audit_log
+  WHERE action IN ('support_ticket.claim','support_ticket.status') AND outcome='ok'
+    AND actor_role IN ('trial-mod','reviewer','admin','owner')
+ )
+ SELECT DISTINCT t.id,t.category,t.visibility,t.reported_user_id,a.actor_id,a.kind,
+  u.display_name,u.username
+ FROM recorded a
+ JOIN support_tickets t ON t.id=CAST(substr(a.target,1+length('support_ticket:')) AS INTEGER)
+  AND a.target='support_ticket:'||t.id
+ LEFT JOIN users u ON u.id=a.actor_id
+ WHERE a.kind IS NOT NULL AND t.category!='team_application'`);
+ const tickets=new Map(activity.map(row=>[row.id,row]));
+ const visible=new Set((await supportQueueVisible(ctx,[...tickets.values()],discord,config)).map(t=>t.id));
+ const stats=new Map();
+ for(const row of activity){
+  if(!visible.has(row.id))continue;
+  if(!stats.has(row.actor_id))stats.set(row.actor_id,{
+   id:row.actor_id,name:row.display_name||row.username||row.actor_id,username:row.username,claimed:0,resolved:0
+  });
+  stats.get(row.actor_id)[row.kind]++;
+ }
+ return [...stats.values()].sort((a,b)=>b.resolved-a.resolved||b.claimed-a.claimed||a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+}
