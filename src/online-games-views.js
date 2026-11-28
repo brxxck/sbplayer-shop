@@ -43,7 +43,7 @@ function rouletteCard(state){
   '<div class="online-stats"><div class="online-counter"><span>WATCHING</span><strong data-online-stat="roulette.watching">'+n(data.watching)+'</strong></div>'+
   '<div class="online-counter"><span>PLAYERS BETTING</span><strong data-online-stat="roulette.roundPlayers">'+n(data.roundPlayers)+'</strong></div>'+
   '<div class="online-counter"><span>POINTS IN ROUND</span><strong data-online-stat="roulette.roundWager">'+n(data.roundWager)+' pts</strong></div>'+
-  '<div class="online-counter"><span>CURRENT PHASE</span><strong class="roulette-lobby-phase" data-online-stat="roulette.phase">'+esc(data.phase)+'</strong></div></div>'+
+  '<div class="online-counter"><span>CURRENT PHASE</span><strong class="roulette-lobby-phase" data-online-stat="roulette.phase">'+esc(data.phase==='not_started'?'WAITING':data.phase)+'</strong></div></div>'+
   '<a class="btn btn-primary" href="/arcade/online/roulette">🎡 Open Live Roulette →</a>'+
   '<p class="online-warning">No queue limit. Choose chips and confirm before the betting countdown closes.</p></article>';
 }
