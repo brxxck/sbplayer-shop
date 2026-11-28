@@ -38,7 +38,7 @@ const form=(id,bets,request_id=randomUUID())=>({
  round_id:String(id),bets_json:JSON.stringify(bets),request_id
 });
 function begin(t){
- reset();const a=rouletteSnapshot(alice,t);assert.equal(a.phase,'betting');return a;
+ reset();const a=rouletteWatch(alice,t);assert.equal(a.phase,'betting');return a;
 }
 function fixNumber(id,number){
  let seed;
@@ -95,7 +95,7 @@ test('Seed commitment and rejection-sampled winning number are deterministic',()
  for(let i=1;i<250;i++)draws.add(rouletteOutcome(seed,i));
  assert.equal(draws.size,37,'every number is reachable');
 });
-test('Round is exactly 30 seconds betting + 8 spinning + 4 results, even with zero players',()=>{
+test('Round is exactly 30 seconds betting + 8 spinning + 4 results, with one viewer and no wagers',()=>{
  const t=1000000,start=begin(t);
  assert.equal(start.betClosesAt-start.createdAt,ROULETTE_BET_MS);
  assert.equal(start.spinEndsAt-start.betClosesAt,ROULETTE_SPIN_MS);
@@ -200,7 +200,7 @@ test('Recovery after a missed timer settles old bets before starting a fresh 30-
  const t=6000000,s=begin(t);
  const seed=fixNumber(s.roundId,0);
  roulettePlace(alice,form(s.roundId,[bet('color:red',100)]),t+25000);
- const next=rouletteSnapshot(alice,t+120000);
+ const next=rouletteWatch(alice,t+120000);
  assert.equal(next.phase,'betting');
  assert.notEqual(next.roundId,s.roundId);
  assert.equal(balance(alice),9900,'lost zero-spin wager is not refunded');
@@ -209,4 +209,27 @@ test('Recovery after a missed timer settles old bets before starting a fresh 30-
  assert.equal(JSON.parse(archived.details_json).winningNumber,0);
  assert.equal(JSON.parse(archived.details_json).seed,seed);
  assert.equal(rouletteSnapshot(alice,t+120001).canBet,true);
+});
+
+test('Roulette stays idle without viewers and settles wagers after the last viewer expires',()=>{
+ const t=7000000;
+ reset();
+ assert.equal(rouletteTick(t),null);
+ assert.equal(rouletteSnapshot(alice,t),null);
+ assert.equal(rouletteLobbyCounts(t).phase,'not_started');
+
+ const start=rouletteWatch(alice,t);
+ fixNumber(start.roundId,32);
+ roulettePlace(alice,form(start.roundId,[bet('color:red',100)]),t+1);
+ // The server missed the round deadline and the viewer heartbeat has expired.
+ assert.equal(rouletteTick(t+90001),null);
+ assert.equal(balance(alice),10100);
+ assert.equal(rouletteTick(t+120000),null);
+ assert.equal(balance(alice),10100);
+ assert.equal(rouletteLobbyCounts(t+120000).phase,'not_started');
+ assert.equal(one('SELECT COUNT(*) AS n FROM online_roulette_rounds').n,1);
+
+ const fresh=rouletteWatch(bob,t+120001);
+ assert.notEqual(fresh.roundId,start.roundId);
+ assert.equal(fresh.betClosesAt-fresh.createdAt,ROULETTE_BET_MS);
 });

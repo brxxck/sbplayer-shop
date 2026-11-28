@@ -26,7 +26,7 @@
   set('roulette.watching',number(roulette.watching));
   set('roulette.roundPlayers',number(roulette.roundPlayers));
   set('roulette.roundWager',number(roulette.roundWager)+' pts');
-  set('roulette.phase',roulette.phase==='spinning'?'SPINNING':roulette.phase==='results'?'RESULT':'BETTING');
+  set('roulette.phase',roulette.phase==='not_started'?'WAITING':roulette.phase==='spinning'?'SPINNING':roulette.phase==='results'?'RESULT':'BETTING');
   status('blackjack',bj.joined?(bj.atTable?'You have a seat (#'+number(bj.position)+').':
     'You are #'+number(bj.position)+' in the waiting queue.'):'Join the Blackjack queue to get a seat at the live table.');
   joined=!!bj.joined;

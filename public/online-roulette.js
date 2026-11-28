@@ -391,10 +391,11 @@
   if(!active||heartbeatBusy||document.visibilityState==='hidden')return;
   heartbeatBusy=true;
   try{
-   await fetch('/arcade/online/roulette/heartbeat',{
+   const response=await fetch('/arcade/online/roulette/heartbeat',{
     method:'POST',credentials:'same-origin',cache:'no-store',
     headers:{Accept:'application/json','Content-Type':'application/x-www-form-urlencoded'},
     body:new URLSearchParams({_csrf:csrf})});
+   if(response.ok)apply(await response.json());
   }catch{}finally{heartbeatBusy=false;}
  }
  async function submit(){

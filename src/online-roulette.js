@@ -129,16 +129,21 @@ function settle(round){
   "WHERE id=? AND guild_id=? AND status IN ('betting','spinning')",
   winning,round.spin_ends_at,round.id,config.guildId);
 }
+function nextRound(now,previous){
+ const watching=one('SELECT 1 FROM online_roulette_presence WHERE guild_id=? AND last_seen_at>=? LIMIT 1',
+  config.guildId,now-ROULETTE_PRESENCE_TTL);
+ return watching?createRound(now):previous;
+}
 function advance(now){
  let round=latest();
- if(!round)return createRound(now);
+ if(!round)return nextRound(now,null);
  if(round.status==='results'){
-  return now>=round.results_ends_at?createRound(now):round;
+  return now>=round.results_ends_at?nextRound(now,round):round;
  }
  if(now>=round.spin_ends_at){
   settle(round);
   round=latest();
-  return now>=round.results_ends_at?createRound(now):round;
+  return now>=round.results_ends_at?nextRound(now,round):round;
  }
  if(round.status==='betting'&&now>=round.bet_closes_at){
   run("UPDATE online_roulette_rounds SET status='spinning',version=version+1 WHERE id=? AND status='betting'",round.id);
@@ -192,7 +197,10 @@ function publicState(round,user,now){
 }
 export function rouletteSnapshot(userId,now=Date.now()){
  const user=userOf(userId),at=timeOf(now);
- return transaction(()=>publicState(advance(at),user,at));
+ return transaction(()=>{
+  const round=advance(at);
+  return round?publicState(round,user,at):null;
+ });
 }
 export function rouletteWatch(userId,now=Date.now()){
  const user=userOf(userId),at=timeOf(now);
@@ -209,13 +217,15 @@ export function rouletteTick(now=Date.now()){
  const at=timeOf(now);
  return transaction(()=>{
   const round=advance(at);
+  if(!round||(round.status==='results'&&at>=round.results_ends_at))return null;
   return {roundId:round.id,phase:round.status,version:round.version};
  });
 }
 export function rouletteLobbyCounts(now=Date.now()){
  const at=timeOf(now);
- const round=one('SELECT id,status FROM online_roulette_rounds WHERE guild_id=? ORDER BY id DESC LIMIT 1',config.guildId);
- if(!round)return {phase:'not_started',roundId:null,watching:0,roundPlayers:0,roundWager:0};
+ const round=one('SELECT id,status,results_ends_at FROM online_roulette_rounds WHERE guild_id=? ORDER BY id DESC LIMIT 1',config.guildId);
+ if(!round||(round.status==='results'&&at>=round.results_ends_at))
+  return {phase:'not_started',roundId:null,watching:0,roundPlayers:0,roundWager:0,enabled:true};
  const stats=one('SELECT COUNT(DISTINCT user_id) AS players,COALESCE(SUM(stake),0) AS wager '+
   'FROM online_roulette_bets WHERE round_id=?',round.id);
  const watch=one('SELECT COUNT(*) AS n FROM online_roulette_presence WHERE guild_id=? AND last_seen_at>=?',
@@ -235,7 +245,7 @@ export function roulettePlace(userId,fields,now=Date.now()){
     invalid('That request ID was already used for a different bet.',409);
    return publicState(active,user,at);
   }
-  if(active.id!==roundId||active.status!=='betting'||at>=active.bet_closes_at)
+  if(!active||active.id!==roundId||active.status!=='betting'||at>=active.bet_closes_at)
    invalid('Betting is closed. Wait for the next Roulette round.',409);
   const existing=one('SELECT COALESCE(SUM(stake),0) AS total FROM online_roulette_bets WHERE round_id=? AND user_id=?',
    roundId,user)?.total||0;

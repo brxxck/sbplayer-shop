@@ -459,7 +459,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       }
       if(req.method==='GET'&&pathname==='/arcade/online/roulette'){
         rate(ctx,'arcade.roulette.page',55,60000);
-        return html(onlineRoulettePage(ctx,summary(),rouletteWatch(user)));
+        return html(onlineRoulettePage(ctx,summary(),watchRoulette(user)));
       }
       if(req.method==='GET'&&pathname==='/arcade/online/roulette/state'){
         rate(ctx,'arcade.roulette.state',90,60000);
@@ -469,7 +469,7 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
       if(req.method==='POST'&&pathname==='/arcade/online/roulette/heartbeat'){
         await form();rate(ctx,'arcade.roulette.heartbeat',8,60000);
         res.setHeader('Cache-Control','no-store');
-        return respond(res,200,JSON.stringify(rouletteWatch(user)),'application/json; charset=utf-8');
+        return respond(res,200,JSON.stringify(watchRoulette(user)),'application/json; charset=utf-8');
       }
       if(req.method==='POST'&&pathname==='/arcade/online/roulette/bet'){
         const {fields}=await form();rate(ctx,'arcade.roulette.bet',40,60000);
@@ -2806,20 +2806,38 @@ export function createServer({discord=liveDiscord,testLogin=false}={}){
   // // BUILT BY SB // RUNING ON WEED AND CAFFEINE
   // Global Crash's half-second ticker is removed while it is disabled.
   // Only Solo Crash, Online Blackjack and Roulette continue running.
-  // Coalesced website-wide SSE refresh for Roulette. A single timer advances
-  // the game even when every browser has disconnected.
+  // Keep advancing the current round until its results window ends, then stop
+  // the ticker if there are no viewers to start another round.
   let rouletteLastSignal='',rouletteLastBroadcast=0,rouletteLastPhase='';
+  let rouletteTicker=null;
   const advanceRoulette=()=>{
-    const result=rouletteTick(),signal=result.roundId+':'+result.phase+':'+result.version;
+    const result=rouletteTick();
+    if(!result){
+      clearInterval(rouletteTicker);
+      rouletteTicker=null;
+      return;
+    }
+    const signal=result.roundId+':'+result.phase+':'+result.version;
     const stamp=Date.now();
     if(signal!==rouletteLastSignal&&(result.phase!==rouletteLastPhase||stamp-rouletteLastBroadcast>=850)){
       rouletteLastSignal=signal;rouletteLastBroadcast=stamp;rouletteLastPhase=result.phase;
       notifyEveryone('roulette',{roundId:result.roundId,phase:result.phase,version:result.version});
     }
   };
-  const rouletteTicker=setInterval(()=>{try{advanceRoulette();}catch(error){console.error('[Live Roulette]',String(error.message));}},500);
-  rouletteTicker.unref();
-  try{advanceRoulette();}catch(error){console.error('[Live Roulette startup]',String(error.message));}
+  function startRouletteTicker(){
+    if(rouletteTicker)return;
+    rouletteTicker=setInterval(()=>{
+      try{advanceRoulette();}catch(error){console.error('[Live Roulette]',String(error.message));}
+    },500);
+    rouletteTicker.unref();
+  }
+  function watchRoulette(user){
+    const state=rouletteWatch(user);
+    startRouletteTicker();
+    return state;
+  }
+  // Recover a persisted round on startup even if all viewers have left.
+  startRouletteTicker();
   website.on('close',()=>{arcadeMembers.clear();clearInterval(arcadeTicker);clearInterval(blackjackTicker);clearInterval(rouletteTicker);megaSync.stop();megaBrowser.stop();});
   return website;
 }
